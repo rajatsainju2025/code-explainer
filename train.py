@@ -1,6 +1,6 @@
 import torch
 from datasets import Dataset
-from transformer import AutoTokenizer, AutoModelForCausalLLM, TrainingArguments, Trainer
+from transformers import AutoTokenizer, AutoModelForCausalLM, TrainingArguments, Trainer
 
 def train_model():
 
@@ -24,7 +24,7 @@ def train_model():
     # 2. Initialize Tokenizer and Model
     model_name = "distilgpt2"
     tokenizer = AutoTokenizer.from_pretrained(model_name)
-    model = AutoModelForCausalLLM.from_pretrained(model_name)
+    model = AutoModelForCausalLM.from_pretrained(model_name)
 
     # GPT-2 doesn't have a default pad token, so we set it to the end-of-sentence token.
     if tokenizer.pad_token is None:
@@ -47,6 +47,10 @@ def train_model():
     
     tokenized_dataset = tokenized_dataset.map(set_labels, batched=False)
 
+    """    The dataset is now tokenized and ready for training.
+    Each example has 'input_ids' for the input and 'labels' for the target output.
+    """
+
     # 4. Set Training Arguments
     training_args = TrainingArguments(
         output_dir="./results",             # Directory to save the model
@@ -58,19 +62,40 @@ def train_model():
         logging_steps=10
     )
 
+    """
+    This sets up the training arguments for the Trainer.
+    - `output_dir`: Where to save the model and logs.
+    - `num_train_epochs`: Number of epochs to train.
+    - `per_device_train_batch_size`: Batch size per device (GPU).
+    - `warmup_steps`: Number of warmup steps for learning rate scheduler.
+    - `weight_decay`: Weight decay for regularization.
+    - `logging_dir`: Directory for logging training metrics.
+    - `logging_steps`: Frequency of logging.
+    
+    """
     # 5. Initialize Trainer and Train
     trainer = Trainer(
-        model-model,
+        model=model,
         args=training_args,
         train_dataset=tokenized_dataset,
-        tokenizer=tokenizer,
     )
+    """
+    The Trainer class simplifies the training loop.
+    - `model`: The model to train.
+    - `args`: Training arguments defined above.
+    - `train_dataset`: The dataset to train on.
+    """
+
+    # Start training
 
     print("Start model training...")
     trainer.train()
     print("Training finished!")
 
-    # 6. Save the final model
+    # 6. Save the final model and tokenizer
     trainer.save_model("./results")
-    print("Model saved to ./results")
+    tokenizer.save_pretrained("./results")
+    print("Model and tokenizer saved to ./results")
 
+if __name__ == "__main__":
+    train_model()
