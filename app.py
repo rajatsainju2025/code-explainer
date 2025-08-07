@@ -39,7 +39,7 @@ iface = gr.Interface(
     outputs=gr.Textbox(label='Explanation'),
     title="🐍 Python Code Explainer",
     description="Enter a snippet of Python code and see an AI-generated explanation. This app uses a fine-tuned 'distilgpt2' model.",
-    allow_flagging="never"
+    flagging_mode="never"
 )
 
 # Launch the app

@@ -1,0 +1,43 @@
+"""Configuration file for code explainer training and inference."""
+
+# Model configuration
+model:
+  name: "distilgpt2"  # Base model to use
+  max_length: 512     # Maximum sequence length
+  temperature: 0.7    # Sampling temperature
+  top_p: 0.9         # Nucleus sampling parameter
+  top_k: 50          # Top-k sampling parameter
+  
+# Training configuration  
+training:
+  output_dir: "./results"
+  num_train_epochs: 50
+  per_device_train_batch_size: 4
+  per_device_eval_batch_size: 4
+  warmup_steps: 100
+  weight_decay: 0.01
+  logging_steps: 10
+  eval_steps: 50
+  save_steps: 100
+  evaluation_strategy: "steps"
+  load_best_model_at_end: true
+  metric_for_best_model: "eval_loss"
+  greater_is_better: false
+  
+# Data configuration
+data:
+  train_file: "data/train.json"
+  eval_file: "data/eval.json"
+  test_file: "data/test.json"
+  max_examples: null  # null for all examples
+  
+# Prompt configuration
+prompt:
+  template: "Explain this Python code:\n```python\n{code}\n```\nExplanation:"
+  max_code_length: 200
+  max_explanation_length: 300
+
+# Logging configuration
+logging:
+  level: "INFO"
+  log_file: "logs/code_explainer.log"
