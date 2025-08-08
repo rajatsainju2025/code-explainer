@@ -8,24 +8,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- Advanced training pipeline with evaluation metrics
-- Modern CLI interface with rich formatting
-- Comprehensive configuration system
-- Package structure for easy installation
-- Docker support for containerized deployment
-- Extensive documentation and examples
-- Type hints throughout codebase
-- Logging and monitoring capabilities
+- CI: GitHub Actions with lint, type-check, tests, and coverage upload
+- Pre-commit hooks (black, isort, ruff, mypy, basic checks)
+- Testing: pytest unit tests and coverage
+- Benchmarks: simple inference timing
+- API: FastAPI server for explanation endpoint
+- Web: Streamlit app scaffold
+- Data: loaders (JSON/CSV/HF), augmentation utilities
+- Metrics: BLEU, ROUGE-L, CodeBERTScore (optional)
+- Dockerfile for web serving
 
 ### Changed
-- Restructured project as proper Python package
-- Enhanced model training with early stopping
-- Improved error handling and validation
-- Updated dependencies to latest versions
+- Trainer now supports augmentation, eval metrics, and safer typing
+- Config extended for data and optimization flags
+- Requirements include metrics and API/web deps
 
 ### Fixed
-- Tokenizer loading issues in inference
-- Memory optimization for large models
+- Tokenizer/model typing and safe saves
+
+## [0.2.0] - 2025-08-08
+
+### Added
+- Phase 1 foundation: code quality tooling, CI, tests, datasets/metrics modules, API and Streamlit scaffolds
+
+### Changed
+- Bump package version to 0.2.0
 
 ## [0.1.0] - 2025-01-XX
 

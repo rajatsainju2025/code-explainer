@@ -17,7 +17,7 @@ else:
 
 setup(
     name="code-explainer",
-    version="0.1.0",
+    version="0.2.0",
     author="Rajat Sainju",
     author_email="your.email@example.com",
     description="An efficient LLM-powered tool for explaining code snippets",

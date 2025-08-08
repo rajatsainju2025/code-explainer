@@ -19,10 +19,11 @@ training:
   logging_steps: 10
   eval_steps: 50
   save_steps: 100
-  evaluation_strategy: "steps"
   load_best_model_at_end: true
-  metric_for_best_model: "eval_loss"
-  greater_is_better: false
+  # Optimization flags
+  fp16: false
+  gradient_checkpointing: false
+  torch_compile: false
   
 # Data configuration
 data:
@@ -30,10 +31,19 @@ data:
   eval_file: "data/eval.json"
   test_file: "data/test.json"
   max_examples: null  # null for all examples
+  augment_ratio: 0.0
+  # Optional: Hugging Face Hub dataset id
+  hub_id: null
+  hub_split: "train"
   
 # Prompt configuration
 prompt:
   template: "Explain this Python code:\n```python\n{code}\n```\nExplanation:"
+  language_templates:
+    python: "Explain this Python code:\n```python\n{code}\n```\nExplanation:"
+    javascript: "Explain this JavaScript code:\n```javascript\n{code}\n```\nExplanation:"
+    java: "Explain this Java code:\n```java\n{code}\n```\nExplanation:"
+    cpp: "Explain this C++ code:\n```cpp\n{code}\n```\nExplanation:"
   max_code_length: 200
   max_explanation_length: 300
 
