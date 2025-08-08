@@ -5,12 +5,13 @@
 [![Python](https://img.shields.io/badge/Python-3.8%2B-blue.svg)](https://python.org)
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.0%2B-red.svg)](https://pytorch.org)
 [![Transformers](https://img.shields.io/badge/🤗-Transformers-yellow.svg)](https://huggingface.co/transformers)
+[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/rajatsainju2025/code-explainer/blob/main/examples/colab_quickstart.ipynb)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
 **A state-of-the-art LLM-powered tool for generating human-readable explanations of Python code snippets.**
 
-[🚀 Quick Start](#quick-start) • [📖 Documentation](#documentation) • [🔧 Installation](#installation) • [💡 Examples](#examples) • [🤝 Contributing](#contributing)
+[🚀 Quick Start](#quick-start) • [📖 Documentation](#documentation) • [🔧 Installation](#installation) • [💡 Examples](#examples) • [🤝 Contributing](#contributing) • [💬 Discussions](https://github.com/rajatsainju2025/code-explainer/discussions)
 
 </div>
 
