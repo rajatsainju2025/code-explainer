@@ -188,5 +188,48 @@ def serve(host, port, model_path):
         console.print(Panel.fit(f"❌ Failed to start server: {e}", style="bold red"))
 
 
+@main.command()
+@click.option('--model-path', '-m', default='./results', help='Path to trained model directory')
+@click.option('--config', '-c', default='configs/default.yaml', help='Path to configuration file')
+@click.option('--test-file', '-t', default=None, help='Optional path to test JSON overriding config')
+def eval(model_path, config, test_file):
+    """Evaluate a model on a test set (BLEU/ROUGE/BERTScore)."""
+    from .model import CodeExplainer
+    from .metrics.evaluate import compute_bleu, compute_rouge_l, compute_codebert_score
+    import json
+
+    console.print(Panel.fit("📏 Running evaluation", style="bold blue"))
+    explainer = CodeExplainer(model_path=model_path, config_path=config)
+
+    # Load test data
+    if test_file is None:
+        cfg = explainer.config
+        test_file = cfg.get('data', {}).get('test_file')
+    if not test_file:
+        console.print(Panel.fit("❌ No test file provided or configured.", style="bold red"))
+        return
+    with open(test_file, 'r') as f:
+        data = json.load(f)
+
+    refs = []
+    preds = []
+    for ex in data:
+        code = ex.get('code', '')
+        ref = ex.get('explanation', '')
+        try:
+            pred = explainer.explain_code(code)
+        except Exception:
+            pred = ""
+        refs.append(ref)
+        preds.append(pred)
+
+    bleu = compute_bleu(refs, preds)
+    rougeL = compute_rouge_l(refs, preds)
+    bert = compute_codebert_score(refs, preds)
+
+    metrics = {"bleu": bleu, "rougeL": rougeL, "bert_score": bert}
+    console.print(Panel.fit(str(metrics), style="bold green"))
+
+
 if __name__ == "__main__":
     main()

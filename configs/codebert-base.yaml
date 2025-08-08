@@ -1,0 +1,49 @@
+# Preset: CodeBERT Base (encoder; use seq2seq generation via small decoder or embeddings-based)
+# Note: For generation tasks, prefer CodeT5. This preset keeps arch=causal for simplicity by using a causal LM (CodeGPT) variant.
+model:
+  arch: "causal"
+  name: "microsoft/CodeGPT-small-py"
+  max_length: 256
+  temperature: 0.7
+  top_p: 0.9
+  top_k: 50
+  torch_dtype: "auto"
+  load_in_8bit: false
+
+training:
+  output_dir: "./results-codegpt-small"
+  num_train_epochs: 10
+  per_device_train_batch_size: 4
+  per_device_eval_batch_size: 4
+  warmup_steps: 100
+  weight_decay: 0.01
+  logging_steps: 10
+  eval_steps: 50
+  save_steps: 100
+  evaluation_strategy: "steps"
+  load_best_model_at_end: true
+  fp16: false
+  bf16: false
+  gradient_checkpointing: false
+  torch_compile: false
+
+data:
+  train_file: "data/train.json"
+  eval_file: "data/eval.json"
+  test_file: "data/test.json"
+  max_examples: null
+  augment_ratio: 0.0
+
+prompt:
+  template: "Explain this code:\n```\n{code}\n```\nExplanation:"
+  language_templates:
+    python: "Explain this Python code:\n```python\n{code}\n```\nExplanation:"
+    javascript: "Explain this JavaScript code:\n```javascript\n{code}\n```\nExplanation:"
+    java: "Explain this Java code:\n```java\n{code}\n```\nExplanation:"
+    cpp: "Explain this C++ code:\n```cpp\n{code}\n```\nExplanation:"
+  max_code_length: 200
+  max_explanation_length: 200
+
+logging:
+  level: "INFO"
+  log_file: "logs/code_explainer_codegpt_small.log"

@@ -105,6 +105,34 @@ Please use clear and meaningful commit messages:
 - Limit the first line to 72 characters or less
 - Reference issues and pull requests liberally after the first line
 
+# Contributing
+
+We welcome contributions of all kinds!
+
+## Getting Started
+- Fork the repo and create a feature branch
+- Run tests and linters locally
+- Open a PR with a clear description
+
+## Good First Issues
+Use the template at `.github/ISSUE_TEMPLATE/good_first_issue.md` to create beginner-friendly tasks. Please:
+- Add `good first issue` and `help wanted` labels
+- Provide acceptance criteria and file pointers
+
+## Roadmap Proposals
+Use `.github/ISSUE_TEMPLATE/roadmap.md` for larger proposals. Include milestones and risks.
+
+## Local Dev
+- Install dev deps: `pip install -e .[dev,web]`
+- Run tests: `pytest`
+- Lint/typecheck: `flake8` / `mypy src/`
+
+## Code Style
+- Black + isort
+- Type hints encouraged
+
+Thanks for contributing!
+
 ## License
 
 By contributing, you agree that your contributions will be licensed under its MIT License.

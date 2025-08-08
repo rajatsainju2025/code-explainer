@@ -1,0 +1,48 @@
+# Preset: StarCoderBase-1B (causal)
+model:
+  arch: "causal"
+  name: "bigcode/starcoderbase-1b"
+  max_length: 512
+  temperature: 0.7
+  top_p: 0.95
+  top_k: 50
+  torch_dtype: "auto"
+  load_in_8bit: true
+
+training:
+  output_dir: "./results-starcoderbase-1b"
+  num_train_epochs: 3
+  per_device_train_batch_size: 1
+  per_device_eval_batch_size: 1
+  warmup_steps: 50
+  weight_decay: 0.01
+  logging_steps: 10
+  eval_steps: 50
+  save_steps: 100
+  evaluation_strategy: "steps"
+  load_best_model_at_end: true
+  fp16: false
+  bf16: false
+  gradient_checkpointing: true
+  torch_compile: false
+
+data:
+  train_file: "data/train.json"
+  eval_file: "data/eval.json"
+  test_file: "data/test.json"
+  max_examples: 2000
+  augment_ratio: 0.0
+
+prompt:
+  template: "Explain this code:\n```\n{code}\n```\nExplanation:"
+  language_templates:
+    python: "Explain this Python code:\n```python\n{code}\n```\nExplanation:"
+    javascript: "Explain this JavaScript code:\n```javascript\n{code}\n```\nExplanation:"
+    java: "Explain this Java code:\n```java\n{code}\n```\nExplanation:"
+    cpp: "Explain this C++ code:\n```cpp\n{code}\n```\nExplanation:"
+  max_code_length: 200
+  max_explanation_length: 300
+
+logging:
+  level: "INFO"
+  log_file: "logs/code_explainer_starcoder_1b.log"
