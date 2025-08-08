@@ -1,4 +1,17 @@
-"""Command line interface for code explainer."""
+"""Command line interface for code explainer.
+
+Aliases (installed via console scripts):
+- cx-train -> code_explainer.cli:train
+- cx-serve -> code_explainer.cli:serve
+- cx-explain -> code_explainer.cli:explain
+- cx-explain-file -> code_explainer.cli:explain_file
+
+Examples:
+  cx-train --config configs/default.yaml
+  cx-explain "print('hello')"
+  cx-explain-file path/to/script.py
+  cx-serve --host 0.0.0.0 --port 7860
+"""
 
 import click
 import logging
@@ -14,7 +27,7 @@ from .utils import setup_logging
 console = Console()
 
 
-@click.group()
+@click.group(help="Code Explainer CLI - Train and use LLM models for code explanation.\n\nAliases: cx-train, cx-serve, cx-explain, cx-explain-file")
 @click.option('--verbose', '-v', is_flag=True, help='Enable verbose logging')
 def main(verbose):
     """Code Explainer CLI - Train and use LLM models for code explanation."""

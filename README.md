@@ -63,17 +63,33 @@ print(explanation)
 ### CLI Usage
 
 ```bash
-# Train a new model
+# Train a new model (primary command)
 code-explainer train --config configs/default.yaml
+
+# Aliases
+cx-train --config configs/default.yaml
+cx-explain "print('hello')"
+cx-explain-file script.py
+cx-serve --port 8080
+
+# Start web interface (primary)
+code-explainer serve --port 8080
 
 # Explain code interactively
 code-explainer explain
 
-# Start web interface
-code-explainer serve --port 8080
-
 # Explain a Python file
 code-explainer explain-file script.py
+```
+
+### From repo scripts
+
+```bash
+# Train using repo entrypoint (uses the same config-driven trainer)
+python train.py --config configs/default.yaml
+
+# Launch local app using packaged model/inference
+python app.py
 ```
 
 ## 🏗️ Architecture

@@ -66,6 +66,11 @@ setup(
         "console_scripts": [
             "code-explainer=code_explainer.cli:main",
             "train-code-explainer=code_explainer.cli:train",
+            # Friendly aliases
+            "cx-train=code_explainer.cli:train",
+            "cx-explain=code_explainer.cli:explain",
+            "cx-explain-file=code_explainer.cli:explain_file",
+            "cx-serve=code_explainer.cli:serve",
         ],
     },
     include_package_data=True,
