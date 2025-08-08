@@ -7,7 +7,7 @@ from pathlib import Path
 import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM
 
-from .utils import load_config, get_device
+from .utils import load_config, get_device, prompt_for_language
 
 logger = logging.getLogger(__name__)
 
@@ -51,43 +51,36 @@ class CodeExplainer:
             self.model.eval()
             
     def explain_code(self, code: str, max_length: Optional[int] = None) -> str:
-        """Generate explanation for the given code.
-        
-        Args:
-            code: Python code to explain
-            max_length: Maximum length of generated explanation
-            
-        Returns:
-            Generated explanation
-        """
+        """Generate explanation for the given code."""
         if max_length is None:
             max_length = self.config["model"]["max_length"]
-            
-        # Format prompt
-        prompt_template = self.config["prompt"]["template"]
-        prompt = prompt_template.format(code=code.strip())
         
-        # Tokenize input
-        inputs = self.tokenizer(prompt, return_tensors="pt").to(self.device)
+        # Bind tokenizer/model to satisfy type checkers
+        assert self.tokenizer is not None and self.model is not None
+        tok = self.tokenizer
+        mdl = self.model
         
-        # Generate explanation
+        # Language-aware prompt
+        prompt = prompt_for_language(self.config, code)
+        
+        inputs = tok(prompt, return_tensors="pt")
+        inputs = {k: v.to(self.device) for k, v in inputs.items()}
+        
         with torch.no_grad():
-            outputs = self.model.generate(
-                inputs.input_ids,
-                max_length=len(inputs.input_ids[0]) + 150,  # Add space for explanation
+            outputs = mdl.generate(
+                inputs["input_ids"],
+                max_length=inputs["input_ids"].shape[1] + 150,
                 temperature=self.config["model"]["temperature"],
                 top_p=self.config["model"]["top_p"],
                 top_k=self.config["model"]["top_k"],
                 do_sample=True,
-                pad_token_id=self.tokenizer.eos_token_id,
+                pad_token_id=tok.eos_token_id,
                 no_repeat_ngram_size=2,
-                early_stopping=True
+                early_stopping=True,
             )
         
-        # Decode and extract explanation
-        generated_text = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
+        generated_text = tok.decode(outputs[0], skip_special_tokens=True)
         explanation = generated_text[len(prompt):].strip()
-        
         return explanation
     
     def explain_code_batch(self, codes: List[str]) -> List[str]:
