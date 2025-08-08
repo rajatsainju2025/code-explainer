@@ -34,28 +34,48 @@ class CodeExplainer:
         
     def _load_model(self) -> None:
         """Load the trained model and tokenizer."""
+        dtype_str = self.config.get("model", {}).get("torch_dtype", "auto")
+        dtype_map = {
+            "float16": torch.float16,
+            "fp16": torch.float16,
+            "bfloat16": torch.bfloat16,
+            "bf16": torch.bfloat16,
+            "auto": "auto",
+        }
+        torch_dtype = dtype_map.get(str(dtype_str).lower(), "auto")
+        load_in_8bit = bool(self.config.get("model", {}).get("load_in_8bit", False))
+        if load_in_8bit and self.device in ("cpu", "mps"):
+            load_in_8bit = False
+        
+        from typing import Union
+        def _load_from(src: Union[Path, str]):
+            tok = AutoTokenizer.from_pretrained(src)
+            if getattr(tok, "pad_token", None) is None:
+                tok.pad_token = tok.eos_token  # type: ignore[assignment]
+            model_kwargs: Dict[str, Any] = {"torch_dtype": torch_dtype}
+            if load_in_8bit:
+                model_kwargs.update({"load_in_8bit": True, "device_map": "auto"})
+            if self.arch == "seq2seq":
+                mdl = AutoModelForSeq2SeqLM.from_pretrained(src, **model_kwargs)
+            else:
+                mdl = AutoModelForCausalLM.from_pretrained(src, **model_kwargs)
+                if getattr(mdl.config, "pad_token_id", None) is None:
+                    mdl.config.pad_token_id = tok.pad_token_id  # type: ignore[assignment]
+            if not load_in_8bit:
+                mdl.to(self.device)
+            mdl.eval()
+            return tok, mdl
+        
         try:
             logger.info(f"Loading model from {self.model_path}")
-            self.tokenizer = AutoTokenizer.from_pretrained(self.model_path)
-            if self.arch == "seq2seq":
-                self.model = AutoModelForSeq2SeqLM.from_pretrained(self.model_path)
-            else:
-                self.model = AutoModelForCausalLM.from_pretrained(self.model_path)
-            self.model.to(self.device)
-            self.model.eval()
+            self.tokenizer, self.model = _load_from(self.model_path)
             logger.info("Model loaded successfully")
         except Exception as e:
             logger.error(f"Failed to load model: {e}")
             # Fallback to base model
             logger.info("Falling back to base model")
             model_name = self.config["model"]["name"]
-            self.tokenizer = AutoTokenizer.from_pretrained(model_name)
-            if self.arch == "seq2seq":
-                self.model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
-            else:
-                self.model = AutoModelForCausalLM.from_pretrained(model_name)
-            self.model.to(self.device)
-            self.model.eval()
+            self.tokenizer, self.model = _load_from(model_name)
             
     def explain_code(self, code: str, max_length: Optional[int] = None) -> str:
         """Generate explanation for the given code."""

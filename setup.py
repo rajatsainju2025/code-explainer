@@ -17,7 +17,7 @@ else:
 
 setup(
     name="code-explainer",
-    version="0.2.0",
+    version="0.2.1",
     author="Rajat Sainju",
     author_email="your.email@example.com",
     description="An efficient LLM-powered tool for explaining code snippets",
@@ -27,7 +27,7 @@ setup(
     package_dir={"": "src"},
     packages=find_packages(where="src"),
     classifiers=[
-        "Development Status :: 3 - Alpha",
+        "Development Status :: 4 - Beta",
         "Intended Audience :: Developers",
         "Topic :: Software Development :: Documentation",
         "Topic :: Scientific/Engineering :: Artificial Intelligence",

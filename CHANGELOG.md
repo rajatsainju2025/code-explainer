@@ -26,6 +26,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Tokenizer/model typing and safe saves
 
+## [0.2.1] - 2025-08-08
+
+### Added
+- Model presets: CodeT5 (small/base), CodeGPT-small, StarCoderBase-1B
+- Eval CLI: `code-explainer eval` computing BLEU/ROUGE/BERTScore
+- CLI aliases: `cx-train`, `cx-explain`, `cx-explain-file`, `cx-serve`
+- Issue templates: Good First Issue and Roadmap
+- Tests: eval CLI smoke test
+
+### Changed
+- Trainer: arch-aware (causal/seq2seq), dtype/8-bit config, proper tokenization/labels, seq2seq collator & trainer args
+- Inference/app: config-driven `CodeExplainer` and refactored `app.py`, `train.py`
+- README: alias examples and config-driven flows
+
 ## [0.2.0] - 2025-08-08
 
 ### Added
