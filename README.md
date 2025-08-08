@@ -80,6 +80,9 @@ code-explainer explain
 
 # Explain a Python file
 code-explainer explain-file script.py
+
+# Evaluate a trained model on a test set
+code-explainer eval --config configs/default.yaml
 ```
 
 ### From repo scripts
@@ -131,6 +134,20 @@ prompt:
   template: "Explain this Python code:\n```python\n{code}\n```\nExplanation:"
 ```
 
+## 📦 Model Presets
+
+Use ready-made presets to switch models quickly:
+
+| Preset | Arch | Base Model | Config | Train | Evaluate |
+|-------|------|------------|--------|-------|----------|
+| DistilGPT-2 (default) | causal | distilgpt2 | `configs/default.yaml` | `cx-train -c configs/default.yaml` | `code-explainer eval -c configs/default.yaml` |
+| CodeT5 Small | seq2seq | Salesforce/codet5-small | `configs/codet5-small.yaml` | `cx-train -c configs/codet5-small.yaml` | `code-explainer eval -c configs/codet5-small.yaml` |
+| CodeT5 Base | seq2seq | Salesforce/codet5-base | `configs/codet5-base.yaml` | `cx-train -c configs/codet5-base.yaml` | `code-explainer eval -c configs/codet5-base.yaml` |
+| CodeGPT Small (CodeBERT family) | causal | microsoft/CodeGPT-small-py | `configs/codebert-base.yaml` | `cx-train -c configs/codebert-base.yaml` | `code-explainer eval -c configs/codebert-base.yaml` |
+| StarCoderBase 1B | causal | bigcode/starcoderbase-1b | `configs/starcoderbase-1b.yaml` | `cx-train -c configs/starcoderbase-1b.yaml` | `code-explainer eval -c configs/starcoderbase-1b.yaml` |
+
+Data paths in each config default to the tiny examples in `data/`. Override any path via CLI flags (e.g., `--data` for training or `--test-file` for eval).
+
 ## 📖 Documentation
 
 ### Training Your Own Model
@@ -159,6 +176,10 @@ print(f"Line count: {analysis['line_count']}")
 ```
 
 ## 💡 Examples
+
+See quick-start examples in `examples/` (training, evaluation, and serving with presets). Start here:
+
+- examples/README.md
 
 <details>
 <summary>📝 Example Explanations</summary>

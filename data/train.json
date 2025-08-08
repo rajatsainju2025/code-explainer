@@ -1,0 +1,12 @@
+[
+  {"code": "print('Hello, world!')", "explanation": "Prints the string 'Hello, world!' to the console."},
+  {"code": "def add(a, b):\n    return a + b", "explanation": "Defines a function add that returns the sum of a and b."},
+  {"code": "for i in range(3):\n    print(i)", "explanation": "Loops from 0 to 2 and prints each number."},
+  {"code": "squares = [x*x for x in range(5)]", "explanation": "Creates a list of squares for numbers 0 through 4."},
+  {"code": "d = {'a': 1, 'b': 2}\nval = d['a']", "explanation": "Creates a dictionary and accesses the value for key 'a'."},
+  {"code": "try:\n    x = int('42')\nexcept ValueError:\n    x = 0", "explanation": "Attempts to convert '42' to an integer; if it fails, sets x to 0."},
+  {"code": "def factorial(n):\n    if n <= 1:\n        return 1\n    return n * factorial(n-1)", "explanation": "Computes the factorial of n recursively with base case 1."},
+  {"code": "nums = [1,2,3]\ns = sum(nums)", "explanation": "Defines a list and computes the sum of its elements."},
+  {"code": "text = 'abcde'\nsub = text[1:4]", "explanation": "Slices the string to get characters from index 1 to 3 (\"bcd\")."},
+  {"code": "class Counter:\n    def __init__(self):\n        self.value = 0\n    def inc(self):\n        self.value += 1", "explanation": "Defines a Counter class with an internal value and an increment method."}
+]

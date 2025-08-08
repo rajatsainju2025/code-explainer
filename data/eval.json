@@ -1,0 +1,5 @@
+[
+  {"code": "x = 1 + 1", "explanation": "Assigns 2 to x by adding 1 and 1."},
+  {"code": "items = {'a': 1}\nitems.get('b', 0)", "explanation": "Gets the value for key 'b' or returns 0 if missing."},
+  {"code": "name = input()\nprint(name)", "explanation": "Reads a line from input and prints it."}
+]

@@ -1,0 +1,5 @@
+[
+  {"code": "print('hi')", "explanation": "Prints 'hi'."},
+  {"code": "total = sum([1,2,3])", "explanation": "Sums numbers in a list and stores the result in total."},
+  {"code": "for c in 'ab':\n    print(c)", "explanation": "Iterates over characters 'a' and 'b' and prints each one."}
+]
