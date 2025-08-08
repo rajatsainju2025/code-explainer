@@ -1,22 +1,27 @@
 """Advanced trainer for code explanation models."""
 
 import logging
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, cast
 from pathlib import Path
 import json
 
 import torch
 from datasets import Dataset, DatasetDict
 from transformers import (
-    AutoTokenizer, 
-    AutoModelForCausalLM, 
-    TrainingArguments, 
+    AutoTokenizer,
+    AutoModelForCausalLM,
+    TrainingArguments,
     Trainer,
-    EarlyStoppingCallback
+    EarlyStoppingCallback,
 )
+from transformers.tokenization_utils_base import PreTrainedTokenizerBase
+from transformers.modeling_utils import PreTrainedModel
 from sklearn.model_selection import train_test_split
 
 from .utils import load_config, setup_logging, get_device
+from .data.datasets import build_dataset_dict, DatasetConfig
+from .augment.simple import augment_dataset
+from .metrics.evaluate import compute_bleu, compute_rouge_l
 
 logger = logging.getLogger(__name__)
 
@@ -39,9 +44,9 @@ class CodeExplainerTrainer:
         self.device = get_device()
         logger.info(f"Using device: {self.device}")
         
-        self.tokenizer = None
-        self.model = None
-        self.trainer = None
+        self.tokenizer: Optional[PreTrainedTokenizerBase] = None
+        self.model: Optional[PreTrainedModel] = None
+        self.trainer: Optional[Trainer] = None
         
     def load_model(self) -> None:
         """Load tokenizer and model."""
@@ -52,10 +57,11 @@ class CodeExplainerTrainer:
         self.model = AutoModelForCausalLM.from_pretrained(model_name)
         
         # Set pad token if not present
+        assert self.tokenizer is not None
         if self.tokenizer.pad_token is None:
             self.tokenizer.pad_token = self.tokenizer.eos_token
             
-    def load_dataset(self, data_path: str = None) -> DatasetDict:
+    def load_dataset(self, data_path: Optional[str] = None) -> DatasetDict:
         """Load and prepare dataset for training.
         
         Args:
@@ -65,100 +71,62 @@ class CodeExplainerTrainer:
             DatasetDict with train/eval splits
         """
         if data_path is None:
-            # Use default hardcoded dataset for demo
-            data = self._get_default_dataset()
+            # Use config files if available
+            dc = self.config.get("data", {})
+            ds_dict = build_dataset_dict(DatasetConfig(
+                train_file=dc.get("train_file"),
+                eval_file=dc.get("eval_file"),
+                test_file=dc.get("test_file"),
+                max_examples=dc.get("max_examples"),
+            ))
         else:
             with open(data_path, 'r') as f:
-                data = json.load(f)
-                
-        logger.info(f"Loaded {len(data)} examples")
+                ds_list = json.load(f)
+            tr, ev = train_test_split(ds_list, test_size=0.2, random_state=42)
+            ds_dict = {"train": tr, "eval": ev}
         
-        # Split data into train/eval
-        train_data, eval_data = train_test_split(
-            data, test_size=0.2, random_state=42
-        )
+        # Optional augmentation
+        if self.config.get("data", {}).get("augment_ratio", 0):
+            ratio = float(self.config["data"]["augment_ratio"])  # type: ignore[arg-type]
+            ds_dict["train"] = augment_dataset(ds_dict["train"], ratio=ratio)
         
-        # Create dataset dict
+        logger.info(f"Loaded {len(ds_dict['train'])} train and {len(ds_dict.get('eval', []))} eval examples")
+        
+        # Convert to HF datasets
         dataset_dict = DatasetDict({
-            'train': Dataset.from_list(train_data),
-            'eval': Dataset.from_list(eval_data)
+            'train': Dataset.from_list(ds_dict['train']),
+            'eval': Dataset.from_list(ds_dict.get('eval', ds_dict['train'][: max(1, int(0.2*len(ds_dict['train']))) ]))
         })
         
         return dataset_dict
-        
-    def _get_default_dataset(self) -> List[Dict[str, str]]:
-        """Get default demo dataset."""
-        return [
-            {
-                "code": "def add(a, b):\n    return a + b", 
-                "explanation": "This is a Python function named 'add' that takes two arguments, 'a' and 'b', and returns their sum."
-            },
-            {
-                "code": "x = [1, 2, 3]\nprint(x[0])", 
-                "explanation": "This code initializes a list named 'x' with three numbers. It then prints the first element of the list, which is 1."
-            },
-            {
-                "code": "for i in range(3):\n    print(i)", 
-                "explanation": "This is a 'for' loop that iterates three times. It will print the numbers 0, 1, and 2, each on a new line."
-            },
-            {
-                "code": "import math\nprint(math.sqrt(16))", 
-                "explanation": "This code imports Python's built-in 'math' module. It then calculates and prints the square root of 16, which is 4.0."
-            },
-            {
-                "code": "def greet(name):\n    return f'Hello, {name}!'", 
-                "explanation": "This defines a function 'greet' that takes one argument, 'name'. It returns a formatted string that says hello to the provided name."
-            },
-            {
-                "code": "a = 5\nb = 10\na, b = b, a", 
-                "explanation": "This code swaps the values of two variables. Initially, 'a' is 5 and 'b' is 10. After execution, 'a' becomes 10 and 'b' becomes 5."
-            },
-            {
-                "code": "d = {'key': 'value'}\nprint(d['key'])", 
-                "explanation": "This initializes a dictionary 'd' with one key-value pair. It then prints the value associated with the key 'key', which is 'value'."
-            },
-            {
-                "code": "class Rectangle:\n    def __init__(self, width, height):\n        self.width = width\n        self.height = height", 
-                "explanation": "This defines a Python class called 'Rectangle' with an initializer method that takes width and height parameters and stores them as instance attributes."
-            },
-            {
-                "code": "try:\n    result = 10 / 0\nexcept ZeroDivisionError:\n    print('Cannot divide by zero')", 
-                "explanation": "This code uses exception handling to catch a division by zero error. When the error occurs, it prints a helpful message instead of crashing."
-            },
-            {
-                "code": "numbers = [1, 2, 3, 4, 5]\neven_numbers = [n for n in numbers if n % 2 == 0]", 
-                "explanation": "This code uses a list comprehension to filter even numbers from a list. It creates a new list containing only the numbers that are divisible by 2."
-            }
-        ]
-        
+
+    def _get_prompted_text(self, code: str, explanation: str) -> str:
+        prompt_template = self.config["prompt"]["template"]
+        return prompt_template.format(code=code) + explanation
+
     def preprocess_dataset(self, dataset: DatasetDict) -> DatasetDict:
-        """Preprocess dataset for training.
+        """Preprocess dataset for training."""
+        assert self.tokenizer is not None, "Tokenizer not loaded"
+        tok = self.tokenizer
         
-        Args:
-            dataset: Raw dataset
-            
-        Returns:
-            Tokenized dataset ready for training
-        """
         def tokenize_function(examples):
-            prompt_template = self.config["prompt"]["template"]
-            prompt = prompt_template.format(code=examples['code'])
-            text = prompt + examples['explanation']
-            
-            tokenized = self.tokenizer(
-                text, 
-                truncation=True, 
-                padding="max_length", 
-                max_length=self.config["model"]["max_length"]
+            text = self._get_prompted_text(examples['code'], examples['explanation'])
+            encoded = tok(
+                text,
+                truncation=True,
+                padding="max_length",
+                max_length=self.config["model"]["max_length"],
             )
-            
-            # Set labels for causal LM
-            tokenized["labels"] = tokenized["input_ids"].copy()
-            return tokenized
-            
+            input_ids = encoded.get("input_ids")
+            if isinstance(input_ids, list):
+                encoded["labels"] = list(input_ids)
+            else:
+                encoded["labels"] = input_ids
+            return encoded
+        
         logger.info("Tokenizing dataset...")
         tokenized_dataset = dataset.map(
-            tokenize_function, 
+            tokenize_function,
             batched=False,
             desc="Tokenizing"
         )
@@ -166,11 +134,10 @@ class CodeExplainerTrainer:
         return tokenized_dataset
         
     def setup_trainer(self, dataset: DatasetDict) -> None:
-        """Setup the Hugging Face trainer.
+        """Setup the Hugging Face trainer."""
+        assert self.model is not None, "Model not loaded"
+        assert self.tokenizer is not None, "Tokenizer not loaded"
         
-        Args:
-            dataset: Preprocessed dataset
-        """
         training_config = self.config["training"]
         
         training_args = TrainingArguments(
@@ -182,25 +149,44 @@ class CodeExplainerTrainer:
             weight_decay=training_config["weight_decay"],
             logging_dir="./logs",
             logging_steps=training_config["logging_steps"],
-            eval_steps=training_config["eval_steps"],
             save_steps=training_config["save_steps"],
-            evaluation_strategy=training_config["evaluation_strategy"],
             load_best_model_at_end=training_config["load_best_model_at_end"],
-            metric_for_best_model=training_config["metric_for_best_model"],
-            greater_is_better=training_config["greater_is_better"],
             report_to=["tensorboard"],
             save_safetensors=True,
         )
+        
+        tok = self.tokenizer
+        def compute_metrics(eval_pred):
+            predictions, labels = eval_pred
+            pred_texts: List[str] = []
+            ref_texts: List[str] = []
+            try:
+                if isinstance(predictions, tuple):
+                    predictions = predictions[0]
+                for p, l in zip(predictions, labels):
+                    try:
+                        pred_texts.append(tok.decode(list(p), skip_special_tokens=True))  # type: ignore[arg-type]
+                        ref_texts.append(tok.decode(list(l), skip_special_tokens=True))    # type: ignore[arg-type]
+                    except Exception:
+                        pred_texts.append("")
+                        ref_texts.append("")
+            except Exception:
+                pass
+            return {
+                "bleu": compute_bleu(ref_texts, pred_texts),
+                "rougeL": compute_rouge_l(ref_texts, pred_texts),
+            }
         
         self.trainer = Trainer(
             model=self.model,
             args=training_args,
             train_dataset=dataset["train"],
             eval_dataset=dataset["eval"],
-            callbacks=[EarlyStoppingCallback(early_stopping_patience=3)]
+            callbacks=[EarlyStoppingCallback(early_stopping_patience=3)],
+            compute_metrics=compute_metrics,
         )
         
-    def train(self, data_path: str = None) -> None:
+    def train(self, data_path: Optional[str] = None) -> None:
         """Train the model.
         
         Args:
@@ -208,40 +194,35 @@ class CodeExplainerTrainer:
         """
         logger.info("Starting training process...")
         
-        # Load model and data
         self.load_model()
         dataset = self.load_dataset(data_path)
         tokenized_dataset = self.preprocess_dataset(dataset)
-        
-        # Setup trainer
         self.setup_trainer(tokenized_dataset)
         
-        # Train model
+        assert self.trainer is not None, "Trainer not set up"
         logger.info("Beginning model training...")
         self.trainer.train()
         logger.info("Training completed!")
         
-        # Save model and tokenizer
         output_dir = self.config["training"]["output_dir"]
         logger.info(f"Saving model to {output_dir}")
         self.trainer.save_model(output_dir)
-        self.tokenizer.save_pretrained(output_dir)
+        cast(PreTrainedTokenizerBase, self.tokenizer).save_pretrained(output_dir)
         
-        # Save training metrics
         self._save_training_metrics(output_dir)
         
     def _save_training_metrics(self, output_dir: str) -> None:
-        """Save training metrics and configuration."""
+        assert self.trainer is not None and self.model is not None
         metrics_path = Path(output_dir) / "training_metrics.json"
         
         metrics = {
             "config": self.config,
-            "final_metrics": self.trainer.state.log_history[-1] if self.trainer.state.log_history else {},
+            "final_metrics": getattr(self.trainer.state, "log_history", [])[-1] if getattr(self.trainer, "state", None) and self.trainer.state.log_history else {},
             "device": self.device,
             "model_size": sum(p.numel() for p in self.model.parameters()),
         }
         
         with open(metrics_path, 'w') as f:
             json.dump(metrics, f, indent=2)
-            
+        
         logger.info(f"Training metrics saved to {metrics_path}")
