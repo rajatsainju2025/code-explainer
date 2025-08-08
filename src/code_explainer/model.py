@@ -5,7 +5,7 @@ from typing import List, Dict, Any, Optional
 from pathlib import Path
 
 import torch
-from transformers import AutoTokenizer, AutoModelForCausalLM
+from transformers import AutoTokenizer, AutoModelForCausalLM, AutoModelForSeq2SeqLM
 
 from .utils import load_config, get_device, prompt_for_language
 
@@ -25,6 +25,7 @@ class CodeExplainer:
         self.config = load_config(config_path)
         self.device = get_device()
         self.model_path = Path(model_path)
+        self.arch = self.config.get("model", {}).get("arch", "causal")
         
         # Initialize model and tokenizer
         self.tokenizer = None
@@ -36,7 +37,10 @@ class CodeExplainer:
         try:
             logger.info(f"Loading model from {self.model_path}")
             self.tokenizer = AutoTokenizer.from_pretrained(self.model_path)
-            self.model = AutoModelForCausalLM.from_pretrained(self.model_path)
+            if self.arch == "seq2seq":
+                self.model = AutoModelForSeq2SeqLM.from_pretrained(self.model_path)
+            else:
+                self.model = AutoModelForCausalLM.from_pretrained(self.model_path)
             self.model.to(self.device)
             self.model.eval()
             logger.info("Model loaded successfully")
@@ -46,7 +50,10 @@ class CodeExplainer:
             logger.info("Falling back to base model")
             model_name = self.config["model"]["name"]
             self.tokenizer = AutoTokenizer.from_pretrained(model_name)
-            self.model = AutoModelForCausalLM.from_pretrained(model_name)
+            if self.arch == "seq2seq":
+                self.model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
+            else:
+                self.model = AutoModelForCausalLM.from_pretrained(model_name)
             self.model.to(self.device)
             self.model.eval()
             
@@ -67,9 +74,11 @@ class CodeExplainer:
         inputs = {k: v.to(self.device) for k, v in inputs.items()}
         
         with torch.no_grad():
+            gen_max = int(max_length) if max_length is not None else 512
             outputs = mdl.generate(
                 inputs["input_ids"],
-                max_length=inputs["input_ids"].shape[1] + 150,
+                attention_mask=inputs.get("attention_mask"),
+                max_length=min(gen_max, inputs["input_ids"].shape[1] + 150),
                 temperature=self.config["model"]["temperature"],
                 top_p=self.config["model"]["top_p"],
                 top_k=self.config["model"]["top_k"],

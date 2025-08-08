@@ -2,12 +2,16 @@
 
 # Model configuration
 model:
+  arch: "causal"      # "causal" (GPT-like) or "seq2seq" (T5/CodeT5)
   name: "distilgpt2"  # Base model to use
   max_length: 512     # Maximum sequence length
   temperature: 0.7    # Sampling temperature
   top_p: 0.9         # Nucleus sampling parameter
   top_k: 50          # Top-k sampling parameter
-  
+  # Optimization/model loading
+  torch_dtype: "auto"   # "auto" | "float16" | "bfloat16"
+  load_in_8bit: false
+
 # Training configuration  
 training:
   output_dir: "./results"
@@ -19,9 +23,11 @@ training:
   logging_steps: 10
   eval_steps: 50
   save_steps: 100
+  evaluation_strategy: "steps"
   load_best_model_at_end: true
   # Optimization flags
   fp16: false
+  bf16: false
   gradient_checkpointing: false
   torch_compile: false
   
