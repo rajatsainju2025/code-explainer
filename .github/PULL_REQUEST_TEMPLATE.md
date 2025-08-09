@@ -1,15 +1,15 @@
 ## Summary
 
-- [ ] Feature
-- [ ] Bug Fix
-- [ ] Docs
+- Short description of the change
 
-## Description
+## Related Issues
 
-<!-- What does this PR change? -->
+Closes #
 
 ## Checklist
 
-- [ ] Linted and formatted
-- [ ] Added/updated tests
-- [ ] Updated docs/README if needed
+- [ ] Small, focused change (easy to review)
+- [ ] Tests added/updated
+- [ ] Docs updated (README/CHANGELOG/examples)
+- [ ] CI green
+- [ ] Linked to Discussions if applicable
