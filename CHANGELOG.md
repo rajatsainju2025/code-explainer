@@ -26,6 +26,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Tokenizer/model typing and safe saves
 
+## [0.2.2] - 2025-08-09
+
+### Added
+- Colab quickstart notebook and README badge
+- Discussions enabled with a “Start here” thread
+- 10-day contribution plan and README section
+- CODE_OF_CONDUCT.md, SECURITY.md, FUNDING.yml
+
+### Changed
+- Tests now use tiny models for speed
+- pyproject/setup metadata updated for PyPI scaffold
+- Package __version__ bumped to 0.2.2
+
 ## [0.2.1] - 2025-08-08
 
 ### Added
