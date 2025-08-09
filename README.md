@@ -6,6 +6,7 @@
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.0%2B-red.svg)](https://pytorch.org)
 [![Transformers](https://img.shields.io/badge/🤗-Transformers-yellow.svg)](https://huggingface.co/transformers)
 [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/rajatsainju2025/code-explainer/blob/main/examples/colab_quickstart.ipynb)
+[![Project Board](https://img.shields.io/badge/Project-Next%2010%20Days-blue)](https://github.com/rajatsainju2025/code-explainer)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
@@ -270,6 +271,15 @@ docker run -v $(pwd)/data:/app/data code-explainer train --data /app/data/train.
 - [ ] **API Service**: RESTful API for integration with other tools
 - [ ] **Performance Optimization**: Model quantization and optimization
 - [ ] **Enterprise Features**: Authentication, usage tracking, custom deployments
+
+## 📅 10-Day Contribution Plan
+
+We are running a focused 10-day sprint targeting 10–15 meaningful contributions per day. See the detailed plan:
+
+- CONTRIBUTION_PLAN_10_DAYS.md
+- Track progress on the Project board (link will be added once created)
+
+Contributions include small, reviewable PRs, good-first issues, CI improvements, docs, examples, and community threads.
 
 ## 🤝 Contributing
 
