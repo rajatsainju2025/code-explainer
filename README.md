@@ -317,3 +317,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 Made with ❤️ by [Rajat Sainju](https://github.com/rajatsainju2025)
 
 </div>
+
+## 💬 Join the community
+- Start here: https://github.com/rajatsainju2025/code-explainer/discussions/4
+- General Q&A and ideas: Discussions tab
