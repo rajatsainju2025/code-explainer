@@ -109,6 +109,14 @@ Please use clear and meaningful commit messages:
 
 We welcome contributions of all kinds!
 
+## Quickstart (5 minutes)
+- Fork and clone the repo
+- Create a venv and install: `pip install -r requirements.txt`
+- Run tests: `pytest`
+- Try examples: `cx-explain "print('hi')"` and `code-explainer eval -c configs/default.yaml`
+- Read CONTRIBUTION_PLAN_10_DAYS.md for current priorities
+- Say hello in Discussions: Start here thread
+
 ## Getting Started
 - Fork the repo and create a feature branch
 - Run tests and linters locally
@@ -132,6 +140,10 @@ Use `.github/ISSUE_TEMPLATE/roadmap.md` for larger proposals. Include milestones
 - Type hints encouraged
 
 Thanks for contributing!
+
+## Resources
+- examples/README.md
+- Discussions: https://github.com/rajatsainju2025/code-explainer/discussions
 
 ## License
 
