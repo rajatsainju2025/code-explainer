@@ -9,6 +9,7 @@
 [![Project Board](https://img.shields.io/badge/Project-Next%2010%20Days-blue)](https://github.com/rajatsainju2025/code-explainer)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+[![Coverage](https://img.shields.io/badge/coverage-auto--tests-blue)](#running-tests)
 
 **A state-of-the-art LLM-powered tool for generating human-readable explanations of Python code snippets.**
 
