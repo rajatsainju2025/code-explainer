@@ -1,0 +1,26 @@
+# Normalize line endings
+* text=auto eol=lf
+
+# Scripts and code
+*.sh text eol=lf
+*.py text eol=lf
+*.yaml text eol=lf
+*.yml  text eol=lf
+*.toml text eol=lf
+*.md   text eol=lf
+
+# Binary model/artifact files
+*.safetensors binary
+*.pt binary
+*.pth binary
+*.bin binary
+
+# Notebooks: treat outputs as binary and avoid noisy diffs
+*.ipynb -diff
+
+# Documentation and examples language stats
+docs/** linguist-documentation
+examples/** linguist-documentation
+
+# Generated outputs
+results/** linguist-generated
