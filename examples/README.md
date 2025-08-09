@@ -2,6 +2,8 @@
 
 This folder contains quick-start examples to train, evaluate, and serve the Code Explainer with different presets.
 
+- Open in Colab: examples/colab_quickstart.ipynb
+
 ## Data
 
 Tiny example datasets are provided in `data/`:
