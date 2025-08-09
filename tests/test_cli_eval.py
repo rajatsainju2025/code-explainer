@@ -4,8 +4,10 @@ from pathlib import Path
 from code_explainer.cli import main as cli_main
 from click.testing import CliRunner
 
+TINY_CAUSAL = "sshleifer/tiny-gpt2"
 
-def test_cli_eval_smoke(tmp_path: Path, monkeypatch):
+
+def test_cli_eval_smoke(tmp_path: Path):
     # Create a tiny test dataset
     test_data = [
         {"code": "print('hi')", "explanation": "Prints hi"},
@@ -14,13 +16,13 @@ def test_cli_eval_smoke(tmp_path: Path, monkeypatch):
     test_file = tmp_path / "test.json"
     test_file.write_text(json.dumps(test_data))
 
-    # Minimal config referencing the test file
+    # Minimal config referencing the test file and tiny model
     cfg = tmp_path / "cfg.yaml"
     cfg.write_text(
-        """
+        f"""
 model:
   arch: "causal"
-  name: "distilgpt2"
+  name: "{TINY_CAUSAL}"
   max_length: 64
   temperature: 0.7
   top_p: 0.9
@@ -33,8 +35,8 @@ logging:
   level: "ERROR"
   log_file: "logs/test.log"
 data:
-  test_file: "%s"
-        """ % str(test_file)
+  test_file: "{str(test_file)}"
+        """
     )
 
     runner = CliRunner()

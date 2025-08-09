@@ -1,11 +1,21 @@
 import json
 from code_explainer.trainer import CodeExplainerTrainer
 
+TINY_CAUSAL = "sshleifer/tiny-gpt2"
+
 
 def test_trainer_smoke(tmp_path):
-    # Minimal config
+    # Minimal config with tiny model
     cfg = {
-        "model": {"name": "distilgpt2", "max_length": 64, "temperature": 0.7, "top_p": 0.9, "top_k": 50},
+        "model": {
+            "arch": "causal",
+            "name": TINY_CAUSAL,
+            "max_length": 64,
+            "temperature": 0.7,
+            "top_p": 0.9,
+            "top_k": 50,
+            "torch_dtype": "auto",
+        },
         "training": {
             "output_dir": str(tmp_path / "out"),
             "num_train_epochs": 1,
@@ -19,8 +29,8 @@ def test_trainer_smoke(tmp_path):
             "load_best_model_at_end": False,
         },
         "prompt": {"template": "Explain this Python code:\n{code}\nExplanation:"},
-        "logging": {"level": "INFO", "log_file": None},
-        "data": {}
+        "logging": {"level": "ERROR", "log_file": None},
+        "data": {},
     }
     p = tmp_path / "cfg.json"
     p.write_text(json.dumps(cfg))
