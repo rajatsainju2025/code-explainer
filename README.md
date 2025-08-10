@@ -183,6 +183,8 @@ print(f"Line count: {analysis['line_count']}")
 See quick-start examples in `examples/` (training, evaluation, and serving with presets). Start here:
 
 - examples/README.md
+- examples/preset_switching.md
+- examples/eval_report_template.md
 
 <details>
 <summary>📝 Example Explanations</summary>
