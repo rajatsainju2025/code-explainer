@@ -39,16 +39,16 @@ Target contributions today: 12–15
 ---
 
 Day 2 — 2025-08-09 (Tests + CI)
-- [ ] PR: Add unit tests for cli explain/explain-file happy path
-- [ ] PR: Add tests for datasets loader and prompt templates
-- [ ] PR: Add pytest workflow matrix (3.9–3.12, ubuntu-latest)
-- [ ] PR: Add CodeQL security scanning workflow
-- [ ] PR: Add Ruff or Flake8 annotations to CI output
-- [ ] Issue: Good-first-issue to write tests for trainer small config
-- [ ] Issue: Good-first-issue to add missing type hints in model/trainer
-- [ ] PR: Add coverage.xml generation and upload to artifact
-- [ ] PR: Add coverage badge (local placeholder) to README
-- [ ] Discussion: Testing strategy thread
+- [x] PR: Add unit tests for cli explain/explain-file happy path (tests/test_cli_explain.py)
+- [x] PR: Add tests for datasets loader and prompt templates (tests/test_datasets.py, tests/test_prompt_templates.py)
+- [x] PR: Add pytest workflow matrix (3.9–3.12, ubuntu-latest) (.github/workflows/ci.yml)
+- [x] PR: Add CodeQL security scanning workflow (.github/workflows/codeql.yml)
+- [x] PR: Add Flake8 annotations to CI output (flake8 --format=github)
+- [x] Issue: Good-first-issue to write tests for trainer small config (.github/ISSUE_TEMPLATE/tests_trainer_small_config.md)
+- [x] Issue: Good-first-issue to add missing type hints in model/trainer (.github/ISSUE_TEMPLATE/add_type_hints_model_trainer.md)
+- [x] PR: Add coverage.xml generation and upload to artifact (CI step)
+- [x] PR: Add coverage badge (placeholder) to README
+- [x] Discussion: Testing strategy thread (added .github/DISCUSSIONS.md and linked in README)
 
 Target contributions: 10–12
 
