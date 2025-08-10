@@ -56,11 +56,11 @@ Target contributions: 10–12
 
 Day 3 — 2025-08-10 (Examples + Data)
 - [ ] PR: Expand data/train.json to +20 curated samples (tiny)
-- [ ] PR: Expand data/eval.json and data/test.json with +10 each
+- [x] PR: Expand data/eval.json and data/test.json with +10 each (partial: +5 each)
 - [x] PR: Add data/README.md with schema, guidelines
 - [x] PR: Add examples/preset_switching.md quick guide
 - [x] PR: Add examples/eval_report_template.md
-- [ ] Issue: Call for community samples (Discussion link)
+- [x] Issue: Call for community samples (Discussion link)
 - [ ] PR: Add script scripts/validate_dataset.py (schema validation)
 - [x] PR: Add dataset validation step in CI
 - [x] PR: Update README examples section with links

@@ -186,6 +186,8 @@ See quick-start examples in `examples/` (training, evaluation, and serving with 
 - examples/preset_switching.md
 - examples/eval_report_template.md
 
+Contribute examples/data: see the discussion “Call for community samples (tiny datasets)” in the Discussions tab.
+
 <details>
 <summary>📝 Example Explanations</summary>
 
