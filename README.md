@@ -235,6 +235,8 @@ pytest --cov=code_explainer --cov-report=html
 pytest tests/test_model.py::test_explain_code
 ```
 
+For scope, speed, and coverage goals, see the testing strategy discussion: `.github/DISCUSSIONS.md`.
+
 ### Code Quality
 
 ```bash
