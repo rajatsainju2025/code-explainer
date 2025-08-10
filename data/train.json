@@ -8,5 +8,15 @@
   {"code": "def factorial(n):\n    if n <= 1:\n        return 1\n    return n * factorial(n-1)", "explanation": "Computes the factorial of n recursively with base case 1."},
   {"code": "nums = [1,2,3]\ns = sum(nums)", "explanation": "Defines a list and computes the sum of its elements."},
   {"code": "text = 'abcde'\nsub = text[1:4]", "explanation": "Slices the string to get characters from index 1 to 3 (\"bcd\")."},
-  {"code": "class Counter:\n    def __init__(self):\n        self.value = 0\n    def inc(self):\n        self.value += 1", "explanation": "Defines a Counter class with an internal value and an increment method."}
+  {"code": "class Counter:\n    def __init__(self):\n        self.value = 0\n    def inc(self):\n        self.value += 1", "explanation": "Defines a Counter class with an internal value and an increment method."},
+  {"code": "nums = list(range(1,6))\nsliced = nums[::2]", "explanation": "Creates a list 1..5 and takes every second element using slicing with a step."},
+  {"code": "for idx, val in enumerate(['a','b']):\n    print(idx, val)", "explanation": "Iterates with enumerate, printing the index and value for each element."},
+  {"code": "s = {1,2,2,3}\nexists = 2 in s", "explanation": "Builds a set (duplicates removed) and checks membership of 2."},
+  {"code": "squares = {x: x*x for x in range(3)}", "explanation": "Creates a dictionary mapping numbers to their squares using a dict comprehension."},
+  {"code": "with open('out.txt', 'w') as f:\n    f.write('ok')", "explanation": "Opens a file for writing and writes 'ok', then closes it via context manager."},
+  {"code": "try:\n    1/0\nexcept ZeroDivisionError:\n    x = 'inf'\nelse:\n    x = 'ok'", "explanation": "Handles a ZeroDivisionError and sets x accordingly; else block runs only if no exception."},
+  {"code": "pairs = list(zip([1,2],[3,4]))", "explanation": "Zips two lists into pairs and converts the result to a list of tuples."},
+  {"code": "items = [3,1,2]\nitems.sort()", "explanation": "Sorts the list in place in ascending order."},
+  {"code": "add = lambda a,b: a + b\nres = add(2,3)", "explanation": "Defines a small lambda function and calls it to add two numbers."},
+  {"code": "total = sum(i for i in range(5))", "explanation": "Uses a generator expression to sum numbers 0 through 4."}
 ]

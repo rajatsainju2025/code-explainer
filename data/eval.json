@@ -1,5 +1,10 @@
 [
   {"code": "x = 1 + 1", "explanation": "Assigns 2 to x by adding 1 and 1."},
   {"code": "items = {'a': 1}\nitems.get('b', 0)", "explanation": "Gets the value for key 'b' or returns 0 if missing."},
-  {"code": "name = input()\nprint(name)", "explanation": "Reads a line from input and prints it."}
+  {"code": "name = input()\nprint(name)", "explanation": "Reads a line from input and prints it."},
+  {"code": "a, b = 1, 2\na, b = b, a", "explanation": "Swaps the values of a and b using tuple unpacking."},
+  {"code": "vals = [n for n in range(4) if n % 2 == 0]", "explanation": "Builds a list of even numbers from 0 to 3."},
+  {"code": "def greet(n):\n    return f'Hello {n}'\n_ = greet('Ada')", "explanation": "Defines a greet function returning an f-string and calls it once."},
+  {"code": "from math import sqrt\nroot = sqrt(9)", "explanation": "Imports sqrt from math and computes the square root of 9."},
+  {"code": "msg = 'hi'\nprint(msg.upper())", "explanation": "Converts a string to uppercase and prints it."}
 ]

@@ -1,5 +1,10 @@
 [
   {"code": "print('hi')", "explanation": "Prints 'hi'."},
   {"code": "total = sum([1,2,3])", "explanation": "Sums numbers in a list and stores the result in total."},
-  {"code": "for c in 'ab':\n    print(c)", "explanation": "Iterates over characters 'a' and 'b' and prints each one."}
+  {"code": "for c in 'ab':\n    print(c)", "explanation": "Iterates over characters 'a' and 'b' and prints each one."},
+  {"code": "vals = list(range(3))", "explanation": "Creates a list containing 0, 1, and 2."},
+  {"code": "m = {'x': 1}\nm['y'] = 2", "explanation": "Creates a dict and adds a new key 'y' with value 2."},
+  {"code": "t = (1,2)\na, b = t", "explanation": "Unpacks a tuple into two variables a and b."},
+  {"code": "names = ['a','b']\njoined = ','.join(names)", "explanation": "Joins a list of strings with commas into a single string."},
+  {"code": "def twice(f, x):\n    return f(f(x))", "explanation": "Defines a higher-order function that applies f twice to x."}
 ]
