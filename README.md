@@ -10,6 +10,7 @@
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![Coverage](https://img.shields.io/badge/coverage-auto--tests-blue)](#running-tests)
+[![Dependabot](https://img.shields.io/badge/Dependabot-enabled-brightgreen)](.github/dependabot.yml)
 
 **A state-of-the-art LLM-powered tool for generating human-readable explanations of Python code snippets.**
 
@@ -225,6 +226,10 @@ pip install -e ".[dev]"
 # Install pre-commit hooks
 pre-commit install
 ```
+
+Additional tools:
+- Makefile targets: install, format, lint, type, precommit, test, clean
+- Devcontainer: `.devcontainer/devcontainer.json` for a ready-made VS Code container
 
 ### Running Tests
 
