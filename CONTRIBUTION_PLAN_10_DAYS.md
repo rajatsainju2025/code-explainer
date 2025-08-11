@@ -71,14 +71,14 @@ Target contributions: 10–12
 ---
 
 Day 4 — 2025-08-11 (Eval + Metrics)
-- [ ] PR: Add CLI flag to save eval predictions to JSONL
-- [ ] PR: Add confusion report summary (basic) in eval output
-- [ ] PR: Add aggregate metrics table printing with Rich
-- [ ] PR: Add --max-samples to eval for fast CI
-- [ ] PR: Add examples/eval_results/ with sample outputs
+- [x] PR: Add CLI flag to save eval predictions to JSONL
+- [x] PR: Add confusion report summary (basic) in eval output
+- [x] PR: Add aggregate metrics table printing with Rich
+- [x] PR: Add --max-samples to eval for fast CI
+- [x] PR: Add examples/eval_results/ with sample outputs
 - [ ] Issue: Good-first-issue to add additional metrics (BLEURT optional)
-- [ ] PR: Document eval workflow in README
-- [ ] PR: Add eval workflow job in CI (nightly)
+- [x] PR: Document eval workflow in README
+- [x] PR: Add eval workflow job in CI (nightly)
 - [ ] Discussion: Share first eval results, ask for feedback
 
 Target contributions: 10–11

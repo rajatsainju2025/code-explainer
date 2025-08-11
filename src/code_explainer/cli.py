@@ -19,6 +19,7 @@ from pathlib import Path
 from rich.console import Console
 from rich.panel import Panel
 from rich.syntax import Syntax
+from rich.table import Table
 
 from .trainer import CodeExplainerTrainer
 from .model import CodeExplainer
@@ -192,8 +193,10 @@ def serve(host, port, model_path):
 @click.option('--model-path', '-m', default='./results', help='Path to trained model directory')
 @click.option('--config', '-c', default='configs/default.yaml', help='Path to configuration file')
 @click.option('--test-file', '-t', default=None, help='Optional path to test JSON overriding config')
-def eval(model_path, config, test_file):
-    """Evaluate a model on a test set (BLEU/ROUGE/BERTScore)."""
+@click.option('--preds-out', '-o', default=None, help='Optional path to save predictions as JSONL')
+@click.option('--max-samples', type=int, default=None, help='Limit number of test samples (fast CI)')
+def eval(model_path, config, test_file, preds_out, max_samples):
+    """Evaluate a model on a test set (BLEU/ROUGE/BERTScore) and optionally save predictions."""
     from .model import CodeExplainer
     from .metrics.evaluate import compute_bleu, compute_rouge_l, compute_codebert_score
     import json
@@ -211,8 +214,16 @@ def eval(model_path, config, test_file):
     with open(test_file, 'r') as f:
         data = json.load(f)
 
+    if max_samples is not None:
+        try:
+            k = int(max_samples)
+            data = data[: max(0, k)]
+        except Exception:
+            pass
+
     refs = []
     preds = []
+    codes = []
     for ex in data:
         code = ex.get('code', '')
         ref = ex.get('explanation', '')
@@ -220,12 +231,41 @@ def eval(model_path, config, test_file):
             pred = explainer.explain_code(code)
         except Exception:
             pred = ""
+        codes.append(code)
         refs.append(ref)
         preds.append(pred)
 
     bleu = compute_bleu(refs, preds)
     rougeL = compute_rouge_l(refs, preds)
     bert = compute_codebert_score(refs, preds)
+
+    # Basic confusion/quality summary
+    total = len(refs) if refs else 1
+    exact = sum(1 for r, p in zip(refs, preds) if p.strip() == r.strip())
+    empty = sum(1 for p in preds if not p.strip())
+    avg_pred_len = sum(len(p) for p in preds) / total
+    avg_ref_len = sum(len(r) for r in refs) / total
+
+    table = Table(title="Evaluation Summary")
+    table.add_column("Metric", justify="left", style="cyan", no_wrap=True)
+    table.add_column("Value", justify="right", style="white")
+    table.add_row("BLEU", f"{bleu:.4f}")
+    table.add_row("ROUGE-L", f"{rougeL:.4f}")
+    table.add_row("BERTScore", f"{bert:.4f}")
+    table.add_row("Exact match %", f"{(exact/total)*100:.2f}%")
+    table.add_row("Empty preds %", f"{(empty/total)*100:.2f}%")
+    table.add_row("Avg pred len", f"{avg_pred_len:.1f}")
+    table.add_row("Avg ref len", f"{avg_ref_len:.1f}")
+    console.print(table)
+
+    # Optional: save predictions as JSONL
+    if preds_out:
+        out_path = Path(preds_out)
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        with out_path.open('w', encoding='utf-8') as wf:
+            for c, r, p in zip(codes, refs, preds):
+                wf.write(json.dumps({"code": c, "reference": r, "prediction": p}, ensure_ascii=False) + "\n")
+        console.print(Panel.fit(f"📝 Predictions saved to {out_path}", style="bold green"))
 
     metrics = {"bleu": bleu, "rougeL": rougeL, "bert_score": bert}
     console.print(Panel.fit(str(metrics), style="bold green"))

@@ -76,17 +76,8 @@ cx-explain "print('hello')"
 cx-explain-file script.py
 cx-serve --port 8080
 
-# Start web interface (primary)
-code-explainer serve --port 8080
-
-# Explain code interactively
-code-explainer explain
-
-# Explain a Python file
-code-explainer explain-file script.py
-
-# Evaluate a trained model on a test set
-code-explainer eval --config configs/default.yaml
+# Evaluate with options
+code-explainer eval --config configs/default.yaml --test-file data/test.json --max-samples 5 --preds-out examples/eval_results/preds.jsonl
 ```
 
 ### From repo scripts
@@ -333,3 +324,16 @@ Made with ❤️ by [Rajat Sainju](https://github.com/rajatsainju2025)
 ## 💬 Join the community
 - Start here: https://github.com/rajatsainju2025/code-explainer/discussions/4
 - General Q&A and ideas: Discussions tab
+
+## API (FastAPI)
+
+Run the FastAPI server (example):
+
+```bash
+uvicorn code_explainer.api.server:app --host 0.0.0.0 --port 8000
+```
+
+Endpoints:
+- GET /health → {"status": "ok"}
+- GET /version → {"version": <semver>}
+- POST /explain {code: str} → {explanation: str}

@@ -1,0 +1,2 @@
+{"code": "print('hi')", "reference": "Prints 'hi'.", "prediction": "Prints 'hi'."}
+{"code": "total = sum([1,2,3])", "reference": "Sums numbers in a list and stores the result in total.", "prediction": "Sums numbers in a list and stores the result in total."}
