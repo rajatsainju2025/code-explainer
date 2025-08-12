@@ -328,5 +328,166 @@ def build_index(config, output_path):
         console.print(Panel.fit(f"❌ Failed to build index: {e}", style="bold red"))
 
 
+@main.command()
+@click.argument('config_path', type=click.Path(exists=True))
+@click.option('--verbose', '-v', is_flag=True, help='Show detailed validation information')
+def validate_config(config_path, verbose):
+    """Validate a configuration file."""
+    from .config_validator import ConfigValidator
+    
+    console.print(Panel.fit("🔍 Validating configuration...", style="bold blue"))
+    
+    validator = ConfigValidator()
+    is_valid = validator.validate_config(config_path)
+    
+    if verbose or not is_valid:
+        report = validator.get_validation_report()
+        console.print(Panel(report, title="Validation Report", border_style="yellow" if validator.warnings else ("red" if validator.errors else "green")))
+    
+    if is_valid:
+        console.print(Panel.fit("✅ Configuration is valid!", style="bold green"))
+    else:
+        console.print(Panel.fit("❌ Configuration validation failed!", style="bold red"))
+        raise click.ClickException("Invalid configuration")
+
+
+@main.command()
+@click.option('--model-path', '-m', default='./results', help='Path to trained model')
+@click.option('--config', '-c', default='configs/default.yaml', help='Path to configuration file')
+@click.option('--iterations', type=int, default=3, help='Number of iterations per test')
+@click.option('--output', '-o', help='Output file for benchmark results')
+@click.option('--include-rag', is_flag=True, help='Include Enhanced RAG in benchmarks')
+def benchmark(model_path, config, iterations, output, include_rag):
+    """Run performance benchmarks on the code explainer."""
+    from .profiler import benchmark_code_explainer
+    import json
+    
+    console.print(Panel.fit("🏃 Starting performance benchmark...", style="bold blue"))
+    
+    try:
+        with console.status("[bold green]Running benchmarks..."):
+            results = benchmark_code_explainer(
+                model_path=model_path,
+                config_path=config,
+                num_iterations=iterations
+            )
+        
+        # Display summary
+        summary = results["overall_summary"]
+        table = Table(title="Benchmark Summary")
+        table.add_column("Operation", justify="left", style="cyan")
+        table.add_column("Count", justify="right", style="white")
+        table.add_column("Avg Duration (ms)", justify="right", style="green")
+        table.add_column("Avg Memory (MB)", justify="right", style="yellow")
+        
+        for operation, stats in summary.items():
+            if operation != "message":
+                table.add_row(
+                    operation.replace("_", " ").title(),
+                    str(stats["count"]),
+                    f"{stats['duration_ms']['mean']:.2f}",
+                    f"{stats['memory_mb']['mean']:.1f}"
+                )
+        
+        console.print(table)
+        
+        if output:
+            Path(output).parent.mkdir(parents=True, exist_ok=True)
+            with open(output, 'w') as f:
+                json.dump(results, f, indent=2)
+            console.print(Panel.fit(f"📊 Benchmark results saved to {output}", style="bold green"))
+        
+        console.print(Panel.fit("✅ Benchmark completed successfully!", style="bold green"))
+        
+    except Exception as e:
+        console.print(Panel.fit(f"❌ Benchmark failed: {e}", style="bold red"))
+        raise
+
+
+@main.command()
+@click.argument('file_path', type=click.Path(exists=True))
+@click.option('--output', '-o', help='Output file for quality analysis results')
+@click.option('--format', type=click.Choice(['json', 'text']), default='text', help='Output format')
+@click.option('--show-suggestions', is_flag=True, help='Show improvement suggestions')
+def analyze_quality(file_path, output, format, show_suggestions):
+    """Analyze code quality and provide improvement suggestions."""
+    from .quality_analyzer import CodeQualityAnalyzer
+    import json
+    
+    console.print(Panel.fit(f"🔍 Analyzing code quality for {file_path}...", style="bold blue"))
+    
+    try:
+        with open(file_path, 'r') as f:
+            code = f.read()
+        
+        analyzer = CodeQualityAnalyzer()
+        analyzer.analyze_code(code)
+        results = analyzer.get_summary()
+        
+        # Display summary
+        table = Table(title="Quality Analysis Summary")
+        table.add_column("Level", justify="left", style="cyan")
+        table.add_column("Count", justify="right", style="white")
+        
+        for level, count in results['by_level'].items():
+            if count > 0:
+                color = {"critical": "red", "error": "red", "warning": "yellow", "info": "blue"}
+                table.add_row(level.upper(), str(count), style=color.get(level, "white"))
+        
+        console.print(table)
+        
+        # Show issues if any
+        if results['total_issues'] > 0:
+            issues_table = Table(title="Issues Found")
+            issues_table.add_column("Line", justify="right", style="dim")
+            issues_table.add_column("Level", justify="center")
+            issues_table.add_column("Message", justify="left")
+            if show_suggestions:
+                issues_table.add_column("Suggestion", justify="left", style="green")
+            
+            for issue in results['issues']:
+                line_num = str(issue['line_number']) if issue['line_number'] else "N/A"
+                level_color = {"critical": "red", "error": "red", "warning": "yellow", "info": "blue"}
+                level_style = level_color.get(issue['level'], "white")
+                
+                row = [line_num, issue['level'].upper(), issue['message']]
+                if show_suggestions and issue['suggestion']:
+                    row.append(issue['suggestion'])
+                elif show_suggestions:
+                    row.append("")
+                
+                issues_table.add_row(*row, style=level_style if issue['level'] == 'critical' else None)
+            
+            console.print(issues_table)
+        else:
+            console.print(Panel.fit("🎉 No issues found! Your code looks great!", style="bold green"))
+        
+        # Save results if requested
+        if output:
+            if format == 'json':
+                with open(output, 'w') as f:
+                    json.dump(results, f, indent=2)
+            else:
+                # Text format
+                with open(output, 'w') as f:
+                    f.write(f"Code Quality Analysis for {file_path}\n")
+                    f.write("=" * 50 + "\n")
+                    f.write(f"Total issues: {results['total_issues']}\n\n")
+                    
+                    if results['total_issues'] > 0:
+                        for issue in results['issues']:
+                            line_info = f" (line {issue['line_number']})" if issue['line_number'] else ""
+                            f.write(f"[{issue['level'].upper()}]{line_info} {issue['message']}\n")
+                            if issue['suggestion']:
+                                f.write(f"  Suggestion: {issue['suggestion']}\n")
+                            f.write("\n")
+            
+            console.print(Panel.fit(f"📄 Results saved to {output}", style="bold green"))
+        
+    except Exception as e:
+        console.print(Panel.fit(f"❌ Quality analysis failed: {e}", style="bold red"))
+        raise
+
+
 if __name__ == "__main__":
     main()
