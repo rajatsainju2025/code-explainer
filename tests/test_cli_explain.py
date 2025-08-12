@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 
 from click.testing import CliRunner
+
 from code_explainer.cli import main as cli_main
 
 TINY_CAUSAL = "sshleifer/tiny-gpt2"

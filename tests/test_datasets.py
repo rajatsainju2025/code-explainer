@@ -1,11 +1,7 @@
 import json
 from pathlib import Path
 
-from code_explainer.data.datasets import (
-    build_dataset_dict,
-    DatasetConfig,
-    load_from_json,
-)
+from code_explainer.data.datasets import DatasetConfig, build_dataset_dict, load_from_json
 
 
 def test_build_dataset_dict_defaults():

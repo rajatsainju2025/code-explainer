@@ -1,4 +1,4 @@
-from code_explainer.utils import load_config, get_device
+from code_explainer.utils import get_device, load_config
 
 
 def test_load_config_yaml(tmp_path):

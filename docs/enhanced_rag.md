@@ -21,12 +21,12 @@ First, build a FAISS index from your training data:
 
 ```bash
 # Using the CLI
-python -m src.code_explainer.cli build-index \
+python -m code_explainer.cli build-index \
     --config configs/enhanced.yaml \
     --output-path data/code_retrieval_index.faiss
 
 # Or programmatically
-from src.code_explainer.retrieval import CodeRetriever
+from code_explainer.retrieval import CodeRetriever
 
 codes = [
     "def fibonacci(n): return n if n <= 1 else fibonacci(n-1) + fibonacci(n-2)",
@@ -41,7 +41,7 @@ retriever.build_index(codes, save_path="my_index.faiss")
 ### Using Enhanced RAG
 
 ```python
-from src.code_explainer.model import CodeExplainer
+from code_explainer.model import CodeExplainer
 
 # Initialize with enhanced RAG configuration
 explainer = CodeExplainer(
@@ -58,12 +58,12 @@ explanation = explainer.explain_code(code, strategy="enhanced_rag")
 
 ```bash
 # Explain code with enhanced RAG
-python -m src.code_explainer.cli explain \
+python -m code_explainer.cli explain \
     --prompt-strategy enhanced_rag \
     "def merge_sort(arr): return sorted(arr)"
 
 # Explain a file with enhanced RAG
-python -m src.code_explainer.cli explain-file \
+python -m code_explainer.cli explain-file \
     --prompt-strategy enhanced_rag \
     path/to/code.py
 ```
@@ -74,7 +74,7 @@ The Gradio interface includes Enhanced RAG as one of the selectable prompt strat
 
 ```python
 # Start the web server
-python -m src.code_explainer.cli serve
+python -m code_explainer.cli serve
 
 # Select "enhanced_rag" from the strategy dropdown
 ```

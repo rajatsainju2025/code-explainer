@@ -1,4 +1,4 @@
-# Ensure the src package is importable without installing the package
+# Ensure the 'code_explainer' package is importable by adding the src directory to sys.path
 import sys
 from pathlib import Path
 

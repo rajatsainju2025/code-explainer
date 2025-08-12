@@ -1,30 +1,31 @@
 """Configuration management utilities."""
 
 import json
-import yaml
-from pathlib import Path
-from typing import Dict, Any, Union, List, Tuple, Optional, cast
 import logging
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple, Union, cast
+
+import yaml
 
 
 def load_config(config_path: Union[str, Path]) -> Dict[str, Any]:
     """Load configuration from JSON or YAML file.
-    
+
     Args:
         config_path: Path to the configuration file
-        
+
     Returns:
         Dictionary containing configuration parameters
     """
     config_path = Path(config_path)
-    
+
     if not config_path.exists():
         raise FileNotFoundError(f"Configuration file not found: {config_path}")
-    
-    with open(config_path, 'r') as f:
-        if config_path.suffix.lower() in ['.yaml', '.yml']:
+
+    with open(config_path, "r") as f:
+        if config_path.suffix.lower() in [".yaml", ".yml"]:
             return yaml.safe_load(f)
-        elif config_path.suffix.lower() == '.json':
+        elif config_path.suffix.lower() == ".json":
             return json.load(f)
         else:
             raise ValueError(f"Unsupported config file format: {config_path.suffix}")
@@ -32,31 +33,27 @@ def load_config(config_path: Union[str, Path]) -> Dict[str, Any]:
 
 def setup_logging(level: str = "INFO", log_file: str = None) -> None:
     """Setup logging configuration.
-    
+
     Args:
         level: Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
         log_file: Optional path to log file
     """
-    log_format = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-    
+    log_format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+
     handlers = [logging.StreamHandler()]
     if log_file:
         handlers.append(logging.FileHandler(log_file))
-    
-    logging.basicConfig(
-        level=getattr(logging, level.upper()),
-        format=log_format,
-        handlers=handlers
-    )
+
+    logging.basicConfig(level=getattr(logging, level.upper()), format=log_format, handlers=handlers)
 
 
 def get_device() -> str:
     """Get the best available device for training/inference."""
     import torch
-    
+
     if torch.cuda.is_available():
         return "cuda"
-    elif hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
+    elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
         return "mps"
     else:
         return "cpu"
@@ -162,11 +159,11 @@ def _collect_docstrings_from_code(code: str) -> List[str]:
         docs.append(f"Module doc: {mod_doc.strip()}")
 
     for node in ast.walk(tree):
-        if isinstance(node, (ast.FunctionDef, getattr(ast, 'AsyncFunctionDef', type('X', (), {})))):
+        if isinstance(node, (ast.FunctionDef, getattr(ast, "AsyncFunctionDef", type("X", (), {})))):
             fn = cast(Union[ast.FunctionDef, Any], node)
             doc = ast.get_docstring(fn)
             if doc:
-                name = getattr(fn, 'name', '<fn>')
+                name = getattr(fn, "name", "<fn>")
                 docs.append(f"Function {name} doc: {doc.strip()}")
         elif isinstance(node, ast.ClassDef):
             cls = cast(ast.ClassDef, node)
@@ -176,26 +173,38 @@ def _collect_docstrings_from_code(code: str) -> List[str]:
     return docs
 
 
-def _collect_import_docs(imports: List[str], max_modules: int = 5, max_chars: int = 600) -> List[str]:
+def _collect_import_docs(
+    imports: List[str], max_modules: int = 5, max_chars: int = 600
+) -> List[str]:
     """Attempt to import a small allowlist of stdlib modules and extract short docs."""
     import importlib
 
     allow = {
-        'math', 're', 'itertools', 'functools', 'collections', 'statistics',
-        'random', 'json', 'string', 'datetime', 'heapq', 'bisect'
+        "math",
+        "re",
+        "itertools",
+        "functools",
+        "collections",
+        "statistics",
+        "random",
+        "json",
+        "string",
+        "datetime",
+        "heapq",
+        "bisect",
     }
     docs: List[str] = []
     count = 0
     for name in imports:
-        root = name.split('.')[0]
+        root = name.split(".")[0]
         if root not in allow:
             continue
         try:
             mod = importlib.import_module(root)
-            doc = (getattr(mod, '__doc__', None) or '').strip()
+            doc = (getattr(mod, "__doc__", None) or "").strip()
             if doc:
-                snippet = doc.split('\n')[:6]
-                text = ' '.join(line.strip() for line in snippet)
+                snippet = doc.split("\n")[:6]
+                text = " ".join(line.strip() for line in snippet)
                 if text:
                     docs.append(f"Doc({root}): {text[:max_chars]}")
                     count += 1
@@ -220,7 +229,12 @@ def _safe_exec_subprocess(code: str, timeout_s: float = 1.0, mem_mb: int = 64) -
     """Run code in a subprocess with basic time/memory limits and capture output.
     Returns (stdout, stderr) truncated.
     """
-    import subprocess, shlex, tempfile, textwrap, os, sys
+    import os
+    import shlex
+    import subprocess
+    import sys
+    import tempfile
+    import textwrap
 
     # Wrapper to set resource limits (Unix only)
     prelude = (
@@ -258,11 +272,14 @@ def _safe_exec_subprocess(code: str, timeout_s: float = 1.0, mem_mb: int = 64) -
 
 def prompt_for_language(config: Dict[str, Any], code: str) -> str:
     lang = detect_language(code)
-    templates = config.get("prompt", {}).get("language_templates", {})
-    base_template = templates.get(lang, config["prompt"]["template"])
+    # Support both legacy 'prompt' and new 'prompting' sections
+    prompt_cfg = config.get("prompt") or config.get("prompting") or {}
+    templates = prompt_cfg.get("language_templates", {})
+    default_template = prompt_cfg.get("template", f"Explain the following {lang} code:\n{{code}}")
+    base_template = templates.get(lang, default_template)
     base_prompt = base_template.format(code=code.strip())
 
-    strategy = config.get("prompt", {}).get("strategy", "vanilla")
+    strategy = prompt_cfg.get("strategy", "vanilla")
 
     # AST-augmented
     if strategy == "ast_augmented" and lang == "python":
@@ -308,16 +325,18 @@ def prompt_for_language(config: Dict[str, Any], code: str) -> str:
             + "\n\n"
             + base_prompt
         )
-    
+
     # Enhanced RAG with code retrieval
     if strategy == "enhanced_rag" and lang == "python":
         from .retrieval import CodeRetriever
-        
+
         retriever = CodeRetriever()
         try:
-            retriever.load_index(config.get("retrieval", {}).get("index_path", "data/code_retrieval_index.faiss"))
+            retriever.load_index(
+                config.get("retrieval", {}).get("index_path", "data/code_retrieval_index.faiss")
+            )
             similar_codes = retriever.retrieve_similar_code(code, k=3)
-            
+
             rag_context = [
                 "You are a helpful assistant that uses the following similar code examples to provide a better explanation.",
                 "---",
@@ -325,12 +344,12 @@ def prompt_for_language(config: Dict[str, Any], code: str) -> str:
             ]
             for i, example in enumerate(similar_codes):
                 rag_context.append(f"\nExample {i+1}:\n```python\n{example}\n```")
-            
+
             rag_context.append("---\n")
             rag_context.append(base_prompt)
-            
+
             return "\n".join(rag_context)
-            
+
         except Exception as e:
             logging.warning(f"Enhanced RAG failed: {e}. Falling back to vanilla prompt.")
             # Fallback to vanilla if retrieval fails

@@ -78,13 +78,13 @@ Code Input → [4 Agents Analyze Simultaneously] → Synthesis → Comprehensive
 #### New CLI Options:
 ```bash
 # Symbolic analysis
-python -m src.code_explainer.cli explain --symbolic "code here"
+python -m code_explainer.cli explain --symbolic "code here"
 
-# Multi-agent collaboration  
-python -m src.code_explainer.cli explain --multi-agent "code here"
+# Multi-agent analysis
+python -m code_explainer.cli explain --multi-agent "code here"
 
 # Combined approaches
-python -m src.code_explainer.cli explain --symbolic --prompt-strategy ast_augmented "code here"
+python -m code_explainer.cli explain --symbolic --prompt-strategy ast_augmented "code here"
 ```
 
 #### Enhanced API Endpoints:

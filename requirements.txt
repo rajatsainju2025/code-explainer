@@ -48,4 +48,10 @@ rich>=13.0.0
 # Additional utilities
 click>=8.1.0
 tqdm>=4.65.0
+
+# Security and validation
+ast>=3.9.0
+
+# HTTP requests (for security testing)
+requests>=2.31.0
 requests>=2.31.0

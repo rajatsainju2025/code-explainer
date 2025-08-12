@@ -24,7 +24,7 @@ def validate_age(age):
 
 **Command:**
 ```bash
-python -m src.code_explainer.cli explain --symbolic 'def validate_age(age):
+python -m code_explainer.cli explain --symbolic 'def validate_age(age):
     assert age >= 0, "Age cannot be negative"
     assert age <= 150, "Age cannot exceed 150"
     if age < 18:
@@ -88,7 +88,7 @@ def find_prime_factors(n):
 
 **Command:**
 ```bash
-python -m src.code_explainer.cli explain --multi-agent 'def find_prime_factors(n):
+python -m code_explainer.cli explain --multi-agent 'def find_prime_factors(n):
     if n <= 1:
         return []
     factors = []
@@ -172,7 +172,7 @@ You can combine new features with existing prompt strategies:
 ### AST-Augmented + Symbolic
 
 ```bash
-python -m src.code_explainer.cli explain --prompt-strategy ast_augmented --symbolic 'def quicksort(arr):
+python -m code_explainer.cli explain --prompt-strategy ast_augmented --symbolic 'def quicksort(arr):
     if len(arr) <= 1:
         return arr
     pivot = arr[len(arr) // 2]
@@ -185,7 +185,7 @@ python -m src.code_explainer.cli explain --prompt-strategy ast_augmented --symbo
 ### Execution Trace + Multi-Agent
 
 ```bash
-python -m src.code_explainer.cli explain --prompt-strategy execution_trace --multi-agent 'def fibonacci(n):
+python -m code_explainer.cli explain --prompt-strategy execution_trace --multi-agent 'def fibonacci(n):
     if n <= 1:
         return n
     return fibonacci(n-1) + fibonacci(n-2)'
@@ -258,7 +258,7 @@ Property-based tests that could be generated:
 ### Jupyter Notebook
 
 ```python
-from src.code_explainer.model import CodeExplainer
+from code_explainer.model import CodeExplainer
 
 explainer = CodeExplainer(config_path="configs/codet5-small.yaml")
 
@@ -287,7 +287,7 @@ print(collaborative)
 # .github/workflows/code-analysis.yml
 - name: Analyze Code with AI
   run: |
-    python -m src.code_explainer.cli explain --symbolic --multi-agent \
+    python -m code_explainer.cli explain --symbolic --multi-agent \
       --prompt-strategy ast_augmented "$(cat new_algorithm.py)"
 ```
 

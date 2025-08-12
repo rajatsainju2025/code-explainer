@@ -1,8 +1,9 @@
-from fastapi import FastAPI
-from pydantic import BaseModel
-from typing import Optional
-from fastapi.middleware.cors import CORSMiddleware
 import os
+from typing import Optional
+
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 
 from .. import __version__
 from ..model import CodeExplainer
@@ -44,7 +45,9 @@ async def version():
 @app.post("/explain")
 async def explain(req: ExplainRequest):
     if req.symbolic:
-        explanation = explainer.explain_code_with_symbolic(req.code, include_symbolic=True, strategy=req.strategy)
+        explanation = explainer.explain_code_with_symbolic(
+            req.code, include_symbolic=True, strategy=req.strategy
+        )
     else:
         explanation = explainer.explain_code(req.code, strategy=req.strategy)
     return {"explanation": explanation}
@@ -52,9 +55,11 @@ async def explain(req: ExplainRequest):
 
 @app.get("/strategies")
 async def strategies():
-    return {"strategies": [
-        "vanilla",
-        "ast_augmented",
-        "retrieval_augmented",
-        "execution_trace",
-    ]}
+    return {
+        "strategies": [
+            "vanilla",
+            "ast_augmented",
+            "retrieval_augmented",
+            "execution_trace",
+        ]
+    }

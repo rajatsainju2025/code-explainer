@@ -37,7 +37,9 @@ def load_from_csv(path: str, max_examples: Optional[int] = None) -> List[Dict[st
     return _limit(records, max_examples)
 
 
-def load_from_hf(hub_id: str, split: str = "train", max_examples: Optional[int] = None) -> List[Dict[str, Any]]:
+def load_from_hf(
+    hub_id: str, split: str = "train", max_examples: Optional[int] = None
+) -> List[Dict[str, Any]]:
     # Lazy import to avoid optional dependency/type checking issues
     from datasets import load_dataset  # type: ignore
 
