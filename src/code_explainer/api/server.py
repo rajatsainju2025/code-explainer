@@ -43,3 +43,13 @@ async def version():
 @app.post("/explain")
 async def explain(req: ExplainRequest):
     return {"explanation": explainer.explain_code(req.code, strategy=req.strategy)}
+
+
+@app.get("/strategies")
+async def strategies():
+    return {"strategies": [
+        "vanilla",
+        "ast_augmented",
+        "retrieval_augmented",
+        "execution_trace",
+    ]}

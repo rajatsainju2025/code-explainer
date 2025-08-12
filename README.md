@@ -348,4 +348,7 @@ uvicorn code_explainer.api.server:app --host 0.0.0.0 --port 8000
 Endpoints:
 - GET /health → {"status": "ok"}
 - GET /version → {"version": <semver>}
-- POST /explain {code: str} → {explanation: str}
+- GET /strategies → list of supported strategies
+- POST /explain {code: str, strategy?: str} → {explanation: str}
+
+More: see `docs/api.md` and `docs/strategies.md`.
