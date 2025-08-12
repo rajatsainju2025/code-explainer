@@ -1,12 +1,27 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
 from typing import Optional
+from fastapi.middleware.cors import CORSMiddleware
+import os
 
 from .. import __version__
 from ..model import CodeExplainer
 
 app = FastAPI(title="Code Explainer API")
-explainer = CodeExplainer()
+
+# CORS (allow local dev tools by default)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Configurable model/config via environment
+MODEL_PATH = os.environ.get("CODE_EXPLAINER_MODEL_PATH", "./results")
+CONFIG_PATH = os.environ.get("CODE_EXPLAINER_CONFIG_PATH", "configs/default.yaml")
+explainer = CodeExplainer(model_path=MODEL_PATH, config_path=CONFIG_PATH)
 
 
 class ExplainRequest(BaseModel):

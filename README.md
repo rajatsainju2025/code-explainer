@@ -178,6 +178,10 @@ python scripts/ab_compare_strategies.py --config configs/default.yaml --max-samp
   --strategies vanilla ast_augmented retrieval_augmented
 ```
 
+## 🧩 Prompt Strategies
+
+See `docs/strategies.md` for details on: vanilla | ast_augmented | retrieval_augmented | execution_trace, including safety notes and examples.
+
 ## 💡 Examples
 
 See quick-start examples in `examples/` (training, evaluation, and serving with presets). Start here:
