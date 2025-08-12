@@ -1,0 +1,31 @@
+# CodeLlama Instruct preset focused on code explanation tasks
+model:
+  arch: "causal"
+  name: "codellama/CodeLlama-7b-Instruct-hf"
+  max_length: 768
+  temperature: 0.4
+  top_p: 0.9
+  top_k: 50
+  torch_dtype: "bfloat16"
+  load_in_8bit: true
+
+training:
+  output_dir: "./results"
+  num_train_epochs: 3
+  per_device_train_batch_size: 1
+  per_device_eval_batch_size: 1
+  gradient_checkpointing: true
+  eval_steps: 50
+  save_steps: 100
+  logging_steps: 10
+
+prompt:
+  template: "[INST] Explain this code in simple terms and highlight edge cases.\n```python\n{code}\n```\n[/INST]\nExplanation:"
+  language_templates:
+    python: "[INST] Explain this code in simple terms and highlight edge cases.\n```python\n{code}\n```\n[/INST]\nExplanation:"
+    javascript: "[INST] Explain this code in simple terms and highlight edge cases.\n```javascript\n{code}\n```\n[/INST]\nExplanation:"
+    java: "[INST] Explain this code in simple terms and highlight edge cases.\n```java\n{code}\n```\n[/INST]\nExplanation:"
+    cpp: "[INST] Explain this code in simple terms and highlight edge cases.\n```cpp\n{code}\n```\n[/INST]\nExplanation:"
+  strategy: ast_augmented
+  max_code_length: 300
+  max_explanation_length: 400

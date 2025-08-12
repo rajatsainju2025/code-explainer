@@ -77,8 +77,14 @@ class CodeExplainer:
             model_name = self.config["model"]["name"]
             self.tokenizer, self.model = _load_from(model_name)
             
-    def explain_code(self, code: str, max_length: Optional[int] = None) -> str:
-        """Generate explanation for the given code."""
+    def explain_code(self, code: str, max_length: Optional[int] = None, strategy: Optional[str] = None) -> str:
+        """Generate explanation for the given code.
+        
+        Args:
+            code: Source code to explain
+            max_length: Optional max sequence length
+            strategy: Optional prompt strategy override (e.g., "vanilla", "ast_augmented")
+        """
         if max_length is None:
             max_length = self.config["model"]["max_length"]
         
@@ -87,8 +93,14 @@ class CodeExplainer:
         tok = self.tokenizer
         mdl = self.model
         
-        # Language-aware prompt
-        prompt = prompt_for_language(self.config, code)
+        # Language-aware prompt with optional strategy override
+        if strategy is not None:
+            import copy
+            cfg = copy.deepcopy(self.config)
+            cfg.setdefault("prompt", {})["strategy"] = strategy
+            prompt = prompt_for_language(cfg, code)
+        else:
+            prompt = prompt_for_language(self.config, code)
         
         inputs = tok(prompt, return_tensors="pt")
         inputs = {k: v.to(self.device) for k, v in inputs.items()}
@@ -128,16 +140,17 @@ class CodeExplainer:
             
         return explanations
     
-    def analyze_code(self, code: str) -> Dict[str, Any]:
+    def analyze_code(self, code: str, strategy: Optional[str] = None) -> Dict[str, Any]:
         """Perform comprehensive code analysis.
         
         Args:
             code: Python code to analyze
+            strategy: Optional prompt strategy override
             
         Returns:
             Dictionary with analysis results
         """
-        explanation = self.explain_code(code)
+        explanation = self.explain_code(code, strategy=strategy)
         
         # Basic analysis
         lines = code.strip().split('\n')

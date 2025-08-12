@@ -52,6 +52,8 @@ prompt:
     cpp: "Explain this C++ code:\n```cpp\n{code}\n```\nExplanation:"
   max_code_length: 200
   max_explanation_length: 300
+  # Prompt strategies: vanilla | ast_augmented | retrieval_augmented | execution_trace
+  strategy: vanilla
 
 # Logging configuration
 logging:

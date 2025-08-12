@@ -32,3 +32,27 @@ def compute_codebert_score(references: List[str], predictions: List[str]) -> flo
         return 0.0
     P, R, F1 = bert_score(predictions, references, lang="en", rescale_with_baseline=True)
     return float(F1.mean().item())
+
+
+def compute_codebleu(references: List[str], predictions: List[str]) -> float:
+    """Compute CodeBLEU if package available; else fallback to BLEU.
+    CodeBLEU considers weighted n-gram, syntax, and semantic matches.
+    """
+    try:
+        # Try lightweight import path if available
+        from codebleu import calc_code_bleu  # type: ignore
+
+        # Assume all Python for now; future: detect per-sample
+        lang = "python"
+        score_sum = 0.0
+        n = max(1, len(references))
+        for ref, pred in zip(references, predictions):
+            try:
+                scores = calc_code_bleu([ref], [pred], lang)
+                score_sum += float(scores["codebleu"])
+            except Exception:
+                pass
+        return float(score_sum / n)
+    except Exception:
+        # Fallback to BLEU if CodeBLEU not available
+        return compute_bleu(references, predictions)

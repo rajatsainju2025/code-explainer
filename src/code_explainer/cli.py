@@ -58,8 +58,10 @@ def train(config, data):
               help='Path to trained model')
 @click.option('--config', '-c', default='configs/default.yaml',
               help='Path to configuration file')
+@click.option('--prompt-strategy', type=click.Choice(['vanilla', 'ast_augmented', 'retrieval_augmented', 'execution_trace']), default=None,
+              help='Override prompt strategy (default from config)')
 @click.argument('code', required=False)
-def explain(model_path, config, code):
+def explain(model_path, config, prompt_strategy, code):
     """Explain a code snippet."""
     explainer = CodeExplainer(model_path=model_path, config_path=config)
     
@@ -89,7 +91,7 @@ def explain(model_path, config, code):
                 
                 # Generate explanation
                 with console.status("[bold green]Generating explanation..."):
-                    explanation = explainer.explain_code(code)
+                    explanation = explainer.explain_code(code, strategy=prompt_strategy)
                 
                 console.print(Panel(explanation, title="Explanation", border_style="green"))
                 console.print("-" * 50)
@@ -99,7 +101,7 @@ def explain(model_path, config, code):
                 break
     else:
         # Single explanation mode
-        explanation = explainer.explain_code(code)
+        explanation = explainer.explain_code(code, strategy=prompt_strategy)
         
         syntax = Syntax(code, "python", theme="monokai", line_numbers=True)
         console.print(Panel(syntax, title="Code", border_style="blue"))
@@ -111,8 +113,10 @@ def explain(model_path, config, code):
               help='Path to trained model')
 @click.option('--config', '-c', default='configs/default.yaml',
               help='Path to configuration file')
+@click.option('--prompt-strategy', type=click.Choice(['vanilla', 'ast_augmented', 'retrieval_augmented', 'execution_trace']), default=None,
+              help='Override prompt strategy (default from config)')
 @click.argument('file_path', type=click.Path(exists=True))
-def explain_file(model_path, config, file_path):
+def explain_file(model_path, config, prompt_strategy, file_path):
     """Explain code from a Python file."""
     explainer = CodeExplainer(model_path=model_path, config_path=config)
     
@@ -125,7 +129,7 @@ def explain_file(model_path, config, file_path):
     console.print(Panel(syntax, title="Code", border_style="blue"))
     
     with console.status("[bold green]Generating explanation..."):
-        analysis = explainer.analyze_code(code)
+        analysis = explainer.analyze_code(code, strategy=prompt_strategy)
     
     console.print(Panel(analysis["explanation"], title="Explanation", border_style="green"))
     
@@ -195,10 +199,12 @@ def serve(host, port, model_path):
 @click.option('--test-file', '-t', default=None, help='Optional path to test JSON overriding config')
 @click.option('--preds-out', '-o', default=None, help='Optional path to save predictions as JSONL')
 @click.option('--max-samples', type=int, default=None, help='Limit number of test samples (fast CI)')
-def eval(model_path, config, test_file, preds_out, max_samples):
+@click.option('--prompt-strategy', type=click.Choice(['vanilla', 'ast_augmented', 'retrieval_augmented', 'execution_trace']), default=None,
+              help='Override prompt strategy (default from config)')
+def eval(model_path, config, test_file, preds_out, max_samples, prompt_strategy):
     """Evaluate a model on a test set (BLEU/ROUGE/BERTScore) and optionally save predictions."""
     from .model import CodeExplainer
-    from .metrics.evaluate import compute_bleu, compute_rouge_l, compute_codebert_score
+    from .metrics.evaluate import compute_bleu, compute_rouge_l, compute_codebert_score, compute_codebleu
     import json
 
     console.print(Panel.fit("📏 Running evaluation", style="bold blue"))
@@ -228,7 +234,7 @@ def eval(model_path, config, test_file, preds_out, max_samples):
         code = ex.get('code', '')
         ref = ex.get('explanation', '')
         try:
-            pred = explainer.explain_code(code)
+            pred = explainer.explain_code(code, strategy=prompt_strategy)
         except Exception:
             pred = ""
         codes.append(code)
@@ -238,6 +244,7 @@ def eval(model_path, config, test_file, preds_out, max_samples):
     bleu = compute_bleu(refs, preds)
     rougeL = compute_rouge_l(refs, preds)
     bert = compute_codebert_score(refs, preds)
+    codebleu = compute_codebleu(refs, preds)
 
     # Basic confusion/quality summary
     total = len(refs) if refs else 1
@@ -252,6 +259,7 @@ def eval(model_path, config, test_file, preds_out, max_samples):
     table.add_row("BLEU", f"{bleu:.4f}")
     table.add_row("ROUGE-L", f"{rougeL:.4f}")
     table.add_row("BERTScore", f"{bert:.4f}")
+    table.add_row("CodeBLEU", f"{codebleu:.4f}")
     table.add_row("Exact match %", f"{(exact/total)*100:.2f}%")
     table.add_row("Empty preds %", f"{(empty/total)*100:.2f}%")
     table.add_row("Avg pred len", f"{avg_pred_len:.1f}")
@@ -267,7 +275,7 @@ def eval(model_path, config, test_file, preds_out, max_samples):
                 wf.write(json.dumps({"code": c, "reference": r, "prediction": p}, ensure_ascii=False) + "\n")
         console.print(Panel.fit(f"📝 Predictions saved to {out_path}", style="bold green"))
 
-    metrics = {"bleu": bleu, "rougeL": rougeL, "bert_score": bert}
+    metrics = {"bleu": bleu, "rougeL": rougeL, "bert_score": bert, "codebleu": codebleu}
     console.print(Panel.fit(str(metrics), style="bold green"))
 
 

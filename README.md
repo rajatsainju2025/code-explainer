@@ -140,6 +140,8 @@ Use ready-made presets to switch models quickly:
 | CodeT5 Base | seq2seq | Salesforce/codet5-base | `configs/codet5-base.yaml` | `cx-train -c configs/codet5-base.yaml` | `code-explainer eval -c configs/codet5-base.yaml` |
 | CodeGPT Small (CodeBERT family) | causal | microsoft/CodeGPT-small-py | `configs/codebert-base.yaml` | `cx-train -c configs/codebert-base.yaml` | `code-explainer eval -c configs/codebert-base.yaml` |
 | StarCoderBase 1B | causal | bigcode/starcoderbase-1b | `configs/starcoderbase-1b.yaml` | `cx-train -c configs/starcoderbase-1b.yaml` | `code-explainer eval -c configs/starcoderbase-1b.yaml` |
+| StarCoder2 Instruct | causal | bigcode/starcoder2-3b | `configs/starcoder2-instruct.yaml` | `cx-train -c configs/starcoder2-instruct.yaml` | `code-explainer eval -c configs/starcoder2-instruct.yaml` |
+| CodeLlama Instruct | causal | codellama/CodeLlama-7b-Instruct-hf | `configs/codellama-instruct.yaml` | `cx-train -c configs/codellama-instruct.yaml` | `code-explainer eval -c configs/codellama-instruct.yaml` |
 
 Data paths in each config default to the tiny examples in `data/`. Override any path via CLI flags (e.g., `--data` for training or `--test-file` for eval).
 
@@ -164,10 +166,16 @@ trainer.train(data_path="data/my_dataset.json")
 codes = ["print('hello')", "x = [1,2,3]", "def add(a,b): return a+b"]
 explanations = explainer.explain_code_batch(codes)
 
-# Detailed analysis
-analysis = explainer.analyze_code(code)
-print(f"Contains functions: {analysis['contains_functions']}")
-print(f"Line count: {analysis['line_count']}")
+# Prompt strategy (CLI)
+# vanilla | ast_augmented | retrieval_augmented | execution_trace
+cx-explain --prompt-strategy ast_augmented "def add(a, b): return a + b"
+
+# From API
+# POST /explain {"code": "...", "strategy": "ast_augmented"}
+
+# A/B compare strategies
+python scripts/ab_compare_strategies.py --config configs/default.yaml --max-samples 5 \
+  --strategies vanilla ast_augmented retrieval_augmented
 ```
 
 ## 💡 Examples

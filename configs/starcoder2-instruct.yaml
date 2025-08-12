@@ -1,0 +1,31 @@
+# StarCoder2-Instruct preset focused on code explanation tasks
+model:
+  arch: "causal"
+  name: "bigcode/starcoder2-3b"
+  max_length: 768
+  temperature: 0.4
+  top_p: 0.9
+  top_k: 50
+  torch_dtype: "bfloat16"
+  load_in_8bit: true
+
+training:
+  output_dir: "./results"
+  num_train_epochs: 3
+  per_device_train_batch_size: 1
+  per_device_eval_batch_size: 1
+  gradient_checkpointing: true
+  eval_steps: 50
+  save_steps: 100
+  logging_steps: 10
+
+prompt:
+  template: "You are an expert software engineer. Explain the following code clearly and concisely.\n```python\n{code}\n```\nExplanation:"
+  language_templates:
+    python: "You are an expert software engineer. Explain the following code clearly and concisely.\n```python\n{code}\n```\nExplanation:"
+    javascript: "You are an expert software engineer. Explain the following code clearly and concisely.\n```javascript\n{code}\n```\nExplanation:"
+    java: "You are an expert software engineer. Explain the following code clearly and concisely.\n```java\n{code}\n```\nExplanation:"
+    cpp: "You are an expert software engineer. Explain the following code clearly and concisely.\n```cpp\n{code}\n```\nExplanation:"
+  strategy: ast_augmented
+  max_code_length: 300
+  max_explanation_length: 400
