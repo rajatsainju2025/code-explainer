@@ -28,6 +28,7 @@ class ExplainRequest(BaseModel):
     code: str
     # Allowed strategies: vanilla | ast_augmented | retrieval_augmented | execution_trace
     strategy: Optional[str] = None
+    symbolic: Optional[bool] = False
 
 
 @app.get("/health")
@@ -42,7 +43,11 @@ async def version():
 
 @app.post("/explain")
 async def explain(req: ExplainRequest):
-    return {"explanation": explainer.explain_code(req.code, strategy=req.strategy)}
+    if req.symbolic:
+        explanation = explainer.explain_code_with_symbolic(req.code, include_symbolic=True, strategy=req.strategy)
+    else:
+        explanation = explainer.explain_code(req.code, strategy=req.strategy)
+    return {"explanation": explanation}
 
 
 @app.get("/strategies")

@@ -8,6 +8,8 @@ import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM, AutoModelForSeq2SeqLM
 
 from .utils import load_config, get_device, prompt_for_language
+from .symbolic import SymbolicAnalyzer, format_symbolic_explanation
+from .multi_agent import MultiAgentOrchestrator
 
 logger = logging.getLogger(__name__)
 
@@ -27,10 +29,19 @@ class CodeExplainer:
         self.model_path = Path(model_path)
         self.arch = self.config.get("model", {}).get("arch", "causal")
         
+        # Initialize symbolic analyzer
+        self.symbolic_analyzer = SymbolicAnalyzer()
+        
+        # Initialize multi-agent orchestrator (will be set up after model loading)
+        self.multi_agent_orchestrator = None
+        
         # Initialize model and tokenizer
         self.tokenizer = None
         self.model = None
         self._load_model()
+        
+        # Set up multi-agent system after model is loaded
+        self.multi_agent_orchestrator = MultiAgentOrchestrator(self)
         
     def _load_model(self) -> None:
         """Load the trained model and tokenizer."""
@@ -166,3 +177,61 @@ class CodeExplainer:
         }
         
         return analysis
+    
+    def explain_code_with_symbolic(self, code: str, include_symbolic: bool = True, 
+                                   max_length: Optional[int] = None, 
+                                   strategy: Optional[str] = None) -> str:
+        """Generate explanation with optional symbolic analysis.
+        
+        Args:
+            code: Source code to explain
+            include_symbolic: Whether to include symbolic analysis
+            max_length: Optional max sequence length
+            strategy: Optional prompt strategy override
+            
+        Returns:
+            Enhanced explanation with symbolic analysis
+        """
+        # Get standard explanation
+        standard_explanation = self.explain_code(code, max_length, strategy)
+        
+        if not include_symbolic:
+            return standard_explanation
+        
+        # Add symbolic analysis
+        symbolic_explanation = self.symbolic_analyzer.analyze_code(code)
+        symbolic_text = format_symbolic_explanation(symbolic_explanation)
+        
+        if symbolic_text and symbolic_text != "No symbolic conditions detected.":
+            enhanced_explanation = f"""## Code Explanation
+
+{standard_explanation}
+
+## Symbolic Analysis
+
+{symbolic_text}
+
+## Summary
+
+The code has been analyzed both semantically and symbolically. The symbolic analysis provides formal conditions and properties that can be verified through testing."""
+            return enhanced_explanation
+        
+        return standard_explanation
+    
+    def explain_code_multi_agent(self, code: str, max_length: Optional[int] = None, 
+                                 strategy: Optional[str] = None) -> str:
+        """Generate explanation using multi-agent collaboration.
+        
+        Args:
+            code: Source code to explain
+            max_length: Optional max sequence length (unused for multi-agent)
+            strategy: Optional prompt strategy (passed to semantic agent)
+            
+        Returns:
+            Collaborative explanation from multiple agents
+        """
+        if self.multi_agent_orchestrator is None:
+            # Fallback to regular explanation if multi-agent not available
+            return self.explain_code(code, max_length, strategy)
+        
+        return self.multi_agent_orchestrator.explain_code_collaborative(code)

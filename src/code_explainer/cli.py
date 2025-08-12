@@ -60,8 +60,10 @@ def train(config, data):
               help='Path to configuration file')
 @click.option('--prompt-strategy', type=click.Choice(['vanilla', 'ast_augmented', 'retrieval_augmented', 'execution_trace']), default=None,
               help='Override prompt strategy (default from config)')
+@click.option('--symbolic', is_flag=True, help='Include symbolic analysis in explanation')
+@click.option('--multi-agent', is_flag=True, help='Use multi-agent collaborative explanation')
 @click.argument('code', required=False)
-def explain(model_path, config, prompt_strategy, code):
+def explain(model_path, config, prompt_strategy, symbolic, multi_agent, code):
     """Explain a code snippet."""
     explainer = CodeExplainer(model_path=model_path, config_path=config)
     
@@ -91,7 +93,12 @@ def explain(model_path, config, prompt_strategy, code):
                 
                 # Generate explanation
                 with console.status("[bold green]Generating explanation..."):
-                    explanation = explainer.explain_code(code, strategy=prompt_strategy)
+                    if multi_agent:
+                        explanation = explainer.explain_code_multi_agent(code, strategy=prompt_strategy)
+                    elif symbolic:
+                        explanation = explainer.explain_code_with_symbolic(code, include_symbolic=True, strategy=prompt_strategy)
+                    else:
+                        explanation = explainer.explain_code(code, strategy=prompt_strategy)
                 
                 console.print(Panel(explanation, title="Explanation", border_style="green"))
                 console.print("-" * 50)
@@ -101,7 +108,12 @@ def explain(model_path, config, prompt_strategy, code):
                 break
     else:
         # Single explanation mode
-        explanation = explainer.explain_code(code, strategy=prompt_strategy)
+        if multi_agent:
+            explanation = explainer.explain_code_multi_agent(code, strategy=prompt_strategy)
+        elif symbolic:
+            explanation = explainer.explain_code_with_symbolic(code, include_symbolic=True, strategy=prompt_strategy)
+        else:
+            explanation = explainer.explain_code(code, strategy=prompt_strategy)
         
         syntax = Syntax(code, "python", theme="monokai", line_numbers=True)
         console.print(Panel(syntax, title="Code", border_style="blue"))
