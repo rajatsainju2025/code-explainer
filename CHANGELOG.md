@@ -74,3 +74,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 - Added input validation for code snippets
 - Implemented safe model loading procedures
+
+## [0.3.0] - 2025-08-12
+
+### Added
+- Prompt strategies: ast_augmented, retrieval_augmented, execution_trace
+- CLI/API support for selecting prompt strategies
+- Metrics: CodeBLEU (fallback to BLEU if missing)
+- A/B strategy script `scripts/ab_compare_strategies.py`
+- Docs: strategies, API usage, evaluation; examples for strategies
+- API: `/strategies` endpoint and CORS + env-config
+- Tooling: Makefile targets (api, eval-fast, ab), PR template, shellcheck hook
+- Tests: prompt strategy unit tests
+
+### Changed
+- README updated with presets and strategy usage
+- Version bumped to 0.3.0
