@@ -58,7 +58,7 @@ def train(config, data):
               help='Path to trained model')
 @click.option('--config', '-c', default='configs/default.yaml',
               help='Path to configuration file')
-@click.option('--prompt-strategy', type=click.Choice(['vanilla', 'ast_augmented', 'retrieval_augmented', 'execution_trace']), default=None,
+@click.option('--prompt-strategy', type=click.Choice(['vanilla', 'ast_augmented', 'retrieval_augmented', 'execution_trace', 'enhanced_rag']), default=None,
               help='Override prompt strategy (default from config)')
 @click.option('--symbolic', is_flag=True, help='Include symbolic analysis in explanation')
 @click.option('--multi-agent', is_flag=True, help='Use multi-agent collaborative explanation')
@@ -125,7 +125,7 @@ def explain(model_path, config, prompt_strategy, symbolic, multi_agent, code):
               help='Path to trained model')
 @click.option('--config', '-c', default='configs/default.yaml',
               help='Path to configuration file')
-@click.option('--prompt-strategy', type=click.Choice(['vanilla', 'ast_augmented', 'retrieval_augmented', 'execution_trace']), default=None,
+@click.option('--prompt-strategy', type=click.Choice(['vanilla', 'ast_augmented', 'retrieval_augmented', 'execution_trace', 'enhanced_rag']), default=None,
               help='Override prompt strategy (default from config)')
 @click.argument('file_path', type=click.Path(exists=True))
 def explain_file(model_path, config, prompt_strategy, file_path):
@@ -175,23 +175,30 @@ def serve(host, port, model_path):
         
         explainer = CodeExplainer(model_path=model_path)
         
-        def explain_code_web(code_snippet):
+        def explain_code_web(code_snippet, strategy="vanilla"):
             if not code_snippet.strip():
                 return "Please enter some Python code to explain."
-            return explainer.explain_code(code_snippet)
+            return explainer.explain_code(code_snippet, strategy=strategy)
         
         # Create Gradio interface
         iface = gr.Interface(
             fn=explain_code_web,
-            inputs=gr.Code(language="python", label="Python Code"),
+            inputs=[
+                gr.Code(language="python", label="Python Code"),
+                gr.Dropdown(
+                    choices=["vanilla", "ast_augmented", "retrieval_augmented", "execution_trace", "enhanced_rag"],
+                    value="vanilla",
+                    label="Prompt Strategy"
+                )
+            ],
             outputs=gr.Textbox(label='Explanation'),
             title="🐍 Python Code Explainer",
-            description="Enter a snippet of Python code and get an AI-generated explanation.",
+            description="Enter a snippet of Python code and get an AI-generated explanation using different prompt strategies.",
             flagging_mode="never",
             examples=[
-                ["def fibonacci(n):\n    if n <= 1:\n        return n\n    return fibonacci(n-1) + fibonacci(n-2)"],
-                ["with open('file.txt', 'r') as f:\n    content = f.read()"],
-                ["squares = [x**2 for x in range(10)]"],
+                ["def fibonacci(n):\n    if n <= 1:\n        return n\n    return fibonacci(n-1) + fibonacci(n-2)", "vanilla"],
+                ["with open('file.txt', 'r') as f:\n    content = f.read()", "ast_augmented"],
+                ["squares = [x**2 for x in range(10)]", "enhanced_rag"],
             ]
         )
         
@@ -211,7 +218,7 @@ def serve(host, port, model_path):
 @click.option('--test-file', '-t', default=None, help='Optional path to test JSON overriding config')
 @click.option('--preds-out', '-o', default=None, help='Optional path to save predictions as JSONL')
 @click.option('--max-samples', type=int, default=None, help='Limit number of test samples (fast CI)')
-@click.option('--prompt-strategy', type=click.Choice(['vanilla', 'ast_augmented', 'retrieval_augmented', 'execution_trace']), default=None,
+@click.option('--prompt-strategy', type=click.Choice(['vanilla', 'ast_augmented', 'retrieval_augmented', 'execution_trace', 'enhanced_rag']), default=None,
               help='Override prompt strategy (default from config)')
 def eval(model_path, config, test_file, preds_out, max_samples, prompt_strategy):
     """Evaluate a model on a test set (BLEU/ROUGE/BERTScore) and optionally save predictions."""
@@ -289,6 +296,36 @@ def eval(model_path, config, test_file, preds_out, max_samples, prompt_strategy)
 
     metrics = {"bleu": bleu, "rougeL": rougeL, "bert_score": bert, "codebleu": codebleu}
     console.print(Panel.fit(str(metrics), style="bold green"))
+
+
+@main.command()
+@click.option('--config', '-c', default='configs/default.yaml', help='Path to configuration file')
+@click.option('--output-path', '-o', default='data/code_retrieval_index.faiss', help='Path to save the FAISS index')
+def build_index(config, output_path):
+    """Build a FAISS index for code retrieval from the training data."""
+    from .retrieval import CodeRetriever
+    from .utils import load_config
+    import json
+
+    console.print(Panel.fit("🛠️ Building code retrieval index...", style="bold blue"))
+    cfg = load_config(config)
+    data_path = cfg.get('data', {}).get('train_file')
+    if not data_path:
+        console.print(Panel.fit("❌ No training data file specified in config.", style="bold red"))
+        return
+
+    try:
+        with open(data_path, 'r') as f:
+            data = json.load(f)
+        
+        codes = [item['code'] for item in data if 'code' in item]
+        
+        retriever = CodeRetriever()
+        retriever.build_index(codes, save_path=output_path)
+        
+        console.print(Panel.fit(f"✅ Index built successfully with {len(codes)} code snippets and saved to {output_path}", style="bold green"))
+    except Exception as e:
+        console.print(Panel.fit(f"❌ Failed to build index: {e}", style="bold red"))
 
 
 if __name__ == "__main__":

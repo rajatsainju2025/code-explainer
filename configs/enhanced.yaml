@@ -1,0 +1,107 @@
+model:
+  name: "Salesforce/codet5-small"
+  cache_dir: "./cache"
+  torch_dtype: "auto"
+  load_in_8bit: false
+  device_map: "auto"
+  max_length: 512
+
+training:
+  output_dir: "./results"
+  num_train_epochs: 3
+  per_device_train_batch_size: 4
+  per_device_eval_batch_size: 8
+  gradient_accumulation_steps: 2
+  learning_rate: 5e-5
+  weight_decay: 0.01
+  logging_steps: 100
+  evaluation_strategy: "steps"
+  eval_steps: 500
+  save_steps: 1000
+  save_total_limit: 2
+  load_best_model_at_end: true
+  metric_for_best_model: "eval_loss"
+  greater_is_better: false
+  warmup_steps: 500
+  fp16: true
+  dataloader_num_workers: 4
+  remove_unused_columns: false
+
+data:
+  train_file: "data/train.json"
+  eval_file: "data/eval.json"
+  test_file: "data/test.json"
+  max_samples: null
+
+generation:
+  max_new_tokens: 256
+  num_beams: 1
+  do_sample: true
+  temperature: 0.7
+  top_p: 0.9
+  pad_token_id: 0
+
+prompting:
+  strategy: "vanilla"  # vanilla, ast_augmented, retrieval_augmented, execution_trace, enhanced_rag
+  max_context_length: 2048
+  include_docstrings: true
+  include_imports: true
+
+# Enhanced RAG configuration
+retrieval:
+  index_path: "data/code_retrieval_index.faiss"
+  embedding_model: "microsoft/codebert-base"
+  index_dimension: 768
+  similarity_top_k: 3
+  similarity_threshold: 0.7
+  chunk_size: 512
+  chunk_overlap: 50
+
+# Multi-agent configuration
+multi_agent:
+  enabled: false
+  agents:
+    structural:
+      weight: 0.3
+      focus: "code structure and organization"
+    semantic:
+      weight: 0.3
+      focus: "meaning and purpose"
+    context:
+      weight: 0.2
+      focus: "broader context and usage"
+    verification:
+      weight: 0.2
+      focus: "correctness and edge cases"
+
+# Symbolic analysis configuration
+symbolic:
+  enabled: false
+  max_execution_time: 5
+  include_complexity: true
+  include_dataflow: true
+  generate_tests: false
+
+# Evaluation configuration
+evaluation:
+  metrics: ["bleu", "rouge_l", "bert_score", "codebleu"]
+  batch_size: 8
+  max_samples: null
+
+# Logging configuration
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file: null
+
+# Web interface configuration
+web:
+  gradio:
+    server_name: "127.0.0.1"
+    server_port: 7860
+    share: false
+  api:
+    host: "0.0.0.0"
+    port: 8000
+    reload: false
+    cors_origins: ["*"]

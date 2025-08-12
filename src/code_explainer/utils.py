@@ -308,5 +308,32 @@ def prompt_for_language(config: Dict[str, Any], code: str) -> str:
             + "\n\n"
             + base_prompt
         )
+    
+    # Enhanced RAG with code retrieval
+    if strategy == "enhanced_rag" and lang == "python":
+        from .retrieval import CodeRetriever
+        
+        retriever = CodeRetriever()
+        try:
+            retriever.load_index(config.get("retrieval", {}).get("index_path", "data/code_retrieval_index.faiss"))
+            similar_codes = retriever.retrieve_similar_code(code, k=3)
+            
+            rag_context = [
+                "You are a helpful assistant that uses the following similar code examples to provide a better explanation.",
+                "---",
+                "Similar Code Examples:",
+            ]
+            for i, example in enumerate(similar_codes):
+                rag_context.append(f"\nExample {i+1}:\n```python\n{example}\n```")
+            
+            rag_context.append("---\n")
+            rag_context.append(base_prompt)
+            
+            return "\n".join(rag_context)
+            
+        except Exception as e:
+            logging.warning(f"Enhanced RAG failed: {e}. Falling back to vanilla prompt.")
+            # Fallback to vanilla if retrieval fails
+            return base_prompt
 
     return base_prompt

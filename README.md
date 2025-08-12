@@ -23,6 +23,10 @@
 ## ✨ Features
 
 - 🧠 **Advanced AI Models**: Fine-tuned language models for accurate code explanation
+- 🔍 **Enhanced RAG**: Retrieval-Augmented Generation with code similarity search
+- 🤖 **Multi-Agent Analysis**: Collaborative explanations from specialized agents
+- 🔬 **Symbolic Analysis**: Property-based testing and complexity analysis
+- 🎯 **Smart Prompting**: Multiple strategies (vanilla, AST-augmented, execution trace, RAG)
 - 🌐 **Multiple Interfaces**: CLI, Web UI, and Python API
 - ⚡ **High Performance**: Optimized for speed and accuracy
 - 🔧 **Configurable**: Extensive configuration options for training and inference
