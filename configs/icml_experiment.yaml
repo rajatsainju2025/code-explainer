@@ -1,0 +1,137 @@
+# ICML Experimental Configuration
+# This file defines the experimental setup for ICML submission
+
+# Evaluation settings
+evaluation:
+  results_dir: "evaluation_results/icml"
+  random_seed: 42
+  cv_folds: 5
+  our_method_name: "CodeExplainGPT"
+  
+  # Human evaluation settings
+  human_eval_dataset: "codeexplain_python"
+  human_eval_sample_size: 100
+  evaluator_ids: ["expert_1", "expert_2", "expert_3"]
+  
+  # Error analysis settings
+  error_analysis_dataset: "codeexplain_python"
+  error_categories:
+    - "context_misinterpretation"
+    - "complexity_underestimation"
+    - "domain_knowledge_gaps"
+    - "syntax_errors"
+    - "semantic_errors"
+    - "incomplete_explanation"
+    - "incorrect_logic"
+  
+  # Cross-validation dataset
+  cv_dataset: "codeexplain_multi"
+
+# Our method configuration
+our_method:
+  model_path: "./results"
+  config_path: "configs/enhanced.yaml"
+
+# Baseline methods for comparison
+baselines:
+  CodeT5_Base:
+    type: "code_explainer"
+    model_path: "./results/codet5_base"
+    config_path: "configs/codet5-base.yaml"
+    
+  CodeBERT_Explain:
+    type: "code_explainer"  
+    model_path: "./results/codebert_explain"
+    config_path: "configs/codebert-base.yaml"
+    
+  GPT35_Turbo:
+    type: "openai"
+    model_name: "gpt-3.5-turbo"
+    api_key_env: "OPENAI_API_KEY"
+    
+  Neural_RAG:
+    type: "code_explainer"
+    model_path: "./results/neural_rag"
+    config_path: "configs/enhanced.yaml"
+
+# Evaluation datasets
+datasets:
+  codeexplain_python:
+    name: "CodeExplain-Python"
+    path: "data/codeexplain_python.json"
+    description: "50K Python functions with human explanations"
+    languages: ["python"]
+    size: 50000
+    
+  codeexplain_multi:
+    name: "CodeExplain-Multi"
+    path: "data/codeexplain_multi.json"  
+    description: "30K functions across 5 languages"
+    languages: ["python", "java", "javascript", "cpp", "go"]
+    size: 30000
+    
+  stackoverflow_code:
+    name: "StackOverflow-Code"
+    path: "data/stackoverflow_code.json"
+    description: "25K real-world code snippets with community explanations"
+    languages: ["python", "java", "javascript", "cpp"]
+    size: 25000
+
+# Statistical analysis settings
+statistical_analysis:
+  significance_level: 0.05
+  bootstrap_samples: 1000
+  effect_size_threshold: 0.2
+  
+  # Metrics to compare
+  comparison_metrics:
+    - "bleu"
+    - "rouge_l"
+    - "bertscore_f1"
+    - "codebleu"
+
+# Human evaluation protocol
+human_evaluation:
+  rating_scale: [1, 2, 3, 4, 5]
+  dimensions:
+    accuracy:
+      description: "Technical correctness of the explanation"
+      guidelines: "Rate how accurately the explanation describes the code's functionality"
+    clarity:
+      description: "Understandability and readability"
+      guidelines: "Rate how easy the explanation is to understand"
+    completeness:
+      description: "Coverage of important code aspects"
+      guidelines: "Rate how completely the explanation covers all important aspects"
+    overall:
+      description: "Overall quality of explanation"
+      guidelines: "Rate the overall quality considering all factors"
+  
+  # Inter-annotator agreement requirements
+  min_kappa: 0.6
+  min_annotators: 2
+
+# Error analysis configuration  
+error_analysis:
+  quality_threshold: 0.2  # BLEU score threshold for identifying errors
+  sample_size: 50
+  manual_categorization: true
+  
+# Cross-validation settings
+cross_validation:
+  stratify_by: "language"  # Stratify splits by programming language
+  preserve_distribution: true
+  
+# Reproducibility settings
+reproducibility:
+  save_predictions: true
+  save_intermediate_results: true
+  log_hyperparameters: true
+  track_compute_resources: true
+
+# Computing resources
+compute:
+  max_gpu_memory: "16GB"
+  max_inference_time: "1h"
+  parallel_evaluation: true
+  batch_size: 8
