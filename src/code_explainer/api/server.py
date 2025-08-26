@@ -1,7 +1,7 @@
 import os
 from typing import Optional
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
@@ -12,6 +12,22 @@ except Exception:  # pragma: no cover
 
 from .. import __version__
 from ..model import CodeExplainer
+try:  # pragma: no cover - optional dependency
+    from slowapi import Limiter, _rate_limit_exceeded_handler  # type: ignore
+    from slowapi.errors import RateLimitExceeded  # type: ignore
+    from slowapi.middleware import SlowAPIMiddleware  # type: ignore
+    from slowapi.util import get_remote_address  # type: ignore
+    SLOWAPI_AVAILABLE = True
+except Exception:  # pragma: no cover
+    SLOWAPI_AVAILABLE = False
+    Limiter = None  # type: ignore
+    RateLimitExceeded = Exception  # type: ignore
+    SlowAPIMiddleware = None  # type: ignore
+    def get_remote_address(request):  # type: ignore
+        return "0.0.0.0"
+    def _rate_limit_exceeded_handler(request, exc):  # type: ignore
+        from fastapi.responses import JSONResponse
+        return JSONResponse(status_code=429, content={"detail": "Rate limit exceeded"})
 from ..retrieval import CodeRetriever
 
 app = FastAPI(title="Code Explainer API")
@@ -24,6 +40,82 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Rate limiter configuration (optional). To disable, set CODE_EXPLAINER_RATE_LIMIT="".
+RATE_LIMIT = os.environ.get("CODE_EXPLAINER_RATE_LIMIT", "60/minute")
+if RATE_LIMIT and SLOWAPI_AVAILABLE:
+    limiter = Limiter(key_func=get_remote_address, default_limits=[RATE_LIMIT])  # type: ignore
+    app.state.limiter = limiter  # type: ignore[attr-defined]
+    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # type: ignore
+    app.add_middleware(SlowAPIMiddleware)  # type: ignore
+
+# Request ID and simple metrics
+import time
+import uuid
+from typing import Any
+
+from fastapi.responses import PlainTextResponse
+
+# Prometheus (optional, with fallbacks safe for type-checkers)
+try:  # pragma: no cover - optional dependency
+    from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_latest  # type: ignore
+except Exception:  # pragma: no cover
+    CONTENT_TYPE_LATEST = "text/plain"
+
+    class _NoopMetric:
+        def labels(self, **kwargs):
+            return self
+        def inc(self, *a, **k):  # noqa: D401
+            return None
+        def observe(self, *a, **k):
+            return None
+
+    def Counter(*args, **kwargs):  # type: ignore
+        return _NoopMetric()
+
+    def Histogram(*args, **kwargs):  # type: ignore
+        return _NoopMetric()
+
+    def generate_latest() -> bytes:  # type: ignore
+        return b""
+
+REQUEST_COUNT: Any = Counter(
+    "cx_requests_total",
+    "Total HTTP requests",
+    ["method", "path", "status"],
+)
+REQUEST_LATENCY: Any = Histogram(
+    "cx_request_latency_seconds",
+    "Latency of HTTP requests in seconds",
+    ["method", "path"],
+    buckets=(0.01, 0.05, 0.1, 0.25, 0.5, 1, 2, 5),
+)
+
+
+@app.middleware("http")
+async def add_request_id_and_metrics(request: Request, call_next):
+    request_id = str(uuid.uuid4())
+    start = time.perf_counter()
+    response = None
+    try:
+        response = await call_next(request)
+        return response
+    finally:
+        elapsed = time.perf_counter() - start
+        path = request.url.path
+        method = request.method
+        status = getattr(response, "status_code", 500)
+        REQUEST_COUNT.labels(method=method, path=path, status=status).inc()
+        REQUEST_LATENCY.labels(method=method, path=path).observe(elapsed)
+        # Propagate request id
+        if response is not None:
+            response.headers["X-Request-ID"] = request_id
+
+
+@app.get("/metrics")
+async def metrics():
+    data = generate_latest()
+    return PlainTextResponse(data, media_type=CONTENT_TYPE_LATEST)
 
 # Configurable model/config via environment
 MODEL_PATH = os.environ.get("CODE_EXPLAINER_MODEL_PATH", "./results")
@@ -73,6 +165,8 @@ class RetrieveRequest(BaseModel):
     top_k: int = Field(
         default=3, ge=1, le=TOP_K_MAX, description="Number of similar examples to retrieve"
     )
+    method: Optional[str] = Field(default="hybrid", description="Retrieval method: faiss|bm25|hybrid")
+    alpha: Optional[float] = Field(default=0.5, ge=0.0, le=1.0, description="Hybrid weight toward FAISS similarity")
 
 
 @app.get("/health")
@@ -155,8 +249,18 @@ async def retrieve(req: RetrieveRequest):
         raise HTTPException(status_code=500, detail=f"Failed to load index: {e}")
 
     try:
-        matches = retriever.retrieve_similar_code(req.code, k=req.top_k)
-        return {"matches": matches, "count": len(matches)}
+        matches = retriever.retrieve_similar_code(
+            req.code,
+            k=req.top_k,
+            method=(req.method or "hybrid"),
+            alpha=(req.alpha or 0.5),
+        )
+        return {
+            "matches": matches,
+            "count": len(matches),
+            "method": req.method or "hybrid",
+            "alpha": req.alpha or 0.5,
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to retrieve: {e}")
 
@@ -185,3 +289,18 @@ async def retrieval_health():
         "last_error": error or last_retrieval_error,
         "top_k_max": TOP_K_MAX,
     }
+
+
+@app.get("/retrieval/stats")
+async def retrieval_stats():
+    """Runtime stats of the loaded retriever (if any)."""
+    info = {
+        "loaded": retriever is not None,
+        "index_loaded": bool(getattr(retriever, "index", None)),
+        "corpus_size": len(getattr(retriever, "code_corpus", []) or []),
+        "faiss_ntotal": getattr(getattr(retriever, "index", None), "ntotal", None),
+        "bm25_built": bool(getattr(retriever, "_bm25", None)),
+        "index_path": RETRIEVAL_INDEX_PATH,
+        "top_k_max": TOP_K_MAX,
+    }
+    return info

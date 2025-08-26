@@ -10,6 +10,7 @@ gradio>=3.35.0
 streamlit>=1.24.0
 fastapi>=0.100.0
 uvicorn>=0.22.0
+prometheus-client>=0.17.0
 
 # Data processing
 pandas>=2.0.0
@@ -20,6 +21,7 @@ PyYAML>=6.0
 # Enhanced RAG dependencies
 sentence-transformers>=2.2.0
 faiss-cpu>=1.7.0
+rank-bm25>=0.2.2
 
 # System monitoring
 psutil>=5.9.0
@@ -39,6 +41,7 @@ isort>=5.12.0
 flake8>=6.0.0
 mypy>=1.4.0
 pre-commit>=3.3.0
+slowapi>=0.1.9
 
 # Logging and monitoring  
 wandb>=0.15.0

@@ -15,8 +15,10 @@ Endpoints:
 - GET /version -> {"version": "<semver>"}
 - GET /strategies -> {"strategies": ["vanilla","ast_augmented","retrieval_augmented","execution_trace"]}
 - POST /explain -> {"explanation": "..."}
- - POST /retrieve -> {"matches": ["..."], "count": N}
+ - POST /retrieve -> {"matches": ["..."], "count": N, "method": "hybrid", "alpha": 0.5}
  - GET /retrieval/health -> retrieval index status
+ - GET /retrieval/stats -> runtime stats of retriever
+ - GET /metrics -> Prometheus metrics (if prometheus-client installed)
 
 POST /explain payload:
 ```json
@@ -42,7 +44,9 @@ POST /retrieve payload:
 {
   "code": "def merge_sort(arr): ...",
   "index_path": "data/code_retrieval_index.faiss",
-  "top_k": 3
+  "top_k": 3,
+  "method": "hybrid",  // faiss | bm25 | hybrid
+  "alpha": 0.5           // hybrid weight toward FAISS similarity
 }
 ```
 
@@ -56,9 +60,16 @@ curl -s -X POST http://localhost:8000/retrieve \
 Validation:
 - code: min length 3
 - top_k: 1..CODE_EXPLAINER_RETRIEVAL_TOPK_MAX (default 20)
+ - method: one of faiss|bm25|hybrid (default hybrid)
+ - alpha: 0..1 (default 0.5)
 
 Health endpoints:
 ```bash
 curl -s http://localhost:8000/health | jq
 curl -s http://localhost:8000/retrieval/health | jq
+curl -s http://localhost:8000/retrieval/stats | jq
 ```
+
+Rate limiting:
+- Configure with env CODE_EXPLAINER_RATE_LIMIT (e.g., "60/minute").
+- Requires slowapi to be installed; otherwise disabled automatically.
