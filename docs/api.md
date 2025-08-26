@@ -16,6 +16,7 @@ Endpoints:
 - GET /strategies -> {"strategies": ["vanilla","ast_augmented","retrieval_augmented","execution_trace"]}
 - POST /explain -> {"explanation": "..."}
  - POST /retrieve -> {"matches": ["..."], "count": N}
+ - GET /retrieval/health -> retrieval index status
 
 POST /explain payload:
 ```json
@@ -24,6 +25,10 @@ POST /explain payload:
   "strategy": "ast_augmented"
 }
 ```
+
+Validation:
+- code: non-empty string (1+ chars)
+- strategy: optional; see /strategies
 
 Curl example:
 ```bash
@@ -46,4 +51,14 @@ Curl example:
 curl -s -X POST http://localhost:8000/retrieve \
   -H 'Content-Type: application/json' \
   -d '{"code": "def fib(n): ...", "index_path": "data/code_retrieval_index.faiss", "top_k": 3}' | jq
+```
+
+Validation:
+- code: min length 3
+- top_k: 1..CODE_EXPLAINER_RETRIEVAL_TOPK_MAX (default 20)
+
+Health endpoints:
+```bash
+curl -s http://localhost:8000/health | jq
+curl -s http://localhost:8000/retrieval/health | jq
 ```
