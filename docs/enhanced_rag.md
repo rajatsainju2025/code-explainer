@@ -15,6 +15,23 @@ Enhanced RAG uses semantic similarity search to find relevant code examples and 
 
 ## Usage
 
+### Quickstart
+
+If you already have training data configured in `configs/enhanced.yaml`, you can build and query the index in two steps:
+
+```bash
+# 1) Build the index from your configured train file
+python -m code_explainer.cli build-index \
+    --config configs/enhanced.yaml \
+    --output-path data/code_retrieval_index.faiss
+
+# 2) Query the index with a code snippet (prints top matches)
+python -m code_explainer.cli query-index \
+    --index data/code_retrieval_index.faiss \
+    --top-k 3 \
+    "def merge_sort(arr): ..."
+```
+
 ### Building an Index
 
 First, build a FAISS index from your training data:
