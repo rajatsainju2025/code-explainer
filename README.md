@@ -80,10 +80,6 @@ cx-explain "print('hello')"
 cx-explain-file script.py
 cx-serve --port 8080
 
-# Evaluate with options
-code-explainer eval --config configs/default.yaml --test-file data/test.json --max-samples 5 --preds-out examples/eval_results/preds.jsonl
-```
-
 ### From repo scripts
 
 ```bash
@@ -171,9 +167,6 @@ codes = ["print('hello')", "x = [1,2,3]", "def add(a,b): return a+b"]
 explanations = explainer.explain_code_batch(codes)
 
 # Prompt strategy (CLI)
-# vanilla | ast_augmented | retrieval_augmented | execution_trace
-cx-explain --prompt-strategy ast_augmented "def add(a, b): return a + b"
-
 # From API
 # POST /explain {"code": "...", "strategy": "ast_augmented"}
 
@@ -216,8 +209,6 @@ class BankAccount:
 </details>
 
 ## 🛠️ Development
-
-### Setup Development Environment
 
 ```bash
 git clone https://github.com/rajatsainju2025/code-explainer.git
@@ -265,19 +256,11 @@ isort src/ tests/
 # Type checking
 mypy src/
 
-# Linting
-flake8 src/ tests/
-```
-
-## 🐳 Docker
-
 ```dockerfile
 # Build image
 docker build -t code-explainer .
 
 # Run web interface
-docker run -p 7860:7860 code-explainer serve --host 0.0.0.0
-
 # Run training
 docker run -v $(pwd)/data:/app/data code-explainer train --data /app/data/train.json
 ```
@@ -297,18 +280,10 @@ We are running a focused 10-day sprint targeting 10–15 meaningful contribution
 
 - CONTRIBUTION_PLAN_10_DAYS.md
 - Track progress on the Project board (link will be added once created)
-
-Contributions include small, reviewable PRs, good-first issues, CI improvements, docs, examples, and community threads.
-
 ## 🤝 Contributing
 
 We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
 4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
 
 ## 📄 License
 
@@ -320,8 +295,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - [OpenAI](https://openai.com/) for GPT model architecture inspiration
 - The open-source community for various tools and libraries
 
-## 📞 Contact
-
 - **Author**: Rajat Sainju
 - **Email**: your.email@example.com
 - **GitHub**: [@rajatsainju2025](https://github.com/rajatsainju2025)
@@ -330,10 +303,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ---
 
 <div align="center">
-
-**⭐ Star this repo if you find it helpful! ⭐**
-
-Made with ❤️ by [Rajat Sainju](https://github.com/rajatsainju2025)
 
 </div>
 
