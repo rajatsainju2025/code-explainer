@@ -342,6 +342,40 @@ def eval(model_path, config, test_file, preds_out, max_samples, prompt_strategy)
     metrics = {"bleu": bleu, "rougeL": rougeL, "bert_score": bert, "codebleu": codebleu}
     console.print(Panel.fit(str(metrics), style="bold green"))
 
+    @main.command()
+    @click.option(
+        "--index",
+        "index_path",
+        required=True,
+        help="Path to a FAISS index built by build-index (e.g. data/code_retrieval_index.faiss)",
+    )
+    @click.option("--top-k", type=int, default=3, help="Number of similar examples to retrieve")
+    @click.argument("code")
+    def query_index(index_path, top_k, code):
+        """Query an existing FAISS index with a code snippet and print top matches."""
+        from .retrieval import CodeRetriever
+
+        console.print(Panel.fit("🔎 Querying code retrieval index...", style="bold blue"))
+
+        try:
+            retriever = CodeRetriever()
+            retriever.load_index(index_path)
+            matches = retriever.retrieve_similar_code(code, k=top_k)
+
+            table = Table(title=f"Top {top_k} similar code snippets")
+            table.add_column("Rank", justify="right", style="cyan")
+            table.add_column("Snippet", style="white")
+            for i, snippet in enumerate(matches, start=1):
+                # Truncate long snippets for display
+                preview = snippet if len(snippet) < 280 else snippet[:277] + "..."
+                table.add_row(str(i), preview)
+            console.print(table)
+
+        except FileNotFoundError as e:
+            console.print(Panel.fit(f"❌ {e}", style="bold red"))
+        except Exception as e:
+            console.print(Panel.fit(f"❌ Failed to query index: {e}", style="bold red"))
+
 
 @main.command()
 @click.option("--config", "-c", default="configs/default.yaml", help="Path to configuration file")
@@ -572,24 +606,28 @@ def analyze_quality(file_path, output, format, show_suggestions):
 def clear_cache(cache_dir, explanations, embeddings, clear_all):
     """Clear various caches to free up disk space."""
     console.print(Panel.fit("🗑️ Clearing Caches", style="bold yellow"))
-    
+
     try:
         if clear_all or explanations:
             from .cache import ExplanationCache
+
             explanation_cache = ExplanationCache(f"{cache_dir}/explanations")
             old_size = explanation_cache.size()
             explanation_cache.clear()
             console.print(f"✅ Cleared {old_size} explanation cache entries")
-        
+
         if clear_all or embeddings:
             from .cache import EmbeddingCache
+
             embedding_cache = EmbeddingCache(f"{cache_dir}/embeddings")
             embedding_cache.clear()
             console.print("✅ Cleared embedding cache")
-        
+
         if not any([explanations, embeddings, clear_all]):
-            console.print("[yellow]No cache type specified. Use --explanations, --embeddings, or --all[/yellow]")
-    
+            console.print(
+                "[yellow]No cache type specified. Use --explanations, --embeddings, or --all[/yellow]"
+            )
+
     except Exception as e:
         console.print(Panel.fit(f"❌ Cache clearing failed: {e}", style="bold red"))
         raise
@@ -600,44 +638,40 @@ def clear_cache(cache_dir, explanations, embeddings, clear_all):
 def cache_stats(cache_dir):
     """Show cache statistics and usage information."""
     console.print(Panel.fit("📊 Cache Statistics", style="bold blue"))
-    
+
     try:
         from .cache import ExplanationCache, EmbeddingCache
-        
+
         # Explanation cache stats
         explanation_cache = ExplanationCache(f"{cache_dir}/explanations")
         exp_stats = explanation_cache.stats()
-        
+
         # Embedding cache stats
         embedding_cache = EmbeddingCache(f"{cache_dir}/embeddings")
         embedding_dir = Path(f"{cache_dir}/embeddings")
         embedding_count = len(list(embedding_dir.glob("*.pkl"))) if embedding_dir.exists() else 0
-        
+
         # Create table
         table = Table(title="Cache Usage")
         table.add_column("Cache Type", style="cyan")
         table.add_column("Entries", style="green")
         table.add_column("Details", style="yellow")
-        
+
         table.add_row(
             "Explanations",
             str(exp_stats["size"]),
-            f"Total accesses: {exp_stats['total_access_count']}"
+            f"Total accesses: {exp_stats['total_access_count']}",
         )
-        table.add_row(
-            "Embeddings",
-            str(embedding_count),
-            "Pre-computed code embeddings"
-        )
-        
+        table.add_row("Embeddings", str(embedding_count), "Pre-computed code embeddings")
+
         console.print(table)
-        
+
         if exp_stats["size"] > 0:
             console.print(f"\n[bold]Explanation Cache Details:[/bold]")
             console.print(f"• Average access count: {exp_stats['avg_access_count']:.1f}")
             console.print(f"• Strategies used: {', '.join(exp_stats['strategies'])}")
             console.print(f"• Models used: {', '.join(exp_stats['models'])}")
-    
+
     except Exception as e:
         console.print(Panel.fit(f"❌ Failed to get cache stats: {e}", style="bold red"))
         raise
@@ -650,13 +684,13 @@ def cache_stats(cache_dir):
 def safe_execute(code, timeout, max_memory):
     """Safely execute code with security validation and resource limits."""
     console.print(Panel.fit("🔒 Safe Code Execution", style="bold blue"))
-    
+
     try:
         from .security import SafeCodeExecutor
-        
+
         executor = SafeCodeExecutor(timeout=timeout, max_memory_mb=max_memory)
         result = executor.execute_code(code)
-        
+
         if result["success"]:
             console.print("[bold green]✅ Execution successful[/bold green]")
             if result.get("output"):
@@ -667,7 +701,7 @@ def safe_execute(code, timeout, max_memory):
                 console.print(Panel(result["error"], title="Error", border_style="red"))
             if result.get("stderr"):
                 console.print(Panel(result["stderr"], title="Stderr", border_style="red"))
-    
+
     except Exception as e:
         console.print(Panel.fit(f"❌ Safe execution failed: {e}", style="bold red"))
         raise
@@ -678,20 +712,20 @@ def safe_execute(code, timeout, max_memory):
 def validate_security(code):
     """Validate code for security risks without executing it."""
     console.print(Panel.fit("🛡️ Security Validation", style="bold blue"))
-    
+
     try:
         from .security import CodeSecurityValidator
-        
+
         validator = CodeSecurityValidator()
         is_safe, issues = validator.validate_code(code)
-        
+
         if is_safe:
             console.print("[bold green]✅ Code passed security validation[/bold green]")
         else:
             console.print("[bold red]⚠️ Security issues found:[/bold red]")
             for issue in issues:
                 console.print(f"• {issue}")
-    
+
     except Exception as e:
         console.print(Panel.fit(f"❌ Security validation failed: {e}", style="bold red"))
         raise
