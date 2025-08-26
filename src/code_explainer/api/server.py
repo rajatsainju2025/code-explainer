@@ -7,6 +7,7 @@ from pydantic import BaseModel
 
 from .. import __version__
 from ..model import CodeExplainer
+from ..retrieval import CodeRetriever
 
 app = FastAPI(title="Code Explainer API")
 
@@ -23,6 +24,7 @@ app.add_middleware(
 MODEL_PATH = os.environ.get("CODE_EXPLAINER_MODEL_PATH", "./results")
 CONFIG_PATH = os.environ.get("CODE_EXPLAINER_CONFIG_PATH", "configs/default.yaml")
 explainer = CodeExplainer(model_path=MODEL_PATH, config_path=CONFIG_PATH)
+retriever: Optional[CodeRetriever] = None
 
 
 class ExplainRequest(BaseModel):
@@ -30,6 +32,12 @@ class ExplainRequest(BaseModel):
     # Allowed strategies: vanilla | ast_augmented | retrieval_augmented | execution_trace
     strategy: Optional[str] = None
     symbolic: Optional[bool] = False
+
+
+class RetrieveRequest(BaseModel):
+    code: str
+    index_path: str = "data/code_retrieval_index.faiss"
+    top_k: int = 3
 
 
 @app.get("/health")
@@ -63,3 +71,23 @@ async def strategies():
             "execution_trace",
         ]
     }
+
+
+@app.post("/retrieve")
+async def retrieve(req: RetrieveRequest):
+    global retriever
+    if retriever is None:
+        retriever = CodeRetriever()
+    # Load index on demand
+    try:
+        retriever.load_index(req.index_path)
+    except FileNotFoundError:
+        return {"error": f"Index not found: {req.index_path}"}
+    except Exception as e:
+        return {"error": f"Failed to load index: {e}"}
+
+    try:
+        matches = retriever.retrieve_similar_code(req.code, k=req.top_k)
+        return {"matches": matches, "count": len(matches)}
+    except Exception as e:
+        return {"error": f"Failed to retrieve: {e}"}
