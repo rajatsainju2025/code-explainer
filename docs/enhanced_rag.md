@@ -107,6 +107,16 @@ response = requests.post("http://localhost:8000/explain", json={
 })
 
 explanation = response.json()["explanation"]
+
+You can also directly query the retrieval index via the API:
+
+```bash
+curl -s -X POST http://localhost:8000/retrieve \
+    -H 'Content-Type: application/json' \
+    -d '{"code": "def fib(n): ...", "index_path": "data/code_retrieval_index.faiss", "top_k": 3}' | jq
+```
+
+See `examples/api_retrieval_example.py` for a ready-to-run example.
 ```
 
 ## Configuration
