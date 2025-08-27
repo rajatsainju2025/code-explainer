@@ -1,5 +1,6 @@
 # Simple developer Makefile
 .PHONY: install test lint type format precommit clean api eval-fast ab api-serve icml-all icml-analysis icml-outputs
+.PHONY: docs-serve docs-deploy
 
 install:
 	python -m pip install --upgrade pip
@@ -44,3 +45,9 @@ icml-analysis:
 
 icml-outputs:
 	python scripts/run_icml_experiments.py --config configs/icml_experiment_full.yaml --phase outputs
+
+docs-serve:
+	mkdocs serve -a 0.0.0.0:8001
+
+docs-deploy:
+	mkdocs gh-deploy --force

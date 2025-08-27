@@ -1,0 +1,19 @@
+site_name: Code Explainer
+site_url: https://rajatsainju2025.github.io/code-explainer/
+theme:
+  name: material
+nav:
+  - Home: index.md
+  - Quickstart: quickstart.md
+  - API: api.md
+  - Evaluation:
+    - Open Evaluations: open-evals.md
+    - Retrieval Deep Dive: retrieval-advanced.md
+  - Troubleshooting: troubleshooting.md
+repo_url: https://github.com/rajatsainju2025/code-explainer
+repo_name: rajatsainju2025/code-explainer
+markdown_extensions:
+  - admonition
+  - codehilite
+  - toc:
+      permalink: true
