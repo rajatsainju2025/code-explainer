@@ -350,8 +350,22 @@ def eval(model_path, config, test_file, preds_out, max_samples, prompt_strategy)
         help="Path to a FAISS index built by build-index (e.g. data/code_retrieval_index.faiss)",
     )
     @click.option("--top-k", type=int, default=3, help="Number of similar examples to retrieve")
+    @click.option(
+        "--method",
+        type=click.Choice(["faiss", "bm25", "hybrid"]),
+        default="hybrid",
+        show_default=True,
+        help="Retrieval method",
+    )
+    @click.option(
+        "--alpha",
+        type=float,
+        default=0.5,
+        show_default=True,
+        help="Hybrid weight toward FAISS similarity (0..1)",
+    )
     @click.argument("code")
-    def query_index(index_path, top_k, code):
+    def query_index(index_path, top_k, method, alpha, code):
         """Query an existing FAISS index with a code snippet and print top matches."""
         from .retrieval import CodeRetriever
 
@@ -360,9 +374,9 @@ def eval(model_path, config, test_file, preds_out, max_samples, prompt_strategy)
         try:
             retriever = CodeRetriever()
             retriever.load_index(index_path)
-            matches = retriever.retrieve_similar_code(code, k=top_k)
+            matches = retriever.retrieve_similar_code(code, k=top_k, method=method, alpha=alpha)
 
-            table = Table(title=f"Top {top_k} similar code snippets")
+            table = Table(title=f"Top {top_k} similar code snippets ({method}, alpha={alpha})")
             table.add_column("Rank", justify="right", style="cyan")
             table.add_column("Snippet", style="white")
             for i, snippet in enumerate(matches, start=1):

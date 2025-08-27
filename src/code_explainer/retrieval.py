@@ -5,7 +5,7 @@ Supports FAISS vector search, BM25 lexical search, and hybrid fusion.
 
 import logging
 from pathlib import Path
-from typing import List, Optional, Tuple, Dict
+from typing import List, Optional, Tuple, Dict, Any
 
 import faiss
 import numpy as np
@@ -24,9 +24,9 @@ class CodeRetriever:
     Supports FAISS vector search, BM25 lexical search, and hybrid fusion.
     """
 
-    def __init__(self, model_name: str = "sentence-transformers/all-MiniLM-L6-v2"):
+    def __init__(self, model_name: str = "sentence-transformers/all-MiniLM-L6-v2", model: Optional[Any] = None):
         self.model_name = model_name
-        self.model = SentenceTransformer(model_name)
+        self.model = model or SentenceTransformer(model_name)
         self.index: Optional[faiss.Index] = None
         self.code_corpus: List[str] = []
         self._bm25 = None
