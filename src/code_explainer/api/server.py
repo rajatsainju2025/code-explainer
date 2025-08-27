@@ -1,7 +1,9 @@
 import os
-from typing import Optional
+import logging
+import uuid
+from typing import Optional, List, Dict, Any
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
@@ -9,6 +11,30 @@ try:
     import faiss  # type: ignore
 except Exception:  # pragma: no cover
     faiss = None  # lazy fallback
+
+# Optional Prometheus metrics
+try:
+    from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_LATEST
+    PROMETHEUS_AVAILABLE = True
+    
+    # Metrics
+    REQUESTS = Counter('api_requests_total', 'Total API requests', ['method', 'endpoint'])
+    RETRIEVAL_REQUESTS = Counter('retrieval_requests_total', 'Total retrieval requests')
+    RETRIEVAL_ERRORS = Counter('retrieval_errors_total', 'Total retrieval errors') 
+    RETRIEVAL_DURATION = Histogram('retrieval_duration_seconds', 'Retrieval request duration')
+    
+except ImportError:
+    PROMETHEUS_AVAILABLE = False
+    # Mock metrics for when prometheus is not available
+    class MockMetric:
+        def inc(self): pass
+        def observe(self, value=None): pass
+        def start_timer(self): return self
+    
+    REQUESTS = MockMetric()
+    RETRIEVAL_REQUESTS = MockMetric()
+    RETRIEVAL_ERRORS = MockMetric()
+    RETRIEVAL_DURATION = MockMetric()
 
 from .. import __version__
 from ..model import CodeExplainer
@@ -30,7 +56,15 @@ except Exception:  # pragma: no cover
         return JSONResponse(status_code=429, content={"detail": "Rate limit exceeded"})
 from ..retrieval import CodeRetriever
 
+# Setup logging
+logger = logging.getLogger(__name__)
+
 app = FastAPI(title="Code Explainer API")
+
+# Request ID middleware
+def get_request_id() -> str:
+    """Generate a unique request ID."""
+    return str(uuid.uuid4())
 
 # CORS (allow local dev tools by default)
 app.add_middleware(
@@ -152,21 +186,49 @@ class ExplainRequest(BaseModel):
     symbolic: Optional[bool] = Field(default=False, description="Include symbolic analysis")
 
 
-class RetrieveRequest(BaseModel):
-    code: str = Field(
+class RetrievalRequest(BaseModel):
+    query: str = Field(
         ...,
         min_length=3,
         max_length=200000,
         description="Code snippet to search for similar examples",
+        alias="code"
     )
-    index_path: str = Field(
-        default=RETRIEVAL_INDEX_PATH, description="Path to FAISS index (built via CLI build-index)"
+    k: int = Field(
+        default=3, ge=1, le=50, description="Number of similar examples to retrieve", alias="top_k"
     )
-    top_k: int = Field(
-        default=3, ge=1, le=TOP_K_MAX, description="Number of similar examples to retrieve"
-    )
-    method: Optional[str] = Field(default="hybrid", description="Retrieval method: faiss|bm25|hybrid")
-    alpha: Optional[float] = Field(default=0.5, ge=0.0, le=1.0, description="Hybrid weight toward FAISS similarity")
+    method: str = Field(default="hybrid", description="Retrieval method: faiss|bm25|hybrid")
+    alpha: float = Field(default=0.5, ge=0.0, le=1.0, description="Hybrid weight toward FAISS similarity")
+    use_reranker: bool = Field(default=False, description="Use cross-encoder reranking")
+    use_mmr: bool = Field(default=False, description="Use MMR for diversity")
+    rerank_top_k: int = Field(default=20, ge=1, le=100, description="Candidates to rerank")
+    mmr_lambda: float = Field(default=0.5, ge=0.0, le=1.0, description="MMR relevance-diversity trade-off")
+
+    class Config:
+        allow_population_by_field_name = True
+
+
+class RetrievalResponse(BaseModel):
+    similar_codes: List[str]
+    metadata: Dict[str, Any]
+
+
+class EnhancedRetrievalRequest(BaseModel):
+    query: str = Field(..., min_length=3, max_length=200000, description="Code query")
+    k: int = Field(default=3, ge=1, le=50, description="Number of results")
+    method: str = Field(default="hybrid", description="Retrieval method")
+    alpha: float = Field(default=0.5, ge=0.0, le=1.0, description="Hybrid weight") 
+    use_reranker: bool = Field(default=True, description="Use cross-encoder reranking")
+    use_mmr: bool = Field(default=True, description="Use MMR for diversity")
+    rerank_top_k: int = Field(default=20, ge=1, le=100, description="Candidates to rerank")
+    mmr_lambda: float = Field(default=0.5, ge=0.0, le=1.0, description="MMR trade-off")
+
+
+class EnhancedRetrievalResponse(BaseModel):
+    results: List[Dict[str, Any]]
+    query: str
+    method_used: str
+    total_results: int
 
 
 @app.get("/health")
@@ -229,40 +291,104 @@ async def strategies():
 
 
 @app.post("/retrieve")
-async def retrieve(req: RetrieveRequest):
-    global retriever
-    if not req.code.strip():
-        raise HTTPException(status_code=400, detail="code must not be empty")
-    if req.top_k < 1 or req.top_k > TOP_K_MAX:
-        raise HTTPException(status_code=400, detail=f"top_k must be between 1 and {TOP_K_MAX}")
-
-    # Lazy-init retriever and load index on demand
+async def retrieve_similar(
+    request: RetrievalRequest,
+    request_id: str = Depends(get_request_id)
+) -> RetrievalResponse:
+    """Retrieve similar code snippets with enhanced features."""
     try:
+        # Update metrics
+        RETRIEVAL_REQUESTS.inc()
+        retrieval_timer = RETRIEVAL_DURATION.start_timer()
+        
+        logger.info(f"Retrieval request: method={request.method}, k={request.k}, request_id={request_id}")
+        
         if retriever is None:
-            retriever = CodeRetriever()
-        retriever.load_index(req.index_path)
-    except FileNotFoundError:
-        raise HTTPException(status_code=404, detail=f"Index not found: {req.index_path}")
-    except ImportError as e:
-        raise HTTPException(status_code=500, detail=f"Dependency missing for retrieval: {e}")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to load index: {e}")
-
-    try:
-        matches = retriever.retrieve_similar_code(
-            req.code,
-            k=req.top_k,
-            method=(req.method or "hybrid"),
-            alpha=(req.alpha or 0.5),
+            raise HTTPException(status_code=503, detail="Retrieval service not available")
+        
+        # Use enhanced retrieval if advanced features are requested
+        if request.use_reranker or request.use_mmr:
+            results = retriever.retrieve_similar_code_enhanced(
+                query_code=request.query,
+                k=request.k,
+                method=request.method,
+                alpha=request.alpha,
+                use_reranker=request.use_reranker,
+                use_mmr=request.use_mmr,
+                rerank_top_k=request.rerank_top_k,
+                mmr_lambda=request.mmr_lambda
+            )
+            # Convert enhanced results to simple format for compatibility
+            similar_codes = [result["content"] for result in results]
+            metadata = {
+                "enhanced": True,
+                "reranker_used": request.use_reranker,
+                "mmr_used": request.use_mmr,
+                "results_metadata": results
+            }
+        else:
+            # Use simple retrieval
+            similar_codes = retriever.retrieve_similar_code(
+                query_code=request.query,
+                k=request.k,
+                method=request.method,
+                alpha=request.alpha
+            )
+            metadata = {"enhanced": False}
+        
+        retrieval_timer.observe()
+        
+        return RetrievalResponse(
+            similar_codes=similar_codes,
+            metadata=metadata
         )
-        return {
-            "matches": matches,
-            "count": len(matches),
-            "method": req.method or "hybrid",
-            "alpha": req.alpha or 0.5,
-        }
+        
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to retrieve: {e}")
+        RETRIEVAL_ERRORS.inc()
+        logger.error(f"Retrieval failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Retrieval failed: {str(e)}")
+
+
+@app.post("/retrieve/enhanced")
+async def retrieve_similar_enhanced(
+    request: EnhancedRetrievalRequest,
+    request_id: str = Depends(get_request_id)
+) -> EnhancedRetrievalResponse:
+    """Enhanced retrieval with reranking and MMR for diversity."""
+    try:
+        # Update metrics
+        RETRIEVAL_REQUESTS.inc()
+        retrieval_timer = RETRIEVAL_DURATION.start_timer()
+        
+        logger.info(f"Enhanced retrieval: method={request.method}, rerank={request.use_reranker}, mmr={request.use_mmr}, request_id={request_id}")
+        
+        if retriever is None:
+            raise HTTPException(status_code=503, detail="Retrieval service not available")
+        
+        results = retriever.retrieve_similar_code_enhanced(
+            query_code=request.query,
+            k=request.k,
+            method=request.method,
+            alpha=request.alpha,
+            use_reranker=request.use_reranker,
+            use_mmr=request.use_mmr,
+            rerank_top_k=request.rerank_top_k,
+            mmr_lambda=request.mmr_lambda
+        )
+        
+        retrieval_timer.observe()
+        
+        return EnhancedRetrievalResponse(
+            results=results,
+            query=request.query,
+            method_used=request.method,
+            total_results=len(results)
+        )
+            
+    except Exception as e:
+        RETRIEVAL_ERRORS.inc()
+        logger.error(f"Enhanced retrieval failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Enhanced retrieval failed: {str(e)}")
 
 
 @app.get("/retrieval/health")
