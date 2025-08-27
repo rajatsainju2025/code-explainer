@@ -1,0 +1,85 @@
+site_name: Code Explainer Documentation
+site_url: https://rajatsainju2025.github.io/code-explainer
+repo_url: https://github.com/rajatsainju2025/code-explainer
+repo_name: rajatsainju2025/code-explainer
+
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: blue
+      accent: blue
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: blue
+      accent: blue
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.path
+    - navigation.top
+    - search.highlight
+    - search.share
+    - content.code.copy
+
+nav:
+  - Home: index.md
+  - Getting Started:
+    - Installation: installation.md
+    - Quick Start: quickstart.md
+    - Configuration: configuration.md
+  - User Guide:
+    - Strategies: strategies.md
+    - Evaluation: evaluation.md
+    - Troubleshooting: troubleshooting.md
+  - API Reference:
+    - REST API: api/rest.md
+    - Python SDK: api/python.md
+    - CLI: api/cli.md
+  - Advanced:
+    - Security: security.md
+    - Monitoring: monitoring.md
+    - Performance: performance.md
+  - Development:
+    - Contributing: contributing.md
+    - Architecture: architecture.md
+    - Testing: testing.md
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [src]
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.tabbed:
+      alternate_style: true
+  - attr_list
+  - md_in_html
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/rajatsainju2025/code-explainer
+    - icon: fontawesome/brands/python
+      link: https://pypi.org/project/code-explainer/

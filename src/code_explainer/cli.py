@@ -692,21 +692,6 @@ def cache_stats(cache_dir):
 
 
 @main.command()
-@click.option("--dataset", required=True, help="Open-eval dataset id (e.g., demo-addsub)")
-@click.option("--model-path", default="./results")
-@click.option("--config", default="configs/default.yaml")
-@click.option("--out-csv", default=None)
-@click.option("--out-json", default=None)
-def eval_open(dataset, model_path, config, out_csv, out_json):
-    """Run an open-eval dataset and emit metrics and optional outputs."""
-    from .open_evals import run_eval as run_open_eval
-
-    console.print(Panel.fit(f"📊 Running open-eval: {dataset}", style="bold blue"))
-    metrics = run_open_eval(dataset, model_path=model_path, config_path=config, out_csv=out_csv, out_json=out_json)
-    console.print(Panel.fit(str(metrics), style="bold green"))
-
-
-@main.command()
 @click.argument("code")
 @click.option("--timeout", default=10, help="Execution timeout in seconds")
 @click.option("--max-memory", default=100, help="Maximum memory usage in MB")
@@ -758,6 +743,21 @@ def validate_security(code):
     except Exception as e:
         console.print(Panel.fit(f"❌ Security validation failed: {e}", style="bold red"))
         raise
+
+
+@main.command()
+@click.option("--dataset", required=True, help="Open-eval dataset id (e.g., demo-addsub)")
+@click.option("--model-path", default="./results")
+@click.option("--config", default="configs/default.yaml")
+@click.option("--out-csv", default=None)
+@click.option("--out-json", default=None)
+def eval_open(dataset, model_path, config, out_csv, out_json):
+    """Run an open-eval dataset and emit metrics and optional outputs."""
+    from .open_evals import run_eval as run_open_eval
+
+    console.print(Panel.fit(f"📊 Running open-eval: {dataset}", style="bold blue"))
+    metrics = run_open_eval(dataset, model_path=model_path, config_path=config, out_csv=out_csv, out_json=out_json)
+    console.print(Panel.fit(str(metrics), style="bold green"))
 
 
 if __name__ == "__main__":

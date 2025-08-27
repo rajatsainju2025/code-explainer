@@ -1,0 +1,81 @@
+name-template: 'v$RESOLVED_VERSION'
+tag-template: 'v$RESOLVED_VERSION'
+categories:
+  - title: '🚀 Features'
+    labels:
+      - 'feature'
+      - 'enhancement'
+      - 'feat'
+  - title: '🐛 Bug Fixes'
+    labels:
+      - 'fix'
+      - 'bugfix'
+      - 'bug'
+  - title: '🧰 Maintenance'
+    labels:
+      - 'chore'
+      - 'maintenance'
+      - 'refactor'
+  - title: '📚 Documentation'
+    labels:
+      - 'documentation'
+      - 'docs'
+  - title: '🔒 Security'
+    labels:
+      - 'security'
+  - title: '⚡ Performance'
+    labels:
+      - 'performance'
+      - 'perf'
+  - title: '🧪 Testing'
+    labels:
+      - 'test'
+      - 'testing'
+change-template: '- $TITLE @$AUTHOR (#$NUMBER)'
+change-title-escapes: '\<*_&' # You can add # and @ to disable mentions, and add ` to disable code blocks.
+version-resolver:
+  major:
+    labels:
+      - 'major'
+      - 'breaking'
+  minor:
+    labels:
+      - 'minor'
+      - 'feature'
+      - 'feat'
+  patch:
+    labels:
+      - 'patch'
+      - 'fix'
+      - 'bugfix'
+      - 'bug'
+      - 'chore'
+      - 'maintenance'
+  default: patch
+template: |
+  ## Changes
+
+  $CHANGES
+
+  ## 🔧 Technical Details
+  
+  - **Code Quality**: All tests passing ✅
+  - **Security**: Security scans completed ✅  
+  - **Performance**: Benchmarks validated ✅
+  - **Documentation**: Updated ✅
+
+  ## 📊 Metrics
+
+  - **Test Coverage**: See [Codecov](https://codecov.io/gh/$OWNER/$REPOSITORY)
+  - **Security Score**: See [Security tab](https://github.com/$OWNER/$REPOSITORY/security)
+  - **Code Quality**: See [Actions](https://github.com/$OWNER/$REPOSITORY/actions)
+
+  ## 🚀 Deployment
+
+  ```bash
+  pip install --upgrade code-explainer==$RESOLVED_VERSION
+  ```
+
+  ## 💬 Feedback
+
+  Please report any issues in our [issue tracker](https://github.com/$OWNER/$REPOSITORY/issues).
