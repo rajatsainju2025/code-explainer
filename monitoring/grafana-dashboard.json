@@ -1,0 +1,308 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "Code Explainer Monitoring Dashboard",
+    "tags": ["code-explainer", "api", "monitoring"],
+    "timezone": "browser",
+    "panels": [
+      {
+        "id": 1,
+        "title": "API Request Rate",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "rate(api_requests_total[5m])",
+            "legendFormat": "{{method}} {{endpoint}}"
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 0
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "reqps",
+            "color": {
+              "mode": "palette-classic"
+            }
+          }
+        }
+      },
+      {
+        "id": 2,
+        "title": "Retrieval Success Rate",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "rate(retrieval_requests_total[5m]) - rate(retrieval_errors_total[5m])",
+            "legendFormat": "Success Rate"
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 0
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "min": 0,
+            "max": 100,
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [
+                {
+                  "color": "red",
+                  "value": 0
+                },
+                {
+                  "color": "yellow", 
+                  "value": 90
+                },
+                {
+                  "color": "green",
+                  "value": 95
+                }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 3,
+        "title": "Retrieval Response Time",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.50, rate(retrieval_duration_seconds_bucket[5m]))",
+            "legendFormat": "P50"
+          },
+          {
+            "expr": "histogram_quantile(0.95, rate(retrieval_duration_seconds_bucket[5m]))", 
+            "legendFormat": "P95"
+          },
+          {
+            "expr": "histogram_quantile(0.99, rate(retrieval_duration_seconds_bucket[5m]))",
+            "legendFormat": "P99"
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 24,
+          "x": 0,
+          "y": 8
+        },
+        "yAxes": [
+          {
+            "unit": "s",
+            "min": 0
+          }
+        ],
+        "xAxis": {
+          "mode": "time"
+        },
+        "legend": {
+          "show": true
+        }
+      },
+      {
+        "id": 4,
+        "title": "Error Rate by Endpoint",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(retrieval_errors_total[5m])",
+            "legendFormat": "Retrieval Errors"
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 16
+        },
+        "yAxes": [
+          {
+            "unit": "reqps",
+            "min": 0
+          }
+        ],
+        "xAxis": {
+          "mode": "time"
+        }
+      },
+      {
+        "id": 5,
+        "title": "Retrieval Method Usage",
+        "type": "piechart",
+        "targets": [
+          {
+            "expr": "increase(retrieval_requests_total[1h])",
+            "legendFormat": "{{method}}"
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 16
+        },
+        "options": {
+          "legend": {
+            "displayMode": "list",
+            "placement": "right"
+          }
+        }
+      },
+      {
+        "id": 6,
+        "title": "API Health Status",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "up{job=\"code-explainer-api\"}",
+            "legendFormat": "API Status"
+          }
+        ],
+        "gridPos": {
+          "h": 4,
+          "w": 6,
+          "x": 0,
+          "y": 24
+        },
+        "fieldConfig": {
+          "defaults": {
+            "mappings": [
+              {
+                "type": "value",
+                "value": "0",
+                "text": "DOWN"
+              },
+              {
+                "type": "value", 
+                "value": "1",
+                "text": "UP"
+              }
+            ],
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [
+                {
+                  "color": "red",
+                  "value": 0
+                },
+                {
+                  "color": "green",
+                  "value": 1
+                }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 7,
+        "title": "Memory Usage",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "process_resident_memory_bytes{job=\"code-explainer-api\"}",
+            "legendFormat": "Memory Usage"
+          }
+        ],
+        "gridPos": {
+          "h": 4,
+          "w": 6,
+          "x": 6,
+          "y": 24
+        },
+        "yAxes": [
+          {
+            "unit": "bytes",
+            "min": 0
+          }
+        ]
+      },
+      {
+        "id": 8,
+        "title": "CPU Usage",
+        "type": "graph", 
+        "targets": [
+          {
+            "expr": "rate(process_cpu_seconds_total{job=\"code-explainer-api\"}[5m]) * 100",
+            "legendFormat": "CPU Usage %"
+          }
+        ],
+        "gridPos": {
+          "h": 4,
+          "w": 6,
+          "x": 12,
+          "y": 24
+        },
+        "yAxes": [
+          {
+            "unit": "percent",
+            "min": 0,
+            "max": 100
+          }
+        ]
+      },
+      {
+        "id": 9,
+        "title": "Open File Descriptors",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "process_open_fds{job=\"code-explainer-api\"}",
+            "legendFormat": "Open FDs"
+          }
+        ],
+        "gridPos": {
+          "h": 4,
+          "w": 6,
+          "x": 18,
+          "y": 24
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [
+                {
+                  "color": "green",
+                  "value": 0
+                },
+                {
+                  "color": "yellow",
+                  "value": 1000
+                },
+                {
+                  "color": "red",
+                  "value": 5000
+                }
+              ]
+            }
+          }
+        }
+      }
+    ],
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "refresh": "30s",
+    "schemaVersion": 27,
+    "version": 1,
+    "links": []
+  }
+}
