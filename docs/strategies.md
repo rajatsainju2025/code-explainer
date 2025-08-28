@@ -1,4 +1,4 @@
-# Prompt Strategies
+# Strategies
 
 This project supports multiple prompt strategies to improve code explanations. You can set the default in `configs/*.yaml` under `prompt.strategy`, override via CLI (`--prompt-strategy`), or API (`{"code": "...", "strategy": "..."}`).
 
@@ -18,6 +18,13 @@ Supported strategies:
   - Runs the snippet in a safe sandboxed subprocess with strict limits (CPU time, memory, cleared env).
   - Includes `stdout`/`stderr` in the prompt. Use for small, deterministic code only.
   - Safety: resource limits applied, but never run untrusted code.
+
+Advanced options:
+
+- enhanced_rag (Python)
+  - Hybrid retrieval (FAISS + BM25), cross-encoder reranking, and MMR diversity.
+  - Tunables: `top_k`, `use_reranker`, `mmr_lambda`, `similarity_threshold`.
+  - Best for longer or unfamiliar codebases.
 
 Examples:
 

@@ -1,0 +1,36 @@
+name: RFC
+description: Propose a significant change via a Request for Comments
+labels: [rfc]
+body:
+  - type: input
+    id: title
+    attributes:
+      label: RFC Title
+      placeholder: Short descriptive title
+    validations:
+      required: true
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What are we changing and why?
+    validations:
+      required: true
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Motivation
+      description: Why is this needed?
+  - type: textarea
+    id: design
+    attributes:
+      label: Design
+      description: How will this be implemented?
+  - type: textarea
+    id: rollout
+    attributes:
+      label: Rollout & Migration
+  - type: textarea
+    id: risks
+    attributes:
+      label: Risks & Alternatives
