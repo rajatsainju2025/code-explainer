@@ -420,6 +420,32 @@ def detect_contamination(eval_jsonl, train_jsonl, ngram, threshold):
 
 
 @main.command()
+@click.option("--num-samples", default=5, show_default=True, help="Number of generations")
+@click.option("--strategy", default="vanilla")
+@click.argument("code")
+def self_consistency(num_samples, strategy, code):
+    """Generate multiple explanations and compute self-consistency metrics."""
+    from .metrics.self_consistency import pairwise_scores
+
+    explainer = CodeExplainer()
+    outs = []
+    for _ in range(max(1, int(num_samples))):
+        try:
+            outs.append(explainer.explain_code(code, strategy=strategy))
+        except Exception:
+            outs.append("")
+
+    sc = pairwise_scores(outs)
+    table = Table(title="Self-Consistency")
+    table.add_column("Metric")
+    table.add_column("Value", justify="right")
+    table.add_row("avg_pairwise_bleu", f"{sc.avg_pairwise_bleu:.4f}")
+    table.add_row("avg_pairwise_rougeL", f"{sc.avg_pairwise_rougeL:.4f}")
+    table.add_row("n_samples", str(sc.n_samples))
+    console.print(table)
+
+
+@main.command()
 @click.option("--config", "-c", default="configs/default.yaml", help="Path to configuration file")
 @click.option(
     "--output-path",
