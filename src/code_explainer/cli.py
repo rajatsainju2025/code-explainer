@@ -392,6 +392,34 @@ def eval(model_path, config, test_file, preds_out, max_samples, prompt_strategy)
 
 
 @main.command()
+@click.option("--eval-jsonl", required=True, help="JSONL file for eval (id, code)")
+@click.option("--train-jsonl", required=True, help="JSONL file for train (id, code)")
+@click.option("--ngram", default=5, show_default=True, help="N-gram size for overlap")
+@click.option("--threshold", default=0.8, show_default=True, help="Jaccard threshold")
+def detect_contamination(eval_jsonl, train_jsonl, ngram, threshold):
+    """Detect potential train/eval overlap to reduce contamination risk."""
+    from .contamination import detect_overlap, read_jsonl
+
+    console.print(Panel.fit("🧪 Detecting potential contamination", style="bold blue"))
+    eval_pairs = read_jsonl(Path(eval_jsonl))
+    train_pairs = read_jsonl(Path(train_jsonl))
+
+    flagged = detect_overlap(eval_pairs, train_pairs, ngram=ngram, threshold=threshold)
+    if not flagged:
+        console.print(Panel.fit("✅ No high-overlap pairs detected.", style="bold green"))
+        return
+
+    table = Table(title="Flagged overlaps (descending Jaccard)")
+    table.add_column("Eval ID", style="cyan")
+    table.add_column("Train ID", style="magenta")
+    table.add_column("Jaccard", justify="right")
+    for item in flagged[:50]:
+        (eid, tid) = item.pair
+        table.add_row(eid, tid, f"{item.jaccard:.3f}")
+    console.print(table)
+
+
+@main.command()
 @click.option("--config", "-c", default="configs/default.yaml", help="Path to configuration file")
 @click.option(
     "--output-path",
