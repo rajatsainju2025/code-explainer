@@ -1,0 +1,2 @@
+{"id":"s1","code":"def add(a,b): return a+b","reference":"Adds two numbers and returns the sum."}
+{"id":"s2","code":"def fib(n):\n    if n<=1: return n\n    return fib(n-1)+fib(n-2)","reference":"Computes the nth Fibonacci number recursively."}
