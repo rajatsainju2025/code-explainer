@@ -58,6 +58,9 @@ code-explainer eval --dataset humaneval --max-samples 10 --report out/humaneval.
 # Golden tests
 code-explainer golden-test --dataset core --report out/golden.md
 ```
+# JSONL and provenance/self-consistency supported
+code-explainer eval -c configs/default.yaml -t data/examples/tiny_eval.jsonl --self-consistency 2 --max-samples 2
+```
 
 ## 6. Advanced Evaluations
 
