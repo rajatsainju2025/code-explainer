@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Eval CLI now supports JSONL datasets in addition to JSON arrays.
+- Provenance metrics (citation precision/recall) integrated into `code-explainer eval` when `source_ids`/`sources` are provided per example.
+- Self-consistency metrics via `--self-consistency N` flag, computing avg pairwise BLEU/ROUGE-L.
+- Tiny example dataset at `data/examples/tiny_eval.jsonl` and docs.
+
+### Added
 - CI: GitHub Actions with lint, type-check, tests, and coverage upload
 - Pre-commit hooks (black, isort, ruff, mypy, basic checks)
 - Testing: pytest unit tests and coverage
