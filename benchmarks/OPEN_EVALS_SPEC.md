@@ -9,6 +9,7 @@ Use JSONL with fields:
 - id: unique string
 - code: code snippet (Python for now)
 - reference: target explanation text
+- source_ids (optional): list[str] of allowed citation IDs for provenance scoring
 - metadata: {topic, difficulty, source}
 
 ## File Layout
@@ -24,6 +25,7 @@ benchmarks/
 ## Metrics
 
 - bleu, rouge_l, bertscore, codebleu (optional)
+- provenance_precision, provenance_recall (when source_ids are present)
 - latency_p50, latency_p95, latency_p99
 - failure_rate
 
