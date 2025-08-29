@@ -135,6 +135,11 @@ code-explainer eval --dataset humaneval --model codet5-small
 # Evaluate on a local JSONL (supports provenance + self-consistency)
 code-explainer eval -c configs/default.yaml -t data/examples/tiny_eval.jsonl --self-consistency 3 -o out/preds.jsonl
 
+# Notes:
+# - JSONL supported: each line should have {"code", "explanation", optional "source_ids"}
+# - Provenance metrics appear when source_ids/sources present
+# - Self-consistency: pass --self-consistency N to sample N generations per item
+
 # Check security
 code-explainer security --file suspicious_code.py
 
