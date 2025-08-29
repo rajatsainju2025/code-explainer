@@ -10,13 +10,15 @@
 [![Security](https://img.shields.io/badge/Security-Bandit%20%7C%20Safety-green)](https://github.com/rajatsainju2025/code-explainer/security)
 [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/rajatsainju2025/code-explainer/blob/main/examples/colab_quickstart.ipynb)
 [![Project Board](https://img.shields.io/badge/Project-Next%2010%20Days-blue)](https://github.com/rajatsainju2025/code-explainer)
+[![Docs](https://img.shields.io/badge/Docs-Website-blue)](https://rajatsainju2025.github.io/code-explainer)
+[![Nightly](https://img.shields.io/github/actions/workflow/status/rajatsainju2025/code-explainer/docs-and-eval-nightly.yml?label=nightly%20docs%2Feval)](https://github.com/rajatsainju2025/code-explainer/actions/workflows/docs-and-eval-nightly.yml)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![Dependabot](https://img.shields.io/badge/Dependabot-enabled-brightgreen)](.github/dependabot.yml)
 
 **A state-of-the-art, production-ready LLM-powered system for generating human-readable explanations of Python code with enhanced retrieval, security, and monitoring capabilities.**
 
-[🚀 Quick Start](#quick-start) • [📖 Documentation](docs/) • [🔧 Installation](#installation) • [💡 Examples](#examples) • [🤝 Contributing](#contributing) • [💬 Discussions](https://github.com/rajatsainju2025/code-explainer/discussions)
+[🚀 Quick Start](#quick-start) • [📖 Documentation](docs/) • [� Tutorial](https://rajatsainju2025.github.io/code-explainer/tutorial/) • [�🔧 Installation](#installation) • [💡 Examples](#examples) • [🤝 Contributing](#contributing) • [💬 Discussions](https://github.com/rajatsainju2025/code-explainer/discussions)
 
 </div>
 
@@ -182,24 +184,7 @@ graph TB
 
 ---
 
-## 🏗️ Architecture
-
-Our code explainer uses a fine-tuned transformer model (default: DistilGPT-2) that has been specifically trained on code-explanation pairs. The architecture includes:
-
-- **Model Layer**: Transformer-based language model for text generation
-- **Training Pipeline**: Advanced training with evaluation metrics and early stopping
-- **Inference Engine**: Optimized inference with configurable generation parameters
-- **Interface Layer**: Multiple ways to interact with the model
-
-## 📊 Performance
-
-| Model | Parameters | Training Time | Inference Speed | Accuracy* |
-|-------|------------|---------------|-----------------|-----------|
-| DistilGPT-2 | 82M | ~10 min | ~100ms | 85% |
-| GPT-2 | 124M | ~15 min | ~150ms | 88% |
-| CodeT5-small | 60M | ~8 min | ~80ms | 90% |
-
-*Accuracy measured on a held-out test set of 1000 code-explanation pairs.
+<!-- Removed duplicate architecture/performance section to avoid confusion -->
 
 ## 🔧 Configuration
 

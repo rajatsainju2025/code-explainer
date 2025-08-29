@@ -35,6 +35,7 @@ nav:
   - Getting Started:
     - Installation: docs/installation.md
     - Quick Start: docs/quickstart.md
+  - Tutorial: docs/tutorial.md
     - Configuration: docs/configuration.md
   - User Guide:
     - Strategies: docs/strategies.md
