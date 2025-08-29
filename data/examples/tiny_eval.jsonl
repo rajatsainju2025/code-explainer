@@ -1,0 +1,2 @@
+{"id":"ex-1","code":"def add(a,b):\n    return a+b","explanation":"Defines a function that returns the sum of two numbers.","source_ids":["stdlib:add","ex:examples/add"]}
+{"id":"ex-2","code":"def fib(n):\n    if n<=1: return n\n    return fib(n-1)+fib(n-2)","explanation":"Computes Fibonacci numbers recursively.","source_ids":["wiki:fib","ex:examples/fib"]}

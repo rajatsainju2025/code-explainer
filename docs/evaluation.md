@@ -28,6 +28,8 @@ code-explainer golden-test --dataset core --report out/golden.md
 ### Metrics
 
 - BLEU-4, ROUGE-L, BERTScore, CodeBLEU
+- Provenance (citation precision/recall) when `source_ids` or `sources` provided in JSONL
+- Self-consistency (avg pairwise BLEU/ROUGE-L) with `--self-consistency N`
 - Human rating support via CSV rubric
 - Latency distribution: P50/P95/P99
 - Failure rate and stability across reruns
@@ -56,5 +58,5 @@ Provide a JSONL with fields:
 Run:
 
 ```bash
-code-explainer eval --dataset path/to/data.jsonl --model codet5-small
+code-explainer eval -c configs/default.yaml -t data/examples/tiny_eval.jsonl --self-consistency 3
 ```

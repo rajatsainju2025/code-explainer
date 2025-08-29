@@ -256,8 +256,13 @@ def serve(host, port, model_path):
     default=None,
     help="Override prompt strategy (default from config)",
 )
-def eval(model_path, config, test_file, preds_out, max_samples, prompt_strategy):
-    """Evaluate a model on a test set (BLEU/ROUGE/BERTScore) and optionally save predictions."""
+@click.option("--self-consistency", type=int, default=0, show_default=True, help="If >0, generate N samples per item and compute self-consistency metrics")
+def eval(model_path, config, test_file, preds_out, max_samples, prompt_strategy, self_consistency):
+    """Evaluate a model on a test set (BLEU/ROUGE/BERTScore) and optionally save predictions.
+
+    Supports input as a JSON array file or JSONL (one JSON object per line).
+    Each item should include at least {"code": str, "explanation": str}.
+    """
     import json
 
     from .metrics.evaluate import (
@@ -266,20 +271,41 @@ def eval(model_path, config, test_file, preds_out, max_samples, prompt_strategy)
         compute_codebleu,
         compute_rouge_l,
     )
+    from .metrics.provenance import provenance_scores
     from .model import CodeExplainer
+    from .metrics.self_consistency import pairwise_scores as sc_pairwise
 
     console.print(Panel.fit("📏 Running evaluation", style="bold blue"))
     explainer = CodeExplainer(model_path=model_path, config_path=config)
 
-    # Load test data
+    # Load test data (JSON array or JSONL)
     if test_file is None:
         cfg = explainer.config
         test_file = cfg.get("data", {}).get("test_file")
     if not test_file:
         console.print(Panel.fit("❌ No test file provided or configured.", style="bold red"))
         return
-    with open(test_file, "r") as f:
-        data = json.load(f)
+
+    def _read_json_or_jsonl(path: str):
+        p = Path(path)
+        if p.suffix.lower() == ".jsonl":
+            items = []
+            with p.open("r", encoding="utf-8") as fh:
+                for line in fh:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        items.append(json.loads(line))
+                    except Exception:
+                        # skip malformed lines
+                        continue
+            return items
+        else:
+            with p.open("r", encoding="utf-8") as fh:
+                return json.load(fh)
+
+    data = _read_json_or_jsonl(test_file)
 
     if max_samples is not None:
         try:
@@ -291,16 +317,40 @@ def eval(model_path, config, test_file, preds_out, max_samples, prompt_strategy)
     refs = []
     preds = []
     codes = []
+    prov_precisions = []
+    prov_recalls = []
     for ex in data:
         code = ex.get("code", "")
         ref = ex.get("explanation", "")
+        # Optional: per-example allowed source IDs for provenance
+        source_ids = ex.get("source_ids") or ex.get("sources") or []
         try:
-            pred = explainer.explain_code(code, strategy=prompt_strategy)
+            if self_consistency and int(self_consistency) > 0:
+                # Generate multiple samples and reduce to a canonical prediction (e.g., first), but keep SC metrics
+                outs = []
+                for _ in range(int(self_consistency)):
+                    try:
+                        outs.append(explainer.explain_code(code, strategy=prompt_strategy))
+                    except Exception:
+                        outs.append("")
+                sc = sc_pairwise(outs)
+                # Attach SC scores into per-example lists for later averaging
+                # store as pseudo provenance arrays
+                ex["_sc_bleu"] = sc.avg_pairwise_bleu
+                ex["_sc_rougeL"] = sc.avg_pairwise_rougeL
+                pred = outs[0] if outs else ""
+            else:
+                pred = explainer.explain_code(code, strategy=prompt_strategy)
         except Exception:
             pred = ""
         codes.append(code)
         refs.append(ref)
         preds.append(pred)
+        # provenance per example if we have source ids
+        if isinstance(source_ids, (list, tuple)) and source_ids:
+            ps = provenance_scores(pred, [str(s) for s in source_ids])
+            prov_precisions.append(ps.precision)
+            prov_recalls.append(ps.recall)
 
     bleu = compute_bleu(refs, preds)
     rougeL = compute_rouge_l(refs, preds)
@@ -325,6 +375,19 @@ def eval(model_path, config, test_file, preds_out, max_samples, prompt_strategy)
     table.add_row("Empty preds %", f"{(empty/total)*100:.2f}%")
     table.add_row("Avg pred len", f"{avg_pred_len:.1f}")
     table.add_row("Avg ref len", f"{avg_ref_len:.1f}")
+    if prov_precisions:
+        table.add_row("Prov. precision", f"{sum(prov_precisions)/len(prov_precisions):.4f}")
+    if prov_recalls:
+        table.add_row("Prov. recall", f"{sum(prov_recalls)/len(prov_recalls):.4f}")
+    # Show SC metrics if computed
+    sc_bleus = [ex.get("_sc_bleu") for ex in data if isinstance(ex, dict) and ex.get("_sc_bleu") is not None]
+    sc_rouges = [ex.get("_sc_rougeL") for ex in data if isinstance(ex, dict) and ex.get("_sc_rougeL") is not None]
+    sc_bleus_f = [float(x) for x in sc_bleus if isinstance(x, (int, float))]
+    sc_rouges_f = [float(x) for x in sc_rouges if isinstance(x, (int, float))]
+    if sc_bleus_f:
+        table.add_row("Self-consistency BLEU", f"{sum(sc_bleus_f)/len(sc_bleus_f):.4f}")
+    if sc_rouges_f:
+        table.add_row("Self-consistency ROUGE-L", f"{sum(sc_rouges_f)/len(sc_rouges_f):.4f}")
     console.print(table)
 
     # Optional: save predictions as JSONL
@@ -340,6 +403,15 @@ def eval(model_path, config, test_file, preds_out, max_samples, prompt_strategy)
         console.print(Panel.fit(f"📝 Predictions saved to {out_path}", style="bold green"))
 
     metrics = {"bleu": bleu, "rougeL": rougeL, "bert_score": bert, "codebleu": codebleu}
+    if prov_precisions:
+        metrics["provenance_precision"] = sum(prov_precisions) / len(prov_precisions)
+    if prov_recalls:
+        metrics["provenance_recall"] = sum(prov_recalls) / len(prov_recalls)
+    # Aggregate self-consistency metrics if present
+    if sc_bleus_f:
+        metrics["self_consistency_bleu"] = sum(sc_bleus_f) / len(sc_bleus_f)
+    if sc_rouges_f:
+        metrics["self_consistency_rougeL"] = sum(sc_rouges_f) / len(sc_rouges_f)
     console.print(Panel.fit(str(metrics), style="bold green"))
 
     @main.command()

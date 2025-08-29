@@ -132,6 +132,9 @@ code-explainer explain --file examples/fibonacci.py --strategy enhanced_rag
 # Run evaluations
 code-explainer eval --dataset humaneval --model codet5-small
 
+# Evaluate on a local JSONL (supports provenance + self-consistency)
+code-explainer eval -c configs/default.yaml -t data/examples/tiny_eval.jsonl --self-consistency 3 -o out/preds.jsonl
+
 # Check security
 code-explainer security --file suspicious_code.py
 
