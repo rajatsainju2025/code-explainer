@@ -21,6 +21,9 @@ precommit:
 
 test:
 	pytest --cov=code_explainer --cov-report=term-missing
+.PHONY: eval-tiny
+eval-tiny:
+	code-explainer eval -c configs/default.yaml -t data/examples/tiny_eval.jsonl --self-consistency 2 --max-samples 2
 
 clean:
 	rm -rf .pytest_cache .mypy_cache .ruff_cache build dist *.egg-info coverage.xml
