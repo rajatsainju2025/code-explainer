@@ -886,5 +886,145 @@ def eval_open(dataset, model_path, config, out_csv, out_json):
     console.print(Panel.fit(str(metrics), style="bold green"))
 
 
+@main.command()
+@click.option("--test-data", "-t", required=True, help="Path to test data (JSON/JSONL)")
+@click.option("--predictions", "-p", required=True, help="Path to model predictions (JSON/JSONL)")
+@click.option("--output", "-o", default="llm_judge_report.json", help="Output report path")
+@click.option("--judges", multiple=True, default=["gpt-4", "claude-3-sonnet"], help="LLM judges to use")
+@click.option("--criteria", multiple=True, default=["accuracy", "clarity", "completeness"], help="Evaluation criteria")
+@click.option("--require-consensus", is_flag=True, help="Require consensus among judges")
+def eval_llm_judge(test_data, predictions, output, judges, criteria, require_consensus):
+    """Run LLM-as-a-Judge evaluation."""
+    console.print(Panel.fit("🤖 Running LLM-as-a-Judge Evaluation", style="bold blue"))
+    console.print("[yellow]Note: LLM judge evaluation requires API keys and is not implemented in this demo.[/yellow]")
+    console.print(f"Would evaluate predictions in {predictions} with judges: {', '.join(judges)}")
+    console.print(f"Criteria: {', '.join(criteria)}")
+    console.print(f"Output would be saved to: {output}")
+
+
+@main.command()
+@click.option("--test-data", "-t", required=True, help="Path to test data (JSON/JSONL)")
+@click.option("--predictions-a", "-a", required=True, help="Path to first set of predictions")
+@click.option("--predictions-b", "-b", required=True, help="Path to second set of predictions")
+@click.option("--output", "-o", default="preference_report.json", help="Output report path")
+@click.option("--judges", multiple=True, default=["gpt-4"], help="LLM judges to use")
+@click.option("--criteria", multiple=True, default=["overall_quality"], help="Comparison criteria")
+@click.option("--use-bradley-terry", is_flag=True, help="Use Bradley-Terry ranking model")
+def eval_preference(test_data, predictions_a, predictions_b, output, judges, criteria, use_bradley_terry):
+    """Run preference-based evaluation between two models."""
+    console.print(Panel.fit("⚖️ Running Preference-Based Evaluation", style="bold blue"))
+    console.print("[yellow]Note: Preference evaluation requires API keys and is not implemented in this demo.[/yellow]")
+    console.print(f"Would compare {predictions_a} vs {predictions_b}")
+    console.print(f"Using judges: {', '.join(judges)}")
+    console.print(f"Output would be saved to: {output}")
+
+
+@main.command()
+@click.option("--train-data", "-tr", required=True, help="Path to training data (JSON/JSONL)")
+@click.option("--test-data", "-te", required=True, help="Path to test data (JSON/JSONL)")
+@click.option("--output", "-o", default="contamination_report.json", help="Output report path")
+@click.option("--methods", multiple=True, default=["exact", "ngram", "substring"], help="Detection methods")
+@click.option("--fields", multiple=True, default=["code", "explanation"], help="Fields to check")
+@click.option("--include-semantic", is_flag=True, help="Include semantic similarity detection (requires sentence-transformers)")
+def eval_contamination(train_data, test_data, output, methods, fields, include_semantic):
+    """Run contamination detection between train and test data."""
+    from .evaluation.contamination import run_contamination_detection
+    
+    console.print(Panel.fit("🔍 Running Contamination Detection", style="bold blue"))
+    
+    try:
+        detection_methods = list(methods)
+        if include_semantic:
+            detection_methods.append("semantic")
+        
+        report = run_contamination_detection(
+            train_file=train_data,
+            test_file=test_data,
+            output_file=output,
+            methods=detection_methods,
+            fields=list(fields)
+        )
+        
+        console.print(f"[bold green]✅ Contamination detection completed![/bold green]")
+        console.print(f"Total Test Examples: {report.total_test_examples}")
+        console.print(f"Contaminated Examples: {len(report.contaminated_examples)}")
+        console.print(f"Contamination Rate: {report.contamination_rate:.3%}")
+        
+        if report.contaminated_examples:
+            console.print("[bold yellow]⚠️ Contamination detected![/bold yellow]")
+            
+            # Show contamination by method
+            contamination_by_method = report.summary_stats.get("contamination_by_method", {})
+            if contamination_by_method:
+                console.print("Contamination by method:")
+                for method, count in contamination_by_method.items():
+                    console.print(f"  {method}: {count}")
+        else:
+            console.print("[bold green]✅ No contamination detected[/bold green]")
+        
+        console.print(f"Report saved to: {output}")
+        
+    except Exception as e:
+        console.print(Panel.fit(f"❌ Contamination detection failed: {e}", style="bold red"))
+        raise
+
+
+@main.command()
+@click.option("--test-data", "-t", required=True, help="Path to test data (JSON/JSONL)")
+@click.option("--model-path", "-m", default="./results", help="Path to trained model")
+@click.option("--config", "-c", default="configs/default.yaml", help="Path to configuration file")
+@click.option("--output", "-o", default="robustness_report.json", help="Output report path")
+@click.option("--test-types", multiple=True, default=["typo", "case", "whitespace", "punctuation"], help="Robustness test types")
+@click.option("--severity-levels", multiple=True, type=float, default=[0.05, 0.1, 0.2], help="Severity levels for tests")
+@click.option("--max-examples", type=int, default=100, help="Maximum examples to test")
+@click.option("--random-seed", type=int, default=42, help="Random seed for reproducibility")
+def eval_robustness(test_data, model_path, config, output, test_types, severity_levels, max_examples, random_seed):
+    """Run robustness testing on model predictions."""
+    from .evaluation.robustness import run_robustness_tests
+    from .model import CodeExplainer
+    import json
+    
+    console.print(Panel.fit("🛡️ Running Robustness Testing", style="bold blue"))
+    
+    try:
+        # Load test data
+        with open(test_data, 'r') as f:
+            if test_data.endswith('.jsonl'):
+                examples = [json.loads(line) for line in f]
+            else:
+                examples = json.load(f)
+        
+        # Create prediction function
+        explainer = CodeExplainer(model_path=model_path, config_path=config)
+        
+        def predict_func(example):
+            return explainer.explain_code(example.get('code', ''))
+        
+        # Run robustness tests
+        report = run_robustness_tests(
+            examples=examples,
+            predict_func=predict_func,
+            output_file=output,
+            test_types=list(test_types),
+            severity_levels=list(severity_levels),
+            max_examples=max_examples,
+            random_seed=random_seed
+        )
+        
+        console.print(f"[bold green]✅ Robustness testing completed![/bold green]")
+        console.print(f"Total Tests: {report.total_tests}")
+        console.print(f"Overall Robustness Score: {report.overall_robustness_score:.3f}")
+        
+        # Show results by test type
+        for test_name, summary in report.test_summaries.items():
+            console.print(f"{test_name}: {summary['mean_score']:.3f} ± {summary['std_score']:.3f}")
+        
+        console.print(f"Report saved to: {output}")
+        
+    except Exception as e:
+        console.print(Panel.fit(f"❌ Robustness testing failed: {e}", style="bold red"))
+        raise
+
+
 if __name__ == "__main__":
     main()
