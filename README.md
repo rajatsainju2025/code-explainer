@@ -58,7 +58,14 @@
 - **Structured Logging**: JSON logging with request IDs and tracing
 - **Health Checks**: Comprehensive service health monitoring
 
-### 🧪 **Testing & Quality**
+### 🧪 **Advanced Evaluation & Testing**
+- **Traditional Metrics**: BLEU, ROUGE-L, BERTScore, CodeBLEU for quantitative assessment
+- **LLM-as-a-Judge**: Multi-judge consensus evaluation with GPT-4 and Claude
+- **Preference Learning**: Pairwise comparisons and Bradley-Terry ranking
+- **Contamination Detection**: Comprehensive data leakage detection (exact, n-gram, semantic)
+- **Robustness Testing**: Adversarial testing with 7 transformation types
+- **Comprehensive CLI**: Full evaluation pipeline with detailed reporting
+
 ### 🔮 **Continuous Integration & Deployment**
 - **Quality Assurance**: Automated testing with pytest, coverage, and type checking
 - **Release Automation**: Automated releases with changelogs and semantic versioning
@@ -160,6 +167,62 @@ code-explainer golden-test --dataset core
 | Human Rating | 3.2/5 | 3.6/5 | 4.1/5 | **4.4/5** |
 
 *Benchmarked on HumanEval and MBPP datasets with human evaluators.*
+
+---
+
+## 🧪 Advanced Evaluation Framework
+
+Our evaluation system implements state-of-the-art assessment methods following open evaluation best practices:
+
+### Traditional Metrics
+```bash
+# Comprehensive traditional metrics
+code-explainer evaluate \
+  --test-data test.jsonl \
+  --predictions predictions.jsonl \
+  --metrics bleu rouge bertscore codebleu
+```
+
+### LLM-as-a-Judge Evaluation
+```bash
+# Multi-judge consensus evaluation
+code-explainer eval-llm-judge \
+  --test-data test.jsonl \
+  --predictions predictions.jsonl \
+  --judges gpt-4 claude-3-sonnet \
+  --criteria accuracy clarity completeness
+```
+
+### Contamination Detection
+```bash
+# Detect data leakage between train/test
+code-explainer eval-contamination \
+  --train-data train.jsonl \
+  --test-data test.jsonl \
+  --methods exact ngram substring semantic
+```
+
+### Robustness Testing
+```bash
+# Test model robustness under adversarial conditions
+code-explainer eval-robustness \
+  --test-data test.jsonl \
+  --model-path ./results \
+  --test-types typo case whitespace punctuation \
+  --severity-levels 0.05 0.1 0.2
+```
+
+### Preference-Based Evaluation
+```bash
+# Compare models using pairwise preferences
+code-explainer eval-preference \
+  --test-data test.jsonl \
+  --predictions-a model_a.jsonl \
+  --predictions-b model_b.jsonl \
+  --use-bradley-terry
+```
+
+**📖 See our [Advanced Evaluation Tutorial](docs/advanced_evaluation_tutorial.md) for comprehensive examples and best practices.**
 
 ---
 
