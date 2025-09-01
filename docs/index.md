@@ -19,8 +19,10 @@ Code Explainer is a state-of-the-art, production-ready LLM-powered system for ge
 
 - [Installation Guide](installation.md) - Get started quickly
 - [Quick Start](quickstart.md) - Basic usage examples
+- [Zero to Results](tutorials/zero_to_results.md) - Tutorial in 15 minutes
 - [API Reference](api/rest.md) - Complete API documentation
 - [Strategies Guide](strategies.md) - Understanding different explanation strategies
+- [Dataset Governance](../docs/dataset_governance.md) - Intake and checks
 - [Contributing](contributing.md) - Help improve the project
 
 ## Getting Help

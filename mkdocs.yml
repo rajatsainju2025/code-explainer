@@ -38,10 +38,13 @@ nav:
   - Tutorial: docs/tutorial.md
     - Configuration: docs/configuration.md
   - Zero to Results: docs/tutorials/zero_to_results.md
+  - Roadmap: docs/roadmap.md
+  - Reimagine: docs/reimagine.md
   - User Guide:
     - Strategies: docs/strategies.md
     - Evaluation: docs/evaluation.md
   - Advanced LLM Judge Tutorial: docs/advanced_llm_judge_tutorial.md
+  - Ablation Guide: docs/ablation_guide.md
     - Troubleshooting: docs/troubleshooting.md
   - API Reference:
     - REST API: docs/api/rest.md
