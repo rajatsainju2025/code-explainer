@@ -54,3 +54,11 @@ docs-serve:
 
 docs-deploy:
 	mkdocs gh-deploy --force
+
+# Data governance helpers
+.PHONY: intake-validate provenance-cards
+intake-validate:
+	python scripts/validate_intake.py data
+
+provenance-cards:
+	python scripts/provenance_card.py --preds out/preds.jsonl --out out/cards
