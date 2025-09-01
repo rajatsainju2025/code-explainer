@@ -51,6 +51,7 @@ nav:
     - Monitoring: docs/monitoring.md
     - Performance: docs/performance.md
   - Dataset Governance: docs/dataset_governance.md
+  - Open Evals Reading List: docs/open_evals_reading_list.md
   - Development:
     - Contributing: docs/contributing.md
     - Architecture: docs/architecture.md
