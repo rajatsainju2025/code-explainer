@@ -57,4 +57,3 @@ ast>=3.9.0
 
 # HTTP requests (for security testing)
 requests>=2.31.0
-requests>=2.31.0
