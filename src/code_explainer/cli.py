@@ -895,11 +895,27 @@ def eval_open(dataset, model_path, config, out_csv, out_json):
 @click.option("--require-consensus", is_flag=True, help="Require consensus among judges")
 def eval_llm_judge(test_data, predictions, output, judges, criteria, require_consensus):
     """Run LLM-as-a-Judge evaluation."""
+    from .evaluation.llm_judge import run_llm_judge_evaluation
     console.print(Panel.fit("🤖 Running LLM-as-a-Judge Evaluation", style="bold blue"))
-    console.print("[yellow]Note: LLM judge evaluation requires API keys and is not implemented in this demo.[/yellow]")
-    console.print(f"Would evaluate predictions in {predictions} with judges: {', '.join(judges)}")
-    console.print(f"Criteria: {', '.join(criteria)}")
-    console.print(f"Output would be saved to: {output}")
+
+    try:
+        report = run_llm_judge_evaluation(
+            test_file=test_data,
+            predictions_file=predictions,
+            output_file=output,
+            judges=list(judges),
+            criteria=list(criteria),
+            require_consensus=require_consensus,
+        )
+
+        console.print("[bold green]✅ LLM judge evaluation completed![/bold green]")
+        console.print(f"Overall Score: {report.get('overall_score', 0.0):.3f}")
+        console.print(f"Agreement Rate: {report.get('judge_agreement', 0.0):.3f}")
+        console.print(f"Total Evaluations: {report.get('total_evaluations', 0)}")
+        console.print(f"Report saved to: {output}")
+    except Exception as e:
+        console.print(Panel.fit(f"❌ LLM judge evaluation failed: {e}", style="bold red"))
+        raise
 
 
 @main.command()
@@ -910,13 +926,57 @@ def eval_llm_judge(test_data, predictions, output, judges, criteria, require_con
 @click.option("--judges", multiple=True, default=["gpt-4"], help="LLM judges to use")
 @click.option("--criteria", multiple=True, default=["overall_quality"], help="Comparison criteria")
 @click.option("--use-bradley-terry", is_flag=True, help="Use Bradley-Terry ranking model")
-def eval_preference(test_data, predictions_a, predictions_b, output, judges, criteria, use_bradley_terry):
+@click.option("--criteria-file", type=click.Path(exists=True), default=None, help="YAML file with constitutional/principles-based criteria")
+def eval_preference(test_data, predictions_a, predictions_b, output, judges, criteria, use_bradley_terry, criteria_file):
     """Run preference-based evaluation between two models."""
+    import os
+    from pathlib import Path
+    from .evaluation.preference import run_preference_evaluation
+
     console.print(Panel.fit("⚖️ Running Preference-Based Evaluation", style="bold blue"))
-    console.print("[yellow]Note: Preference evaluation requires API keys and is not implemented in this demo.[/yellow]")
-    console.print(f"Would compare {predictions_a} vs {predictions_b}")
-    console.print(f"Using judges: {', '.join(judges)}")
-    console.print(f"Output would be saved to: {output}")
+
+    try:
+        # Build judge config from the first judge option
+        if not judges:
+            raise click.ClickException("Please specify at least one judge model (e.g., --judges gpt-4)")
+        judge_model = list(judges)[0]
+
+        if judge_model.startswith("gpt"):
+            judge_config = {
+                "type": "openai",
+                "model": judge_model,
+                "api_key": os.environ.get("OPENAI_API_KEY"),
+            }
+        elif judge_model.startswith("claude"):
+            judge_config = {
+                "type": "anthropic",
+                "model": judge_model,
+                "api_key": os.environ.get("ANTHROPIC_API_KEY"),
+            }
+        else:
+            judge_config = {"type": "openai", "model": judge_model, "api_key": os.environ.get("OPENAI_API_KEY")}
+
+        system_names = [Path(predictions_a).stem, Path(predictions_b).stem]
+
+        summary = run_preference_evaluation(
+            predictions_files=[predictions_a, predictions_b],
+            system_names=system_names,
+            judge_config=judge_config,
+            output_file=output,
+            criteria_file=criteria_file,
+        )
+
+        console.print("[bold green]✅ Preference evaluation completed![/bold green]")
+        # Basic summary printout
+        for k, v in summary.items():
+            if isinstance(v, (int, float)):
+                console.print(f"{k}: {v}")
+            else:
+                console.print(f"{k}: {v}")
+        console.print(f"Report saved to: {output}")
+    except Exception as e:
+        console.print(Panel.fit(f"❌ Preference evaluation failed: {e}", style="bold red"))
+        raise
 
 
 @main.command()

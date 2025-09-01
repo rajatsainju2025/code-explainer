@@ -157,7 +157,7 @@ class OpenAIJudge(LLMJudge):
         """Get OpenAI client, importing if needed."""
         if self._client is None:
             try:
-                import openai
+                import openai  # type: ignore[import-not-found]
                 self._client = openai.OpenAI(api_key=self.api_key)
             except ImportError:
                 raise ImportError("openai package required for OpenAI judge")
@@ -224,7 +224,7 @@ class AnthropicJudge(LLMJudge):
         """Get Anthropic client, importing if needed."""
         if self._client is None:
             try:
-                import anthropic
+                import anthropic  # type: ignore[import-not-found]
                 self._client = anthropic.Anthropic(api_key=self.api_key)
             except ImportError:
                 raise ImportError("anthropic package required for Anthropic judge")
@@ -410,11 +410,13 @@ def create_judge_from_config(config: Dict[str, Any]) -> LLMJudge:
     """Create a judge from configuration."""
     model_name = config["model"]
     judge_type = config.get("type", "openai")
+    api_key = config.get("api_key")
+    params = config.get("params", {})
     
     if judge_type == "openai" or model_name.startswith("gpt"):
-        return OpenAIJudge(model_name, **config.get("params", {}))
+        return OpenAIJudge(model_name, api_key=api_key, **params)
     elif judge_type == "anthropic" or model_name.startswith("claude"):
-        return AnthropicJudge(model_name, **config.get("params", {}))
+        return AnthropicJudge(model_name, api_key=api_key, **params)
     else:
         raise ValueError(f"Unknown judge type: {judge_type}")
 
@@ -449,53 +451,145 @@ def evaluate_with_judges(
     consensus_method: str = "average",
 ) -> List[MultiJudgeResult]:
     """Evaluate predictions using multiple judges."""
-    # Load predictions
-    with open(predictions_file, 'r') as f:
-        predictions = [json.loads(line) for line in f]
+    # Load predictions (support JSONL or JSON array)
+    p = Path(predictions_file)
+    with p.open('r') as f:
+        if p.suffix.lower() == '.jsonl':
+            predictions = [json.loads(line) for line in f if line.strip()]
+        else:
+            predictions = json.load(f)
     
     # Create judges
     judges = []
     for judge_name, judge_config in judges_config.items():
         judge = create_judge_from_config(judge_config)
         judges.append(judge)
-    
-    evaluator = MultiJudgeEvaluator(judges)
-    
+
+    # Set default criteria if none provided
+    if criteria is None:
+        criteria = [
+            JudgmentCriteria(
+                name="accuracy",
+                description="How accurate and correct is the explanation?",
+            ),
+            JudgmentCriteria(
+                name="clarity",
+                description="How clear and understandable is the explanation?",
+            ),
+            JudgmentCriteria(
+                name="completeness",
+                description="How complete and comprehensive is the explanation?",
+            ),
+        ]
+
+    # Evaluate all predictions
     results = []
-    for pred in predictions:
-        code = pred.get("code", "")
-        explanation = pred.get("prediction", pred.get("explanation", ""))
-        reference = pred.get("reference", pred.get("target", ""))
-        
+    evaluator = MultiJudgeEvaluator(judges)
+    for prediction in predictions:
         result = evaluator.evaluate(
-            code=code,
-            explanation=explanation,
-            reference=reference,
+            code=prediction.get("code", ""),
+            # Treat model output as the explanation being judged
+            explanation=prediction.get("prediction", prediction.get("explanation", "")),
+            # Prefer an explicit reference field; fall back to ground-truth explanation
+            reference=prediction.get("reference", prediction.get("explanation", "")),
             criteria=criteria,
-            consensus_method=consensus_method
+            consensus_method=consensus_method,
         )
         results.append(result)
-    
+
     # Save results if output file specified
     if output_file:
-        with open(output_file, 'w') as f:
-            for result in results:
-                result_dict = {
-                    "consensus_scores": result.consensus_scores,
-                    "agreement_metrics": result.agreement_metrics,
-                    "final_score": result.final_score,
-                    "individual_results": [
-                        {
-                            "judge_model": r.judge_model,
-                            "criteria_scores": r.criteria_scores,
-                            "overall_score": r.overall_score,
-                            "reasoning": r.reasoning,
-                            "confidence": r.confidence,
-                            "latency_ms": r.latency_ms
-                        }
-                        for r in result.individual_results
-                    ]
-                }
-                f.write(json.dumps(result_dict) + "\n")
-    
+        save_results(results, output_file)
+
     return results
+
+
+def run_llm_judge_evaluation(
+    test_file: Union[str, Path],
+    predictions_file: Union[str, Path],
+    output_file: Union[str, Path],
+    judges: Optional[List[str]] = None,
+    criteria: Optional[List[str]] = None,
+    require_consensus: bool = False
+) -> Dict[str, Any]:
+    """Convenience function for running LLM judge evaluation."""
+    judges = judges or ["gpt-4", "claude-3-sonnet"]
+    criteria_names = criteria or ["accuracy", "clarity", "completeness"]
+    
+    # Create judges config
+    judges_config = {}
+    import os
+    for judge_name in judges:
+        if judge_name.startswith("gpt"):
+            judges_config[judge_name] = {
+                "type": "openai",
+                "model": judge_name,
+                "api_key": os.environ.get("OPENAI_API_KEY"),
+            }
+        elif judge_name.startswith("claude"):
+            judges_config[judge_name] = {
+                "type": "anthropic", 
+                "model": judge_name,
+                "api_key": os.environ.get("ANTHROPIC_API_KEY"),
+            }
+    
+    # Create criteria objects
+    criteria_objects = []
+    for criterion_name in criteria_names:
+        if criterion_name == "accuracy":
+            desc = "How accurate and correct is the explanation?"
+        elif criterion_name == "clarity":
+            desc = "How clear and understandable is the explanation?"
+        elif criterion_name == "completeness":
+            desc = "How complete and comprehensive is the explanation?"
+        else:
+            desc = f"Quality assessment for {criterion_name}"
+        
+        criteria_objects.append(JudgmentCriteria(name=criterion_name, description=desc))
+    
+    # Run evaluation
+    results = evaluate_with_judges(
+        predictions_file=predictions_file,
+        judges_config=judges_config,
+        criteria=criteria_objects,
+        output_file=output_file,
+        consensus_method="majority" if require_consensus else "average"
+    )
+    
+    # Calculate summary statistics
+    if results:
+        overall_scores = [r.final_score for r in results]
+        agreement_scores = [r.agreement_metrics.get("overall", 0.0) for r in results]
+        
+        return {
+            "overall_score": sum(overall_scores) / len(overall_scores),
+            "judge_agreement": sum(agreement_scores) / len(agreement_scores),
+            "total_evaluations": len(results)
+        }
+    
+    return {"overall_score": 0.0, "judge_agreement": 0.0, "total_evaluations": 0}
+
+
+def save_results(results: List[MultiJudgeResult], output_file: Union[str, Path]):
+    """Save evaluation results to a JSONL file (one result per line)."""
+    if not output_file:
+        return
+    with open(output_file, 'w') as f:
+        for result in results:
+            result_dict = {
+                "consensus_scores": result.consensus_scores,
+                "agreement_metrics": result.agreement_metrics,
+                "final_score": result.final_score,
+                "individual_results": [
+                    {
+                        "judge_model": r.judge_model,
+                        "criteria_scores": r.criteria_scores,
+                        "overall_score": r.overall_score,
+                        "reasoning": r.reasoning,
+                        "confidence": r.confidence,
+                        "latency_ms": r.latency_ms,
+                    }
+                    for r in result.individual_results
+                ],
+            }
+            f.write(json.dumps(result_dict) + "\n")
