@@ -124,20 +124,18 @@ We welcome contributions of all kinds!
 
 ## Good First Issues
 Use the template at `.github/ISSUE_TEMPLATE/good_first_issue.md` to create beginner-friendly tasks. Please:
-- Add `good first issue` and `help wanted` labels
-- Provide acceptance criteria and file pointers
 
 ## Roadmap Proposals
 Use `.github/ISSUE_TEMPLATE/roadmap.md` for larger proposals. Include milestones and risks.
 
 ## Local Dev
-- Install dev deps: `pip install -e .[dev,web]`
-- Run tests: `pytest`
-- Lint/typecheck: `flake8` / `mypy src/`
+
+### Contributing datasets
+- Add an intake YAML based on `data/INTAKE_TEMPLATE.yaml` and include it in your PR
+- Ensure license and source URLs are provided; avoid PII/secrets
+- Run `make intake-validate` before opening the PR
 
 ## Code Style
-- Black + isort
-- Type hints encouraged
 
 Thanks for contributing!
 
