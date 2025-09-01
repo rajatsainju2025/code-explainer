@@ -152,6 +152,8 @@ code-explainer security --file suspicious_code.py
 
 # Run golden tests
 code-explainer golden-test --dataset core
+
+For a 15-minute walkthrough, see the Zero to Results tutorial: docs/tutorials/zero_to_results.md
 ```
 
 ---
