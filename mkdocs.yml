@@ -41,6 +41,7 @@ nav:
   - User Guide:
     - Strategies: docs/strategies.md
     - Evaluation: docs/evaluation.md
+  - Advanced LLM Judge Tutorial: docs/advanced_llm_judge_tutorial.md
     - Troubleshooting: docs/troubleshooting.md
   - API Reference:
     - REST API: docs/api/rest.md
