@@ -37,6 +37,7 @@ nav:
     - Quick Start: docs/quickstart.md
   - Tutorial: docs/tutorial.md
     - Configuration: docs/configuration.md
+  - Zero to Results: docs/tutorials/zero_to_results.md
   - User Guide:
     - Strategies: docs/strategies.md
     - Evaluation: docs/evaluation.md
@@ -49,6 +50,7 @@ nav:
     - Security: docs/security.md
     - Monitoring: docs/monitoring.md
     - Performance: docs/performance.md
+  - Dataset Governance: docs/dataset_governance.md
   - Development:
     - Contributing: docs/contributing.md
     - Architecture: docs/architecture.md

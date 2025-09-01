@@ -392,6 +392,11 @@ pytest tests/test_model.py::test_explain_code
 
 For scope, speed, and coverage goals, see the testing strategy discussion: `.github/DISCUSSIONS.md`.
 
+Planning & Roadmap
+- Plan review: docs/plan_review.md
+- Roadmap: NEXT_PHASE_ROADMAP.md
+- Reimagination: REIMAGINE.md
+
 ### Code Quality
 
 ```bash

@@ -1,0 +1,13 @@
+id: example-dataset-id
+title: Example Dataset Title
+description: >-
+  One-sentence description of the dataset purpose and scope.
+source_url: https://example.com/original-source
+license: CC-BY-4.0
+license_url: https://creativecommons.org/licenses/by/4.0/
+added_by: your-github-handle
+added_at: 2025-09-01T00:00:00Z
+citation: >-
+  Author, Title, Venue, Year. DOI/URL.
+notes: >-
+  Any additional information, filtering, redaction, or provenance notes.

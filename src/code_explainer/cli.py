@@ -257,7 +257,8 @@ def serve(host, port, model_path):
     help="Override prompt strategy (default from config)",
 )
 @click.option("--self-consistency", type=int, default=0, show_default=True, help="If >0, generate N samples per item and compute self-consistency metrics")
-def eval(model_path, config, test_file, preds_out, max_samples, prompt_strategy, self_consistency):
+@click.option("--phase2", is_flag=True, help="Enable experimental Phase 2 eval behaviors (currently no-op)")
+def eval(model_path, config, test_file, preds_out, max_samples, prompt_strategy, self_consistency, phase2):
     """Evaluate a model on a test set (BLEU/ROUGE/BERTScore) and optionally save predictions.
 
     Supports input as a JSON array file or JSONL (one JSON object per line).
@@ -276,6 +277,8 @@ def eval(model_path, config, test_file, preds_out, max_samples, prompt_strategy,
     from .metrics.self_consistency import pairwise_scores as sc_pairwise
 
     console.print(Panel.fit("📏 Running evaluation", style="bold blue"))
+    if phase2:
+        console.print("[dim]Phase 2 experimental flag enabled (no-op for now).[/dim]")
     explainer = CodeExplainer(model_path=model_path, config_path=config)
 
     # Load test data (JSON array or JSONL)
