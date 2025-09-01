@@ -19,3 +19,7 @@ Common issues and fixes.
   - Run `make precommit` to auto-fix; install hooks with `pre-commit install`
 - Tests slow
   - Use `pytest -q -k test_prompt_strategies` or `make test` (tiny data)
+
+- Docs site build fails
+  - Ensure mkdocs is installed: `pip install mkdocs mkdocs-material`
+  - Build locally: `mkdocs build` or serve: `mkdocs serve`
