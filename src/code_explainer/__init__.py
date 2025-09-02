@@ -12,10 +12,16 @@ __email__ = "your.email@example.com"
 from .model import CodeExplainer
 from .trainer import CodeExplainerTrainer
 from .utils import load_config, setup_logging
+from .research_evaluation_orchestrator import (
+    ResearchEvaluationOrchestrator,
+    ResearchEvaluationConfig,
+)
 
 __all__ = [
     "CodeExplainer",
     "CodeExplainerTrainer",
     "load_config",
     "setup_logging",
+    "ResearchEvaluationOrchestrator",
+    "ResearchEvaluationConfig",
 ]

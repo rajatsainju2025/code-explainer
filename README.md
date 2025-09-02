@@ -139,6 +139,16 @@ code-explainer explain --file examples/fibonacci.py --strategy enhanced_rag
 # Run evaluations
 code-explainer eval --dataset humaneval --model codet5-small
 
+# Research-driven evaluation (new)
+# End-to-end research evaluation (contamination, dynamic, multi-agent, adversarial)
+python -m code_explainer.cli_evaluation \
+  --model-path ./results \
+  --model-id demo-model \
+  --dynamic-rounds 3 \
+  --adversarial-tests 10 \
+  --enable-multi-agent --parallel
+
+See docs/research_evaluation_system.md for details.
 # Evaluate on a local JSONL (supports provenance + self-consistency)
 code-explainer eval -c configs/default.yaml -t data/examples/tiny_eval.jsonl --self-consistency 3 -o out/preds.jsonl
 
