@@ -54,6 +54,7 @@ nav:
     - Security: docs/security.md
     - Monitoring: docs/monitoring.md
     - Performance: docs/performance.md
+  - Research Evaluation System: docs/research_evaluation_system.md
   - Dataset Governance: docs/dataset_governance.md
   - Open Evals Reading List: docs/open_evals_reading_list.md
   - Judge Reliability (design): docs/judge_reliability.md
