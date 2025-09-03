@@ -56,6 +56,28 @@ OPEN_EVAL_DATASETS = {
         "format": "qa",
         "size": 40,
         "generator": "generate_data_structures"
+    },
+    # External adapters (mini)
+    "humaneval-mini": {
+        "name": "HumanEval (mini adapter)",
+        "description": "Adapter for HumanEval-style problems (requires local JSONL)",
+        "format": "code-gen-qa",
+        "size": 10,
+        "generator": "adapter_humaneval_mini"
+    },
+    "mbpp-mini": {
+        "name": "MBPP+ (mini adapter)",
+        "description": "Adapter for MBPP-style problems (requires local JSON/JSONL)",
+        "format": "code-gen-qa",
+        "size": 10,
+        "generator": "adapter_mbpp_mini"
+    },
+    "swe-bench-lite-mini": {
+        "name": "SWE-bench-lite (mini adapter)",
+        "description": "Adapter for SWE-bench-lite issues (requires local JSONL)",
+        "format": "issue-qa",
+        "size": 10,
+        "generator": "adapter_swe_bench_lite_mini"
     }
 }
 
@@ -365,3 +387,136 @@ def save_results_json(data: Dict[str, Any], filepath: str) -> None:
         json.dump(data, f, indent=2, ensure_ascii=False)
     
     logger.info(f"Results saved to JSON: {filepath}")
+
+
+# =========================
+# External adapters (mini)
+# =========================
+
+def _read_jsonl(path: Path) -> List[Dict[str, Any]]:
+    items: List[Dict[str, Any]] = []
+    with path.open("r", encoding="utf-8") as fh:
+        for line in fh:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                items.append(json.loads(line))
+            except Exception:
+                continue
+    return items
+
+
+def adapter_humaneval_mini() -> List[Dict[str, Any]]:
+    """Load a small HumanEval-like set if present; otherwise return a synthetic mini set.
+
+    Looks for benchmarks/datasets/humaneval.jsonl with keys like {"task_id","prompt","canonical_solution"}.
+    We convert to simple QA where question is the prompt and answer is a short natural language description.
+    """
+    candidates = [
+        Path("benchmarks/datasets/humaneval.jsonl"),
+        Path("data/humaneval.jsonl"),
+    ]
+    for p in candidates:
+        if p.exists():
+            rows = _read_jsonl(p)
+            problems: List[Dict[str, Any]] = []
+            for i, r in enumerate(rows[:10]):
+                prompt = r.get("prompt") or r.get("question") or "Implement a function per the spec."
+                problems.append({
+                    "id": f"humaneval_{i+1}",
+                    "question": f"HumanEval task: {prompt[:300]}",
+                    # Without executing code, we can't derive exact answers; use placeholder to allow runner to proceed.
+                    "answer": "code passes provided tests",
+                    "metadata": {"source": str(p), "task_id": r.get("task_id")}
+                })
+            if problems:
+                return problems
+    # Fallback synthetic
+    return [
+        {
+            "id": "humaneval_synth_1",
+            "question": "Write a function add(a,b) that returns a+b.",
+            "answer": "code passes provided tests",
+            "metadata": {"synthetic": True}
+        },
+        {
+            "id": "humaneval_synth_2",
+            "question": "Write a function is_palindrome(s) that returns True if s is a palindrome.",
+            "answer": "code passes provided tests",
+            "metadata": {"synthetic": True}
+        },
+    ]
+
+
+def adapter_mbpp_mini() -> List[Dict[str, Any]]:
+    """Load a small MBPP-like set if present; otherwise return synthetic examples.
+
+    Looks for benchmarks/datasets/mbpp.jsonl or mbpp.json with keys like {"text","test_list"}.
+    """
+    json_candidates = [Path("benchmarks/datasets/mbpp.jsonl"), Path("data/mbpp.jsonl")]
+    for p in json_candidates:
+        if p.exists():
+            rows = _read_jsonl(p)
+            problems: List[Dict[str, Any]] = []
+            for i, r in enumerate(rows[:10]):
+                text = r.get("text") or r.get("question") or "Write a Python function per the description."
+                problems.append({
+                    "id": f"mbpp_{i+1}",
+                    "question": text[:400],
+                    "answer": "code passes provided tests",
+                    "metadata": {"source": str(p)}
+                })
+            if problems:
+                return problems
+    # Fallback synthetic
+    return [
+        {
+            "id": "mbpp_synth_1",
+            "question": "Write a function to reverse a string.",
+            "answer": "code passes provided tests",
+            "metadata": {"synthetic": True}
+        },
+        {
+            "id": "mbpp_synth_2",
+            "question": "Write a function to compute factorial.",
+            "answer": "code passes provided tests",
+            "metadata": {"synthetic": True}
+        },
+    ]
+
+
+def adapter_swe_bench_lite_mini() -> List[Dict[str, Any]]:
+    """Load a small SWE-bench-lite-like set if present; otherwise return synthetic examples.
+
+    Expects JSONL with issue context fields like {"repo","problem_statement","hints"}.
+    """
+    candidates = [
+        Path("benchmarks/datasets/swe-bench-lite.jsonl"),
+        Path("data/swe-bench-lite.jsonl"),
+    ]
+    for p in candidates:
+        if p.exists():
+            rows = _read_jsonl(p)
+            problems: List[Dict[str, Any]] = []
+            for i, r in enumerate(rows[:10]):
+                repo = r.get("repo") or r.get("repository") or "unknown/repo"
+                desc = r.get("problem_statement") or r.get("title") or "Fix a failing test in the repository."
+                problems.append({
+                    "id": f"swe_bench_lite_{i+1}",
+                    "question": f"[{repo}] {desc[:400]}",
+                    # We don't auto-evaluate patch application here; keep placeholder answer for uniform QA.
+                    "answer": "submit a patch that fixes the failing tests",
+                    "metadata": {"source": str(p)}
+                })
+            if problems:
+                return problems
+    # Fallback synthetic
+    return [
+        {
+            "id": "swe_synth_1",
+            "question": "In a project, a test for add(2,2) fails. Describe a patch to fix it.",
+            "answer": "submit a patch that fixes the failing tests",
+            "metadata": {"synthetic": True}
+        }
+    ]

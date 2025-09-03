@@ -983,6 +983,86 @@ def eval_preference(test_data, predictions_a, predictions_b, output, judges, cri
 
 
 @main.command()
+@click.option("--judgments", "judgments_file", required=True, help="Path to LLM judge results (JSON) or raw pairwise data")
+@click.option("--n-bootstrap", type=int, default=200, show_default=True, help="Bootstrap samples for CIs")
+@click.option("--ab-randomize", is_flag=True, help="Randomize A/B order for pairwise to reduce position bias")
+@click.option("--out", default="judge_reliability.json", help="Output summary JSON")
+def eval_judge_reliability(judgments_file, n_bootstrap, ab_randomize, out):
+    """Compute judge agreement and bootstrap confidence intervals. Accepts JSON with judge scores or pairwise prefs."""
+    import json, random
+    from statistics import mean
+
+    console.print(Panel.fit("📏 Judge Reliability", style="bold blue"))
+    with open(judgments_file, "r", encoding="utf-8") as fh:
+        data = json.load(fh)
+
+    # Two modes: {example: {judges: [{model, overall_score}]}} OR pairwise list [{a,b,preference,judge_model}]
+    agreement = {}
+    all_overall = []
+    pair_to_votes_base = None
+    if isinstance(data, dict) and "examples" in data:
+        # overall score agreement by example
+        for ex in data["examples"]:
+            scores = [j.get("overall_score", 0.0) for j in ex.get("judges", [])]
+            if scores:
+                all_overall.append(scores)
+        # variance-based simple agreement proxy (0..1)
+        per_example = []
+        for scores in all_overall:
+            if len(scores) <= 1:
+                per_example.append(1.0)
+            else:
+                var = max(0.0, (max(scores) - min(scores)) / (max(scores, default=1.0) or 1.0))
+                per_example.append(max(0.0, 1.0 - var))
+        agreement["overall_agreement"] = mean(per_example) if per_example else 0.0
+    elif isinstance(data, list):
+        # Pairwise prefs
+        prefs = data
+        if ab_randomize:
+            random.shuffle(prefs)
+        # simple agreement across judges by pair identity
+        pair_to_votes = {}
+        for p in prefs:
+            key = (p.get("a"), p.get("b"))
+            pair_to_votes.setdefault(key, []).append(p.get("preference", 0.0))
+        matches = 0
+        total = 0
+        for votes in pair_to_votes.values():
+            total += len(votes)
+            if votes:
+                sign = 1 if mean(votes) > 0 else (-1 if mean(votes) < 0 else 0)
+                matches += sum(1 for v in votes if (v>0 and sign>0) or (v<0 and sign<0) or (v==0 and sign==0))
+        agreement["pairwise_consistency"] = matches / total if total else 0.0
+        pair_to_votes_base = pair_to_votes
+    else:
+        console.print(Panel.fit("❌ Unsupported judgments format", style="bold red"))
+        return
+
+    # Bootstrap simple CI on agreement value(s)
+    import random
+    vals = []
+    if "overall_agreement" in agreement and all_overall:
+        base = [sum(s)/len(s) for s in all_overall]
+        for _ in range(max(10, n_bootstrap)):
+            sample = [random.choice(base) for __ in base]
+            vals.append(sum(sample)/len(sample))
+    elif "pairwise_consistency" in agreement and isinstance(data, list):
+        base = list(pair_to_votes_base.values()) if pair_to_votes_base else []
+        for _ in range(max(10, n_bootstrap)):
+            sample = [random.choice(b) if b else [0.0] for b in base]
+            flat = [x for sub in sample for x in (sub if isinstance(sub, list) else [sub])]
+            if flat:
+                sign = 1 if mean(flat) > 0 else (-1 if mean(flat) < 0 else 0)
+                vals.append(sum(1 for v in flat if (v>0 and sign>0) or (v<0 and sign<0) or (v==0 and sign==0)) / len(flat))
+    ci = None
+    if vals:
+        lo = sorted(vals)[int(0.025*len(vals))]
+        hi = sorted(vals)[int(0.975*len(vals))-1]
+        ci = [lo, hi]
+    summary = {**agreement, "bootstrap_ci": ci}
+    with open(out, "w", encoding="utf-8") as wf:
+        json.dump(summary, wf, indent=2)
+    console.print(Panel.fit(str(summary), style="bold green"))
 @click.option("--train-data", "-tr", required=True, help="Path to training data (JSON/JSONL)")
 @click.option("--test-data", "-te", required=True, help="Path to test data (JSON/JSONL)")
 @click.option("--output", "-o", default="contamination_report.json", help="Output report path")

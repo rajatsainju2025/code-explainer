@@ -1,248 +1,140 @@
-"""Cross-encoder reranker for improving retrieval relevance."""
+"""Reranker utilities and Maximal Marginal Relevance (MMR).
 
-import logging
-from typing import List, Dict, Any, Optional, Tuple
+This module provides a light wrapper around sentence-transformers CrossEncoder
+and a simple MMR implementation. Designed to be optional: if sentence-transformers
+is not installed, create_reranker() returns None and callers should degrade gracefully.
+"""
+from __future__ import annotations
+
+from typing import Any, Dict, List, Optional
+
 import numpy as np
 
-try:
-    from sentence_transformers import CrossEncoder
-    HAS_SENTENCE_TRANSFORMERS = True
-except ImportError:
-    HAS_SENTENCE_TRANSFORMERS = False
-    CrossEncoder = None
+try:  # optional dependency
+    from sentence_transformers import CrossEncoder  # type: ignore
 
-logger = logging.getLogger(__name__)
+    HAS_SENTENCE_TRANSFORMERS = True
+except Exception:  # pragma: no cover - environment dependent
+    CrossEncoder = None  # type: ignore
+    HAS_SENTENCE_TRANSFORMERS = False
 
 
 class CrossEncoderReranker:
-    """Cross-encoder reranker for improving retrieval relevance."""
-    
-    def __init__(self, model_name: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"):
-        """Initialize the cross-encoder reranker.
-        
-        Args:
-            model_name: Name of the cross-encoder model to use
-        """
+    """Thin wrapper over a CrossEncoder for pair scoring (query, doc)."""
+
+    def __init__(self, model_name: str = "cross-encoder/ms-marco-MiniLM-L-12-v2", **kwargs: Any):
         if not HAS_SENTENCE_TRANSFORMERS:
-            raise ImportError("sentence-transformers is required for reranking. Install with: pip install sentence-transformers")
-        
+            raise ImportError("sentence-transformers not available")
         self.model_name = model_name
-        self.model = None
-        self._initialize_model()
-    
-    def _initialize_model(self):
-        """Initialize the cross-encoder model."""
-        try:
-            if CrossEncoder is not None:
-                self.model = CrossEncoder(self.model_name)
-                logger.info(f"Initialized cross-encoder: {self.model_name}")
-            else:
-                raise ImportError("CrossEncoder not available")
-        except Exception as e:
-            logger.error(f"Failed to initialize cross-encoder {self.model_name}: {e}")
-            raise
-    
+        # allow passing device or other kwargs through
+        self.model = CrossEncoder(model_name, **kwargs)  # type: ignore[misc]
+
     def rerank(
-        self, 
-        query: str, 
-        candidates: List[Dict[str, Any]], 
+        self,
+        query: str,
+        candidates: List[Dict[str, Any]],
         top_k: Optional[int] = None,
-        score_threshold: float = 0.0
+        score_threshold: Optional[float] = None,
     ) -> List[Dict[str, Any]]:
-        """Rerank candidates using cross-encoder.
-        
-        Args:
-            query: Query text
-            candidates: List of candidate documents with 'content' field
-            top_k: Number of top candidates to return
-            score_threshold: Minimum relevance score threshold
-            
-        Returns:
-            Reranked candidates with relevance scores
-        """
         if not candidates:
             return []
-        
-        if self.model is None:
-            logger.warning("Cross-encoder model not initialized, returning original candidates")
-            return candidates[:top_k] if top_k else candidates
-        
-        try:
-            # Prepare query-candidate pairs
-            pairs = []
-            for candidate in candidates:
-                content = candidate.get('content', '')
-                if isinstance(content, str):
-                    pairs.append([query, content])
-                else:
-                    pairs.append([query, str(content)])
-            
-            # Get relevance scores
-            scores = self.model.predict(pairs)
-            
-            # Combine candidates with scores
-            scored_candidates = []
-            for i, candidate in enumerate(candidates):
-                score = float(scores[i])
-                if score >= score_threshold:
-                    enhanced_candidate = candidate.copy()
-                    enhanced_candidate['rerank_score'] = score
-                    scored_candidates.append(enhanced_candidate)
-            
-            # Sort by relevance score (descending)
-            scored_candidates.sort(key=lambda x: x['rerank_score'], reverse=True)
-            
-            # Return top-k results
-            result = scored_candidates[:top_k] if top_k else scored_candidates
-            
-            logger.info(f"Reranked {len(candidates)} candidates, returned {len(result)} above threshold {score_threshold}")
-            return result
-            
-        except Exception as e:
-            logger.error(f"Reranking failed: {e}")
-            return candidates[:top_k] if top_k else candidates
+        pairs = [(query, c.get("content", "")) for c in candidates]
+        scores = self.model.predict(pairs)  # type: ignore[operator]
+        # Ensure numpy array for indexing
+        scores = np.asarray(scores)
+        ranked = []
+        for c, s in zip(candidates, scores.tolist()):
+            item = dict(c)
+            item["rerank_score"] = float(s)
+            ranked.append(item)
+        if score_threshold is not None:
+            ranked = [r for r in ranked if r["rerank_score"] >= score_threshold]
+        ranked.sort(key=lambda r: r["rerank_score"], reverse=True)
+        if top_k is not None:
+            ranked = ranked[: max(0, int(top_k))]
+        return ranked
 
 
 class MaximalMarginalRelevance:
-    """Maximal Marginal Relevance (MMR) for diversified retrieval."""
-    
+    """Greedy MMR selection with cosine similarity."""
+
     def __init__(self, lambda_param: float = 0.5):
-        """Initialize MMR.
-        
-        Args:
-            lambda_param: Trade-off parameter between relevance and diversity (0-1)
-        """
-        self.lambda_param = lambda_param
-    
+        self.lambda_param = float(lambda_param)
+
+    def _cosine_similarity(self, a: np.ndarray, b: np.ndarray | List[np.ndarray]) -> np.ndarray | float:
+        a = np.asarray(a, dtype=float)
+        if isinstance(b, list):
+            b = np.asarray(b, dtype=float)
+        else:
+            b = np.asarray(b, dtype=float)
+        if b.ndim == 1:
+            # single vector
+            denom = (np.linalg.norm(a) * np.linalg.norm(b)) or 1.0
+            return float(np.dot(a, b) / denom)
+        # many vectors (N, D)
+        a_norm = np.linalg.norm(a) or 1.0
+        b_norms = np.linalg.norm(b, axis=1)
+        b_norms[b_norms == 0] = 1.0
+        sims = (b @ a) / (a_norm * b_norms)
+        return sims
+
     def select(
         self,
         query_embedding: np.ndarray,
         candidate_embeddings: List[np.ndarray],
         candidates: List[Dict[str, Any]],
-        top_k: int = 10
+        top_k: int = 5,
     ) -> List[Dict[str, Any]]:
-        """Select diverse candidates using MMR.
-        
-        Args:
-            query_embedding: Query embedding vector
-            candidate_embeddings: List of candidate embedding vectors
-            candidates: List of candidate documents
-            top_k: Number of candidates to select
-            
-        Returns:
-            Selected diverse candidates
-        """
-        if not candidates or len(candidates) != len(candidate_embeddings):
-            return candidates[:top_k]
-        
-        try:
-            # Convert to numpy arrays
-            query_emb = np.array(query_embedding)
-            cand_embs = np.array(candidate_embeddings)
-            
-            # Compute query-candidate similarities
-            query_similarities = self._cosine_similarity(query_emb, cand_embs)
-            if isinstance(query_similarities, float):
-                query_similarities = np.array([query_similarities])
-            elif not isinstance(query_similarities, np.ndarray):
-                query_similarities = np.array(query_similarities)
-            
-            selected_indices = []
-            remaining_indices = list(range(len(candidates)))
-            
-            # Select first candidate with highest query similarity
-            if remaining_indices:
-                remaining_sims = query_similarities[remaining_indices]
-                best_local_idx = np.argmax(remaining_sims)
-                best_idx = remaining_indices[best_local_idx]
-                selected_indices.append(best_idx)
-                remaining_indices.remove(best_idx)
-            
-            # Select remaining candidates using MMR
-            while len(selected_indices) < top_k and remaining_indices:
-                mmr_scores = []
-                
-                for idx in remaining_indices:
-                    # Relevance score
-                    relevance = query_similarities[idx]
-                    
-                    # Diversity score (max similarity with selected candidates)
-                    if selected_indices:
-                        similarities_to_selected = [
-                            self._cosine_similarity(cand_embs[idx], cand_embs[sel_idx])
-                            for sel_idx in selected_indices
-                        ]
-                        max_similarity = max(similarities_to_selected)
-                    else:
-                        max_similarity = 0.0
-                    
-                    # MMR score
-                    mmr_score = (self.lambda_param * relevance - 
-                               (1 - self.lambda_param) * max_similarity)
-                    mmr_scores.append(mmr_score)
-                
-                # Select candidate with highest MMR score
-                best_mmr_idx = np.argmax(mmr_scores)
-                best_candidate_idx = remaining_indices[best_mmr_idx]
-                selected_indices.append(best_candidate_idx)
-                remaining_indices.remove(best_candidate_idx)
-            
-            # Return selected candidates with MMR scores
-            result = []
-            for i, idx in enumerate(selected_indices):
-                candidate = candidates[idx].copy()
-                candidate['mmr_rank'] = i + 1
-                candidate['query_similarity'] = float(query_similarities[idx])
-                result.append(candidate)
-            
-            logger.info(f"Selected {len(result)} diverse candidates using MMR (λ={self.lambda_param})")
-            return result
-            
-        except Exception as e:
-            logger.error(f"MMR selection failed: {e}")
-            return candidates[:top_k]
-    
-    def _cosine_similarity(self, a: np.ndarray, b: np.ndarray) -> float:
-        """Compute cosine similarity between two vectors."""
-        if a.ndim == 1 and b.ndim == 2:
-            # a is 1D, b is 2D (multiple vectors)
-            dot_product = np.dot(b, a)
-            norm_a = np.linalg.norm(a)
-            norm_b = np.linalg.norm(b, axis=1)
-            return dot_product / (norm_a * norm_b + 1e-8)
-        elif a.ndim == 1 and b.ndim == 1:
-            # Both are 1D vectors
-            dot_product = np.dot(a, b)
-            norm_a = np.linalg.norm(a)
-            norm_b = np.linalg.norm(b)
-            return dot_product / (norm_a * norm_b + 1e-8)
-        else:
-            raise ValueError(f"Unsupported vector dimensions: a.shape={a.shape}, b.shape={b.shape}")
+        n = min(len(candidate_embeddings), len(candidates))
+        if n == 0:
+            return []
+        # Trim to minimum length to avoid mismatch issues
+        cand_embs = candidate_embeddings[:n]
+        cand_items = candidates[:n]
+
+        # Compute query similarities
+        q_sims = [float(self._cosine_similarity(query_embedding, emb)) for emb in cand_embs]
+        selected: List[int] = []
+        remaining = set(range(n))
+        k = min(max(0, int(top_k)), n)
+        while len(selected) < k and remaining:
+            best_idx = None
+            best_score = -1e9
+            for i in list(remaining):
+                if not selected:
+                    div = 0.0
+                else:
+                    # Max similarity to any already selected item
+                    div = max(
+                        float(self._cosine_similarity(cand_embs[i], cand_embs[j])) for j in selected
+                    )
+                score = self.lambda_param * q_sims[i] - (1.0 - self.lambda_param) * div
+                if score > best_score:
+                    best_score = score
+                    best_idx = i
+            if best_idx is None:
+                break
+            selected.append(best_idx)
+            remaining.remove(best_idx)
+
+        # Build results
+        results: List[Dict[str, Any]] = []
+        for rank, idx in enumerate(selected, start=1):
+            item = dict(cand_items[idx])
+            item["mmr_rank"] = rank
+            item["query_similarity"] = q_sims[idx]
+            results.append(item)
+        return results
 
 
-def create_reranker(model_name: str = "cross-encoder/ms-marco-MiniLM-L-6-v2") -> Optional[CrossEncoderReranker]:
-    """Create a reranker instance with error handling.
-    
-    Args:
-        model_name: Name of the cross-encoder model
-        
-    Returns:
-        Reranker instance or None if creation fails
-    """
+def create_reranker(model_name: str = "cross-encoder/ms-marco-MiniLM-L-12-v2", **kwargs: Any) -> Optional[CrossEncoderReranker]:
+    if not HAS_SENTENCE_TRANSFORMERS:
+        return None
     try:
-        return CrossEncoderReranker(model_name)
-    except Exception as e:
-        logger.warning(f"Failed to create reranker: {e}")
+        return CrossEncoderReranker(model_name, **kwargs)
+    except Exception:
         return None
 
 
 def create_mmr(lambda_param: float = 0.5) -> MaximalMarginalRelevance:
-    """Create an MMR instance.
-    
-    Args:
-        lambda_param: Trade-off parameter between relevance and diversity
-        
-    Returns:
-        MMR instance
-    """
-    return MaximalMarginalRelevance(lambda_param)
+    return MaximalMarginalRelevance(lambda_param=lambda_param)

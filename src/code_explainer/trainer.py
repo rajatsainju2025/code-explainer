@@ -142,23 +142,28 @@ class CodeExplainerTrainer:
         )
 
         if hf_datasets is None:
-            raise ImportError(
-                "The 'datasets' package is required. Please install with `pip install datasets`."
-            )
+            # Fallback: return plain Python dict; downstream will handle mapping
+            return {
+                "train": ds_dict["train"],
+                "eval": ds_dict.get(
+                    "eval", ds_dict["train"][
+                        : max(1, int(0.2 * len(ds_dict["train"])))
+                    ],
+                ),
+            }
 
-        # Convert to HF datasets
-        dataset_dict = hf_datasets.DatasetDict(
+        # Convert to HF datasets when available
+        return hf_datasets.DatasetDict(
             {
                 "train": hf_datasets.Dataset.from_list(ds_dict["train"]),
                 "eval": hf_datasets.Dataset.from_list(
                     ds_dict.get(
-                        "eval", ds_dict["train"][: max(1, int(0.2 * len(ds_dict["train"])))]
+                        "eval",
+                        ds_dict["train"][: max(1, int(0.2 * len(ds_dict["train"])))],
                     )
                 ),
             }
         )
-
-        return dataset_dict
 
     def _get_prompted_text(self, code: str, explanation: str) -> str:
         prompt_template = self.config["prompt"]["template"]
@@ -206,9 +211,15 @@ class CodeExplainerTrainer:
                 return model_inputs
 
             logger.info("Tokenizing dataset (seq2seq)...")
-            tokenized_dataset = dataset.map(
-                tokenize_function_seq2seq, batched=False, desc="Tokenizing (seq2seq)"
-            )
+            # Support both HF datasets and plain dicts
+            if hasattr(dataset, "map"):
+                return dataset.map(
+                    tokenize_function_seq2seq, batched=False, desc="Tokenizing (seq2seq)"
+                )
+            # Plain dict of lists fallback
+            train_tok = [tokenize_function_seq2seq(ex) for ex in dataset["train"]]  # type: ignore[index]
+            eval_tok = [tokenize_function_seq2seq(ex) for ex in dataset["eval"]]  # type: ignore[index]
+            return {"train": train_tok, "eval": eval_tok}
         else:
 
             def tokenize_function_causal(examples):
@@ -253,11 +264,13 @@ class CodeExplainerTrainer:
                 return encoded
 
             logger.info("Tokenizing dataset (causal)...")
-            tokenized_dataset = dataset.map(
-                tokenize_function_causal, batched=False, desc="Tokenizing (causal)"
-            )
-
-        return tokenized_dataset
+            if hasattr(dataset, "map"):
+                return dataset.map(
+                    tokenize_function_causal, batched=False, desc="Tokenizing (causal)"
+                )
+            train_tok = [tokenize_function_causal(ex) for ex in dataset["train"]]  # type: ignore[index]
+            eval_tok = [tokenize_function_causal(ex) for ex in dataset["eval"]]  # type: ignore[index]
+            return {"train": train_tok, "eval": eval_tok}
 
     def setup_trainer(self, dataset: Any) -> None:
         """Setup the Hugging Face trainer with config-driven flags."""
@@ -282,7 +295,7 @@ class CodeExplainerTrainer:
                 logging_steps=training_config["logging_steps"],
                 save_steps=training_config["save_steps"],
                 load_best_model_at_end=training_config["load_best_model_at_end"],
-                report_to=["tensorboard"],
+                report_to="none",
                 save_safetensors=True,
                 fp16=fp16,
                 bf16=bf16,
@@ -307,7 +320,7 @@ class CodeExplainerTrainer:
                 logging_steps=training_config["logging_steps"],
                 save_steps=training_config["save_steps"],
                 load_best_model_at_end=training_config["load_best_model_at_end"],
-                report_to=["tensorboard"],
+                report_to="none",
                 save_safetensors=True,
                 fp16=fp16,
                 bf16=bf16,
@@ -362,6 +375,7 @@ class CodeExplainerTrainer:
                 "rougeL": compute_rouge_l(label_texts, pred_texts),
             }
 
+        # Trainer accepts datasets that implement __len__/__getitem__ (lists work for smoke tests)
         self.trainer = trainer_cls(
             model=self.model,
             args=args,

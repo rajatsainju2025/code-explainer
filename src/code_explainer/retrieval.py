@@ -36,14 +36,14 @@ class CodeRetriever:
     Supports FAISS vector search, BM25 lexical search, and hybrid fusion.
     """
 
-    def __init__(self, model_name: str = "microsoft/codebert-base"):
+    def __init__(self, model_name: str = "sentence-transformers/all-MiniLM-L6-v2", model: Optional[Any] = None):
         """Initialize the code retriever.
         
         Args:
             model_name: Name of the sentence transformer model to use
         """
         self.model_name = model_name
-        self.model = SentenceTransformer(model_name)
+        self.model = model if model is not None else SentenceTransformer(model_name)
         
         # Core data structures
         self.code_corpus: List[str] = []
@@ -154,7 +154,7 @@ class CodeRetriever:
         alpha: float = 0.5,
     ) -> List[str]:
         if not self.code_corpus:
-            raise ValueError("Index/corpus is not loaded or built.")
+            raise ValueError("Index is not loaded or built")
 
         method = (method or "faiss").lower()
         if method not in {"faiss", "bm25", "hybrid"}:

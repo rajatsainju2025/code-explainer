@@ -17,6 +17,14 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
+from typing import List
+
+# local import
+try:
+    from code_explainer.metrics.provenance import provenance_scores, highlight_citations
+except Exception:
+    provenance_scores = None
+    highlight_citations = None
 
 
 def _read_any(p: Path):
@@ -43,7 +51,22 @@ def main():
         code = ex.get("code", "")
         pred = ex.get("prediction", "") or ex.get("pred", "")
         ref = ex.get("reference", "")
-        srcs = ex.get("source_ids") or ex.get("sources") or []
+        srcs: List[str] = ex.get("source_ids") or ex.get("sources") or []
+        prov_md = []
+        if provenance_scores and highlight_citations and (pred or ref):
+            annotated, validity = highlight_citations(pred or ref, srcs)
+            scores = provenance_scores(pred or ref, srcs)
+            prov_md.extend([
+                "## Citations",
+                annotated,
+                "",
+                f"- Precision: {scores.precision:.3f}",
+                f"- Recall: {scores.recall:.3f}",
+                f"- F1: {scores.f1:.3f}",
+                f"- Hallucination rate: {scores.hallucination_rate:.3f}",
+            ])
+        else:
+            prov_md.extend(["## Citations", "(provenance metrics not available)"])
         md = [
             f"# Provenance Card #{i+1}",
             "",
@@ -60,6 +83,8 @@ def main():
             "",
             "## Source IDs (optional)",
             ", ".join(map(str, srcs)) if srcs else "(none)",
+            "",
+            *prov_md,
             "",
             "> Note: Future versions will include cited span highlighting and coverage metrics.",
         ]

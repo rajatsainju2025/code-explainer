@@ -222,12 +222,10 @@ class SafeCodeExecutor:
             temp_file = f.name
         
         try:
-            # Execute in subprocess with restrictions
+            # Execute in subprocess; rely on Python's timeout for portability
             cmd = [
-                "timeout", str(self.timeout),
                 "python", temp_file
             ]
-            
             if capture_output:
                 result = subprocess.run(
                     cmd,
