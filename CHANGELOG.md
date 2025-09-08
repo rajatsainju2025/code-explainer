@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to this project will be documented in this file.
+All notable changes to the Code Explainer project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
@@ -8,16 +8,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- Eval CLI now supports JSONL datasets in addition to JSON arrays.
-- Provenance metrics (citation precision/recall) integrated into `code-explainer eval` when `source_ids`/`sources` are provided per example.
-- Self-consistency metrics via `--self-consistency N` flag, computing avg pairwise BLEU/ROUGE-L.
-- Tiny example dataset at `data/examples/tiny_eval.jsonl` and docs.
+- **Unified Evaluation Framework**: Comprehensive `evals/` module with reproducible experiments
+  - Deterministic runs with seed control and run manifests
+  - Statistical analysis with confidence intervals and significance testing
+  - Flexible CLI interface: `make eval`, `make benchmark`, `make ablation`
+  - Support for ablation studies and strategy comparisons
+  - Bootstrap confidence intervals and effect size calculations
+- **Enhanced CI/CD Pipeline**: Multi-stage pipeline with comprehensive testing
+  - Matrix testing across Python 3.8-3.11
+  - Security scanning with Bandit, Safety, Semgrep, and Trivy
+  - Performance regression detection for pull requests
+  - Evaluation smoke tests to validate core functionality
+  - Docker security scanning and build validation
+- **Project Documentation**: Research-grade planning and architecture documents
+  - CRITIQUE.md: Strengths, weaknesses, and technical debt analysis
+  - ROADMAP.md: 6-week milestone plan with success metrics
+  - ARCHITECTURE.md: System design with evaluation framework integration
+- Eval CLI now supports JSONL datasets in addition to JSON arrays
+- Provenance metrics (citation precision/recall) integrated into `code-explainer eval` when `source_ids`/`sources` are provided per example
+- Self-consistency metrics via `--self-consistency N` flag, computing avg pairwise BLEU/ROUGE-L
+- Tiny example dataset at `data/examples/tiny_eval.jsonl` and docs
 
-### Added
-- CI: GitHub Actions with lint, type-check, tests, and coverage upload
-- Pre-commit hooks (black, isort, ruff, mypy, basic checks)
-- Testing: pytest unit tests and coverage
-- Benchmarks: simple inference timing
+### Changed
+- **Makefile**: Updated with new evaluation targets (`eval`, `benchmark`, `ablation`)
+- **Code Formatting**: Extended to include `evals/` module in all quality checks
+
+### Fixed
+- Type safety improvements across evaluation modules
+- Import handling with graceful fallbacks for optional dependencies
 - API: FastAPI server for explanation endpoint
 - Web: Streamlit app scaffold
 - Data: loaders (JSON/CSV/HF), augmentation utilities
