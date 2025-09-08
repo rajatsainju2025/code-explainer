@@ -1,0 +1,32 @@
+# Minimal evaluation configuration for quick testing
+name: "minimal_eval"
+description: "Quick evaluation with minimal dataset and settings"
+
+model:
+  name: "codet5-base"
+  max_length: 256
+  temperature: 0.1
+  device: "auto"
+
+retrieval:
+  enabled: true
+  top_k: 5
+  similarity_threshold: 0.7
+  rerank: false
+
+metrics:
+  metrics: ["bleu", "rouge_l", "latency"]
+  bootstrap_samples: 100
+  confidence_level: 0.95
+
+dataset:
+  eval_path: "data/eval.json"
+  max_samples: 10
+  shuffle: true
+
+seed: 42
+output_dir: "results/minimal_eval"
+save_predictions: true
+save_metrics: true
+batch_size: 1
+verbose: true

@@ -1,26 +1,40 @@
 # Simple developer Makefile
 .PHONY: install test lint type format precommit clean api eval-fast ab api-serve icml-all icml-analysis icml-outputs
-.PHONY: docs-serve docs-deploy
+.PHONY: docs-serve docs-deploy eval benchmark ablation
 
 install:
 	python -m pip install --upgrade pip
 	pip install -e .[dev]
 
 format:
-	black src/ tests/
-	isort src/ tests/
+	black src/ tests/ evals/
+	isort src/ tests/ evals/
 
 lint:
-	flake8 src/ tests/
+	flake8 src/ tests/ evals/
 
 type:
-	mypy src/
+	mypy src/ evals/
 
 precommit:
 	pre-commit run --all-files
 
 test:
 	pytest --cov=code_explainer --cov-report=term-missing
+
+# New unified evaluation targets
+eval:
+	python -m evals run --config configs/evals/standard.yaml
+
+eval-minimal:
+	python -m evals run --config configs/evals/minimal.yaml
+
+benchmark:
+	python -m evals benchmark --suite standard
+
+ablation:
+	python -m evals ablation --config configs/evals/standard.yaml --components retrieval reranking
+
 .PHONY: eval-tiny
 eval-tiny:
 	code-explainer eval -c configs/default.yaml -t data/examples/tiny_eval.jsonl --self-consistency 2 --max-samples 2
