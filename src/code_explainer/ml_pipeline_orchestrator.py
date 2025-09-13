@@ -32,6 +32,8 @@ import tempfile
 import shutil
 import subprocess
 from concurrent.futures import ThreadPoolExecutor, as_completed
+import random
+import psutil
 import threading
 import queue
 import statistics
@@ -343,40 +345,79 @@ class HyperparameterOptimizer:
 
     def _run_optimization_trials(self, data: Dict[str, Any],
                                search_space: Dict[str, List[Any]]) -> tuple[Dict[str, Any], float]:
-        """Run optimization trials."""
+        """Run optimization trials with improved algorithm."""
         best_score = 0.0
         best_params = {}
 
-        # Simple grid search (in practice, would use more sophisticated methods)
-        from itertools import product
-
-        param_combinations = list(product(*search_space.values()))
+        # Use random search with early stopping for better efficiency
         param_names = list(search_space.keys())
+        param_ranges = list(search_space.values())
 
-        for i, params in enumerate(param_combinations):
-            param_dict = dict(zip(param_names, params))
+        # Limit trials to prevent excessive computation
+        max_trials = min(50, len(param_names) * 10)  # Adaptive trial count
+        early_stopping_patience = 10
+        no_improvement_count = 0
+
+        for trial in range(max_trials):
+            # Sample random parameter combination
+            param_dict = {}
+            for name, values in zip(param_names, param_ranges):
+                param_dict[name] = random.choice(values)
 
             # Evaluate parameter combination
             score = self._evaluate_params(param_dict, data)
 
             self.optimization_trials.append({
-                'trial': i,
+                'trial': trial,
                 'params': param_dict,
                 'score': score
             })
 
+            # Update best parameters
             if score > best_score:
                 best_score = score
-                best_params = param_dict
+                best_params = param_dict.copy()
+                no_improvement_count = 0
+            else:
+                no_improvement_count += 1
+
+            # Early stopping if no improvement for several trials
+            if no_improvement_count >= early_stopping_patience:
+                logger.info(f"Early stopping at trial {trial} due to no improvement")
+                break
 
         return best_params, best_score
 
     def _evaluate_params(self, params: Dict[str, Any], data: Dict[str, Any]) -> float:
-        """Evaluate a parameter combination."""
-        # This would train a small model and evaluate
-        # For now, return a random score
-        import random
-        return random.uniform(0.7, 0.95)
+        """Evaluate a parameter combination with optimized scoring."""
+        # Use a more realistic evaluation function based on parameter relationships
+        learning_rate = params.get('learning_rate', 0.01)
+        batch_size = params.get('batch_size', 32)
+        hidden_size = params.get('hidden_size', 256)
+        num_layers = params.get('num_layers', 3)
+        dropout = params.get('dropout', 0.2)
+
+        # Simulate realistic ML performance based on hyperparameter relationships
+        # Higher learning rates can cause instability
+        lr_penalty = 1.0 - (learning_rate - 0.01) ** 2 * 10
+
+        # Larger batch sizes generally help but with diminishing returns
+        batch_bonus = min(batch_size / 64, 1.0) * 0.1
+
+        # Hidden size sweet spot around 256-512
+        hidden_score = 1.0 - abs(hidden_size - 384) / 384 * 0.2
+
+        # More layers can help but risk overfitting
+        layer_score = min(num_layers / 4, 1.0) * 0.95 + 0.05
+
+        # Dropout helps prevent overfitting
+        dropout_score = dropout * 0.5 + 0.75
+
+        # Combine scores with some randomness to simulate real ML variance
+        base_score = (lr_penalty + batch_bonus + hidden_score + layer_score + dropout_score) / 5.0
+        noise = random.gauss(0, 0.05)  # Small amount of noise
+
+        return max(0.1, min(0.99, base_score + noise))
 
 class ModelDeployer:
     """Handles model deployment operations."""
@@ -542,43 +583,69 @@ class MLPipelineOrchestrator:
 
         return execution_ids
 
+    def _optimize_training_resources(self, config: PipelineConfig, execution: PipelineExecution):
+        """Optimize training resources based on system capabilities."""
+        # Adjust batch size and other parameters based on available memory
+        available_memory = psutil.virtual_memory().available / (1024 ** 3)  # GB
+
+        if available_memory < 4:  # Low memory system
+            config.hyperparameters['batch_size'] = min(config.hyperparameters.get('batch_size', 32), 16)
+            execution.logs.append("Optimized batch size for low memory system")
+        elif available_memory > 16:  # High memory system
+            config.hyperparameters['batch_size'] = max(config.hyperparameters.get('batch_size', 32), 64)
+            execution.logs.append("Optimized batch size for high memory system")
+
+    def _run_optimization_parallel(self, config: PipelineConfig, data: Dict[str, Any],
+                                 execution: PipelineExecution) -> Dict[str, Any]:
+        """Run hyperparameter optimization in parallel."""
+        execution.current_stage = PipelineStage.MODEL_OPTIMIZATION
+        optimizer = HyperparameterOptimizer(config)
+        return optimizer.optimize_hyperparameters(data, execution)
+
     def _execute_pipeline(self, execution: PipelineExecution):
-        """Execute pipeline stages."""
+        """Execute pipeline stages with optimized resource management."""
         try:
             execution.start_time = datetime.now()
             execution.status = PipelineStatus.RUNNING
 
             config = execution.pipeline_config
 
-            # Stage 1: Data Preparation
+            # Stage 1: Data Preparation (can be parallelized if multiple datasets)
             execution.current_stage = PipelineStage.DATA_PREPARATION
             execution.logs.append("Starting data preparation...")
             data = self.data_manager.load_dataset(config.dataset_path)
             execution.progress = 0.2
 
-            # Stage 2: Model Training
+            # Stage 2: Model Training with resource optimization
             trainer = ModelTrainer(config)
             if not trainer.validate_training_config():
                 raise ValueError("Invalid training configuration")
 
+            # Optimize resource usage based on available system resources
+            self._optimize_training_resources(config, execution)
+
             training_result = trainer.train_model(data, execution)
             execution.progress = 0.5
 
-            # Stage 3: Model Evaluation
+            # Stage 3: Model Evaluation (can run in parallel with optimization)
             evaluator = ModelEvaluator(config)
             model_path = Path(training_result['model_path'])
-            eval_result = evaluator.evaluate_model(model_path, data, execution)
-            execution.progress = 0.7
 
-            # Stage 4: Hyperparameter Optimization (optional)
+            # Run evaluation and optimization in parallel if enabled
             if config.enable_optimization:
-                execution.current_stage = PipelineStage.MODEL_OPTIMIZATION
-                optimizer = HyperparameterOptimizer(config)
-                optimization_result = optimizer.optimize_hyperparameters(data, execution)
+                eval_future = self.executor.submit(evaluator.evaluate_model, model_path, data, execution)
+                opt_future = self.executor.submit(self._run_optimization_parallel, config, data, execution)
+
+                eval_result = eval_future.result()
+                optimization_result = opt_future.result()
+
                 execution.results['optimization'] = optimization_result
                 execution.progress = 0.8
+            else:
+                eval_result = evaluator.evaluate_model(model_path, data, execution)
+                execution.progress = 0.7
 
-            # Stage 5: Model Deployment (optional)
+            # Stage 4: Model Deployment (optional)
             if config.enable_deployment:
                 execution.current_stage = PipelineStage.MODEL_DEPLOYMENT
                 deployer = ModelDeployer(config)
@@ -586,7 +653,7 @@ class MLPipelineOrchestrator:
                 execution.results['deployment'] = deployment_result
                 execution.progress = 0.9
 
-            # Stage 6: Monitoring Setup
+            # Stage 5: Monitoring Setup
             execution.current_stage = PipelineStage.MONITORING
             execution.logs.append("Setting up monitoring...")
             execution.progress = 1.0
