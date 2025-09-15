@@ -3,11 +3,19 @@
 import logging
 import logging.handlers
 import sys
+import time
 from pathlib import Path
 from typing import Optional
 
 from rich.console import Console
 from rich.logging import RichHandler
+
+try:
+    import psutil
+    HAS_PSUTIL = True
+except ImportError:
+    psutil = None  # type: ignore
+    HAS_PSUTIL = False
 
 
 def setup_logging(
@@ -99,7 +107,6 @@ class PerformanceLogger:
         Args:
             operation: Name of the operation being timed
         """
-        import time
         self._timers[operation] = time.time()
     
     def end_timer(self, operation: str, extra_info: Optional[str] = None) -> float:
@@ -112,7 +119,6 @@ class PerformanceLogger:
         Returns:
             Duration in seconds
         """
-        import time
         if operation not in self._timers:
             self.logger.warning(f"Timer for '{operation}' was not started")
             return 0.0
@@ -131,13 +137,16 @@ class PerformanceLogger:
         Args:
             operation: Description of when memory is being measured
         """
+        if not HAS_PSUTIL:
+            self.logger.debug("psutil not available for memory monitoring")
+            return
+
         try:
-            import psutil
             process = psutil.Process()
             memory_mb = process.memory_info().rss / 1024 / 1024
             self.logger.info(f"Memory usage after {operation}: {memory_mb:.1f} MB")
-        except ImportError:
-            self.logger.debug("psutil not available for memory monitoring")
+        except Exception as e:
+            self.logger.debug(f"Failed to get memory usage: {e}")
     
     def log_model_info(self, model_name: str, num_parameters: Optional[int] = None) -> None:
         """Log model information.
