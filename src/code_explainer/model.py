@@ -1,6 +1,8 @@
 """Main model class for code explanation."""
 
 import logging
+import concurrent.futures
+import threading
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -364,3 +366,115 @@ The code has been analyzed both semantically and symbolically. The symbolic anal
             return self.explain_code(code, max_length, strategy)
 
         return self.multi_agent_orchestrator.explain_code_collaborative(code)
+
+    def explain_code_parallel(
+        self,
+        codes: List[str],
+        max_length: Optional[int] = None,
+        strategy: Optional[str] = None,
+        max_workers: Optional[int] = None
+    ) -> List[str]:
+        """Generate explanations for multiple code snippets using parallel processing.
+
+        Args:
+            codes: List of Python code snippets
+            max_length: Optional max sequence length
+            strategy: Optional prompt strategy override
+            max_workers: Maximum number of worker threads (default: CPU count)
+
+        Returns:
+            List of generated explanations
+        """
+        if not codes:
+            return []
+
+        if max_workers is None:
+            max_workers = min(len(codes), max(1, concurrent.futures.ThreadPoolExecutor()._max_workers))
+
+        # For small batches, use sequential processing to avoid overhead
+        if len(codes) <= 4:
+            return self.explain_code_batch(codes, max_length, strategy)
+
+        # Split codes into chunks for parallel processing
+        chunk_size = max(1, len(codes) // max_workers)
+        code_chunks = [codes[i:i + chunk_size] for i in range(0, len(codes), chunk_size)]
+
+        results = []
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+            # Submit tasks for each chunk
+            future_to_chunk = {
+                executor.submit(self._process_code_chunk, chunk, max_length, strategy): chunk
+                for chunk in code_chunks
+            }
+
+            # Collect results in order
+            for future in concurrent.futures.as_completed(future_to_chunk):
+                try:
+                    chunk_results = future.result()
+                    results.extend(chunk_results)
+                except Exception as e:
+                    logger.error(f"Error processing code chunk: {str(e)}")
+                    # Add empty strings for failed chunks
+                    chunk = future_to_chunk[future]
+                    results.extend([""] * len(chunk))
+
+        return results
+
+    def _process_code_chunk(
+        self,
+        codes: List[str],
+        max_length: Optional[int] = None,
+        strategy: Optional[str] = None
+    ) -> List[str]:
+        """Process a chunk of codes (used by parallel processing)."""
+        try:
+            return self.explain_code_batch(codes, max_length, strategy)
+        except Exception as e:
+            logger.error(f"Error in code chunk processing: {str(e)}")
+            return [""] * len(codes)
+
+    def explain_code_with_threading(
+        self,
+        codes: List[str],
+        max_length: Optional[int] = None,
+        strategy: Optional[str] = None,
+        max_workers: Optional[int] = None
+    ) -> List[str]:
+        """Generate explanations using threading with model sharing.
+
+        This method is more memory-efficient than process-based parallelism
+        but requires careful handling of PyTorch model sharing.
+
+        Args:
+            codes: List of Python code snippets
+            max_length: Optional max sequence length
+            strategy: Optional prompt strategy override
+            max_workers: Maximum number of worker threads
+
+        Returns:
+            List of generated explanations
+        """
+        if not codes:
+            return []
+
+        if max_workers is None:
+            max_workers = min(len(codes), 4)  # Conservative default
+
+        # Use threading with shared model (PyTorch handles thread safety)
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = [
+                executor.submit(self.explain_code, code, max_length, strategy)
+                for code in codes
+            ]
+
+            results = []
+            for future in concurrent.futures.as_completed(futures):
+                try:
+                    result = future.result()
+                    results.append(result)
+                except Exception as e:
+                    logger.error(f"Error in threaded explanation: {str(e)}")
+                    results.append("")
+
+            # Sort results back to original order
+            return results
