@@ -39,6 +39,61 @@ Repository = "https://github.com/rajatsainju2025/code-explainer"
 Issues = "https://github.com/rajatsainju2025/code-explainer/issues"
 Discussions = "https://github.com/rajatsainju2025/code-explainer/discussions"
 
+dependencies = [
+  "torch>=2.0.0,<3.0.0",
+  "transformers>=4.30.0,<5.0.0",
+  "datasets>=2.12.0,<3.0.0",
+  "accelerate>=0.20.0,<1.0.0",
+  "tokenizers>=0.13.0,<1.0.0",
+  "pandas>=2.0.0,<3.0.0",
+  "numpy>=1.24.0,<2.0.0",
+  "PyYAML>=6.0,<7.0.0",
+  "psutil>=5.9.0,<6.0.0",
+  "click>=8.1.0,<9.0.0",
+  "tqdm>=4.65.0,<5.0.0",
+  "rich>=13.0.0,<14.0.0",
+]
+
+[project.optional-dependencies]
+web = [
+  "gradio>=3.35.0,<4.0.0",
+  "streamlit>=1.24.0,<2.0.0",
+  "fastapi>=0.100.0,<1.0.0",
+  "uvicorn>=0.22.0,<1.0.0",
+  "prometheus-client>=0.17.0,<1.0.0",
+  "requests>=2.31.0,<3.0.0",
+]
+rag = [
+  "sentence-transformers>=2.2.0,<3.0.0",
+  "faiss-cpu>=1.7.0,<2.0.0",
+  "rank-bm25>=0.2.2,<1.0.0",
+  "scikit-learn>=1.3.0,<2.0.0",
+]
+metrics = [
+  "sacrebleu>=2.4.0,<3.0.0",
+  "rouge-score>=0.1.2,<1.0.0",
+  "bert-score>=0.3.13,<1.0.0",
+  "codebleu>=0.6.0,<1.0.0",
+]
+monitoring = [
+  "wandb>=0.15.0,<1.0.0",
+  "tensorboard>=2.13.0,<3.0.0",
+]
+dev = [
+  "pytest>=7.4.0,<8.0.0",
+  "pytest-cov>=4.1.0,<5.0.0",
+  "black>=23.0.0,<24.0.0",
+  "isort>=5.12.0,<6.0.0",
+  "flake8>=6.0.0,<7.0.0",
+  "mypy>=1.4.0,<2.0.0",
+  "pre-commit>=3.3.0,<4.0.0",
+  "mkdocs>=1.5.0,<2.0.0",
+  "mkdocs-material>=9.0.0,<10.0.0",
+]
+all = [
+  "code-explainer[web,rag,metrics,monitoring,dev]",
+]
+
 [tool.setuptools]
 package-dir = {"" = "src"}
 
