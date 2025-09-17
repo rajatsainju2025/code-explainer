@@ -7,6 +7,9 @@ from pathlib import Path
 from typing import Dict, List, Optional, Any, Tuple, Union
 import hashlib
 import time
+import re
+import threading
+from functools import lru_cache
 
 import numpy as np
 from sentence_transformers import SentenceTransformer
@@ -63,6 +66,7 @@ class CodeRetriever:
             "rerank_usage": 0,
             "mmr_usage": 0
         }
+        self._stats_lock = threading.Lock()  # Thread-safe statistics updates
 
     def build_index(self, codes: List[str], save_path: Optional[str] = None) -> None:
         logger.info(f"Building index for {len(codes)} code snippets...")
@@ -71,8 +75,16 @@ class CodeRetriever:
         if not HAS_FAISS or faiss is None:
             raise ImportError("FAISS is not installed. Install with: pip install faiss-cpu")
 
-        # Encode codes into vectors
-        embeddings = self.model.encode(codes, show_progress_bar=True)
+        # Encode codes into vectors with batch processing for better performance
+        batch_size = 32  # Optimal batch size for most models
+        embeddings_list = []
+
+        for i in range(0, len(codes), batch_size):
+            batch_codes = codes[i:i + batch_size]
+            batch_embeddings = self.model.encode(batch_codes, show_progress_bar=False)
+            embeddings_list.append(batch_embeddings)
+
+        embeddings = np.concatenate(embeddings_list, axis=0)
         embeddings = np.asarray(embeddings, dtype=np.float32)
         if embeddings.ndim == 1:
             embeddings = embeddings.reshape(1, -1)
@@ -101,8 +113,6 @@ class CodeRetriever:
 
         # Save code corpus
         with open(f"{path}.corpus.json", "w") as f:
-            import json
-
             json.dump(self.code_corpus, f)
 
         logger.info(f"Index saved to {path}")
@@ -123,8 +133,6 @@ class CodeRetriever:
             raise FileNotFoundError(f"Corpus file not found: {corpus_path}")
 
         with open(corpus_path, "r") as f:
-            import json
-
             self.code_corpus = json.load(f)
 
         logger.info(f"Index loaded from {path}. Corpus size: {len(self.code_corpus)}")
@@ -138,13 +146,17 @@ class CodeRetriever:
             raise ImportError("rank_bm25 is not installed; install rank-bm25 to use BM25 retrieval")
         if not self.code_corpus:
             raise ValueError("No corpus loaded to build BM25 index")
-        tokenized_corpus = [self._tokenize(code) for code in self.code_corpus]
+        tokenized_corpus = [list(self._tokenize(code)) for code in self.code_corpus]
         self._bm25 = BM25Okapi(tokenized_corpus)
 
     @staticmethod
-    def _tokenize(text: str) -> List[str]:
-        import re
-        return [t for t in re.split(r"[^A-Za-z0-9_]+", text) if t]
+    @lru_cache(maxsize=1024)
+    def _tokenize(text: str) -> Tuple[str, ...]:
+        """Tokenize text for BM25 indexing with caching."""
+        # Pre-compile regex pattern for better performance
+        token_pattern = re.compile(r"[^A-Za-z0-9_]+")
+        tokens = [t for t in token_pattern.split(text) if t]
+        return tuple(tokens)  # Return tuple for hashability (required for lru_cache)
 
     def retrieve_similar_code(
         self,
@@ -179,7 +191,7 @@ class CodeRetriever:
         if method in {"bm25", "hybrid"}:
             self._ensure_bm25()
             assert self._bm25 is not None
-            tokenized_query = self._tokenize(query_code)
+            tokenized_query = list(self._tokenize(query_code))
             scores = self._bm25.get_scores(tokenized_query)
             top_idx = np.argsort(scores)[::-1][: min(k, len(scores))]
             for i in top_idx:
@@ -270,7 +282,7 @@ class CodeRetriever:
         if method in {"bm25", "hybrid"}:
             self._ensure_bm25()
             assert self._bm25 is not None
-            tokenized_query = self._tokenize(query_code)
+            tokenized_query = list(self._tokenize(query_code))
             scores = self._bm25.get_scores(tokenized_query)
             top_idx = np.argsort(scores)[::-1][:min(initial_k, len(scores))]
             for i in top_idx:
