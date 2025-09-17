@@ -2,25 +2,14 @@
 
 import asyncio
 import logging
-from typing import Any, Dict, List, Optional, Callable, Awaitable
-from concurrent.futures import ThreadPoolExecutor
-import time
-
-logger = logging.getLogger(__name__)
-
-
-"""Async processing utilities for high-performance code explanation."""
-
-import asyncio
-import logging
-from typing import Any, Dict, List, Optional, Callable, Awaitable, Union
-from concurrent.futures import ThreadPoolExecutor
 import time
 import threading
+import json
+from typing import Any, Dict, List, Optional, Callable, Awaitable, Union
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from contextlib import asynccontextmanager
 import aiofiles
-import json
 
 logger = logging.getLogger(__name__)
 

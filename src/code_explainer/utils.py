@@ -2,8 +2,10 @@
 
 import json
 import logging
+import ast
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union, cast
+from functools import lru_cache
 
 import yaml
 
@@ -31,7 +33,7 @@ def load_config(config_path: Union[str, Path]) -> Dict[str, Any]:
             raise ValueError(f"Unsupported config file format: {config_path.suffix}")
 
 
-def setup_logging(level: str = "INFO", log_file: str = None) -> None:
+def setup_logging(level: str = "INFO", log_file: Optional[str] = None) -> None:
     """Setup logging configuration.
 
     Args:
@@ -40,7 +42,7 @@ def setup_logging(level: str = "INFO", log_file: str = None) -> None:
     """
     log_format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 
-    handlers = [logging.StreamHandler()]
+    handlers: List[logging.Handler] = [logging.StreamHandler()]
     if log_file:
         handlers.append(logging.FileHandler(log_file))
 
@@ -114,10 +116,9 @@ def _summarize_python_ast(code: str) -> str:
     return "\n".join(lines)
 
 
+@lru_cache(maxsize=512)
 def _extract_python_ast_info(code: str) -> Tuple[List[str], List[str], List[str]]:
     """Return (functions, classes, imports) lists for Python code via AST."""
-    import ast
-
     try:
         tree = ast.parse(code)
     except Exception:
@@ -144,10 +145,9 @@ def _extract_python_ast_info(code: str) -> Tuple[List[str], List[str], List[str]
     return funcs, classes, imports
 
 
+@lru_cache(maxsize=256)
 def _collect_docstrings_from_code(code: str) -> List[str]:
     """Collect module, class, and function docstrings from the snippet."""
-    import ast
-
     docs: List[str] = []
     try:
         tree = ast.parse(code)
