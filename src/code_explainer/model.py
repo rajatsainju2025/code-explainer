@@ -2,7 +2,6 @@
 
 import logging
 import concurrent.futures
-import threading
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -167,7 +166,12 @@ class CodeExplainer:
 
         return explanation
 
-    def explain_code_batch(self, codes: List[str], max_length: Optional[int] = None, strategy: Optional[str] = None) -> List[str]:
+    def explain_code_batch(
+        self,
+        codes: List[str],
+        max_length: Optional[int] = None,
+        strategy: Optional[str] = None
+    ) -> List[str]:
         """Generate explanations for multiple code snippets efficiently using batch processing.
 
         Args:
@@ -208,7 +212,11 @@ class CodeExplainer:
             return explanations
 
         # Process uncached codes in batch
-        batch_explanations = self._explain_code_batch_internal(uncached_codes, max_length or self.config["model"]["max_length"], strategy)
+        batch_explanations = self._explain_code_batch_internal(
+            uncached_codes,
+            max_length or self.config["model"]["max_length"],
+            strategy
+        )
 
         # Fill in the results
         for idx, explanation in zip(uncached_indices, batch_explanations):
@@ -216,7 +224,12 @@ class CodeExplainer:
 
         return explanations
 
-    def _explain_code_batch_internal(self, codes: List[str], max_length: int, strategy: Optional[str] = None) -> List[str]:
+    def _explain_code_batch_internal(
+        self,
+        codes: List[str],
+        max_length: int,
+        strategy: Optional[str] = None
+    ) -> List[str]:
         """Internal method for batch processing of explanations."""
         assert self.tokenizer is not None and self.model is not None
         tok = self.tokenizer
@@ -343,7 +356,8 @@ class CodeExplainer:
 
 ## Summary
 
-The code has been analyzed both semantically and symbolically. The symbolic analysis provides formal conditions and properties that can be verified through testing."""
+The code has been analyzed both semantically and symbolically. The symbolic analysis
+provides formal conditions and properties that can be verified through testing."""
             return enhanced_explanation
 
         return standard_explanation
