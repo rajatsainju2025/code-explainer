@@ -1,0 +1,2 @@
+strategy: vanilla
+template: "Explain this Python code:\n```python\n{code}\n```\nExplanation:"
