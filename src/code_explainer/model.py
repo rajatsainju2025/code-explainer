@@ -1,4 +1,11 @@
-"""Main model class for code explanation."""
+"""Mafrom typing import Any, Dict, List, Optional
+from pathlib import Path
+
+import torch
+from transformers import PreTrainedModel, PreTrainedTokenizerBase
+
+from .config import Config, init_config
+from .model_loader import ModelLoader, ModelResources, ModelLoadErrors for code explanation."""
 
 import logging
 import concurrent.futures
@@ -40,54 +47,76 @@ class CodeExplainer:
     """Main class for code explanation inference.
     
     Attributes:
-        config (Dict[str, Any]): Configuration dictionary loaded from YAML
-        device (str): Device to run model on ('cuda', 'cpu', or 'mps')
-        model_path (Path): Path to trained model directory
-        arch (str): Model architecture type ('causal' or 'seq2seq')
+        config (Config): Hydra configuration object
         explanation_cache (Optional[ExplanationCache]): Cache for generated explanations
         symbolic_analyzer (SymbolicAnalyzer): Analyzer for symbolic code analysis
-        multi_agent_orchestrator (Optional[MultiAgentOrchestrator]): Orchestrator for multi-agent interactions
-        tokenizer (Optional[PreTrainedTokenizerBase]): Model tokenizer
-        model (Optional[PreTrainedModel]): Loaded model for inference
+        multi_agent_orchestrator (MultiAgentOrchestrator): Orchestrator for multi-agent interactions
     """
+    
+    @property
+    def model(self) -> PreTrainedModel:
+        """Get the loaded model."""
+        if self._resources is None:
+            raise RuntimeError("Model resources not initialized")
+        return self._resources.model
+
+    @property
+    def tokenizer(self) -> PreTrainedTokenizerBase:
+        """Get the loaded tokenizer."""
+        if self._resources is None:
+            raise RuntimeError("Model resources not initialized")
+        return self._resources.tokenizer
+
+    @property
+    def device(self) -> torch.device:
+        """Get the compute device."""
+        if self._resources is None:
+            raise RuntimeError("Model resources not initialized")
+        return self._resources.device
+
+    @property
+    def arch(self) -> str:
+        """Get the model architecture type."""
+        if self._resources is None:
+            raise RuntimeError("Model resources not initialized")
+        return self._resources.model_type
 
     def __init__(
         self,
-        model_path: Union[str, Path] = "./results",
-        config_path: Union[str, Path] = "configs/default.yaml"
+        model_path: Optional[str] = "./results",
+        config_path: Optional[str] = "configs/default.yaml"
     ) -> None:
         """Initialize the code explainer.
 
         Args:
-            model_path: Path to trained model directory
-            config_path: Path to configuration file
+            model_path: Path to trained model directory. If None, uses default from config.
+            config_path: Path to configuration file. If None, uses default config.
         """
-        self.config: Dict[str, Any] = load_config(config_path)
-        self.device: str = get_device()
-        self.model_path: Path = Path(model_path)
-        self.arch: str = self.config.get("model", {}).get("arch", "causal")
-
-        # Initialize caching
-        cache_enabled: bool = self.config.get("cache", {}).get("enabled", True)
-        if cache_enabled:
-            cache_dir: str = self.config.get("cache", {}).get("directory", ".cache/explanations")
-            cache_size: int = self.config.get("cache", {}).get("max_size", 1000)
-            self.explanation_cache: Optional[ExplanationCache] = ExplanationCache(cache_dir, cache_size)
+        # Initialize configuration
+        self.config = init_config(config_path)
+        
+        # Set up model loader and load model resources
+        self.model_loader = ModelLoader(self.config.model)
+        self._resources: Optional[ModelResources] = None
+        
+        try:
+            self._resources = self.model_loader.load(model_path)
+        except ModelLoadError as e:
+            logger.error(f"Failed to load model from {model_path}: {e}")
+            logger.info("Attempting to load base model...")
+            self._resources = self.model_loader.load()  # Load from config name
+        
+        # Initialize caching if enabled
+        if self.config.cache.enabled:
+            self.explanation_cache = ExplanationCache(
+                self.config.cache.directory,
+                self.config.cache.max_size
+            )
         else:
             self.explanation_cache = None
 
-        # Initialize symbolic analyzer
-        self.symbolic_analyzer: SymbolicAnalyzer = SymbolicAnalyzer()
-
-        # Initialize multi-agent orchestrator (will be set up after model loading)
-        self.multi_agent_orchestrator: Optional[MultiAgentOrchestrator] = None
-
-        # Initialize model and tokenizer
-        self.tokenizer: Optional[PreTrainedTokenizerBase] = None
-        self.model: Optional[PreTrainedModel] = None
-        self._load_model()
-
-        # Set up multi-agent system after model is loaded
+        # Initialize additional components
+        self.symbolic_analyzer = SymbolicAnalyzer()
         self.multi_agent_orchestrator = MultiAgentOrchestrator(self)
 
     def _load_model(self) -> None:
