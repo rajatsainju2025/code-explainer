@@ -24,6 +24,7 @@ from .model_loader import ModelLoader, ModelResources, ModelError
 from .multi_agent import MultiAgentOrchestrator
 from .symbolic import SymbolicAnalyzer, format_symbolic_explanation
 from .utils import get_device, load_config, prompt_for_language
+from .validation import CodeExplanationRequest, BatchCodeExplanationRequest
 
 # Import OmegaConf for config conversion
 from omegaconf import OmegaConf
@@ -144,9 +145,17 @@ class CodeExplainer:
             str: Generated explanation for the code
 
         Raises:
+            ValidationError: If input validation fails
             RuntimeError: If model or tokenizer is not initialized
             ValueError: If invalid prompt strategy is provided
         """
+        # Validate inputs
+        request = CodeExplanationRequest(code=code, max_length=max_length, strategy=strategy)
+        
+        # Use validated data
+        code = request.code
+        max_length = request.max_length
+        strategy = request.strategy
         if max_length is None:
             max_length = self.config.get("model", {}).get("max_length", 512)
 
@@ -223,7 +232,18 @@ class CodeExplainer:
 
         Returns:
             List of generated explanations
+
+        Raises:
+            ValidationError: If input validation fails
         """
+        # Validate inputs
+        request = BatchCodeExplanationRequest(codes=codes, max_length=max_length, strategy=strategy)
+        
+        # Use validated data
+        codes = request.codes
+        max_length = request.max_length
+        strategy = request.strategy
+        
         if not codes:
             return []
 
