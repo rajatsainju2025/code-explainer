@@ -19,6 +19,7 @@ from transformers import (
 
 from .cache import ExplanationCache
 from .config import Config, init_config
+from .enhanced_error_handling import get_logger, setup_logging
 from .model_loader import ModelLoader, ModelResources, ModelError
 from .multi_agent import MultiAgentOrchestrator
 from .symbolic import SymbolicAnalyzer, format_symbolic_explanation
@@ -93,6 +94,15 @@ class CodeExplainer:
         # Initialize configuration
         self.config = init_config(config_path)
         
+        # Set up structured logging
+        config_dict = cast(Dict[str, Any], OmegaConf.to_container(self.config, resolve=True))
+        logging_config = config_dict.get("logging", {})
+        setup_logging(
+            log_level=logging_config.get("level", "INFO"),
+            log_file=logging_config.get("log_file")
+        )
+        self.logger = get_logger()
+        
         # Set up model loader and load model resources
         self.model_loader = ModelLoader(self.config.model)
         self._resources: Optional[ModelResources] = None
@@ -100,8 +110,8 @@ class CodeExplainer:
         try:
             self._resources = self.model_loader.load(model_path)
         except ModelError as e:
-            logger.error(f"Failed to load model from {model_path}: {e}")
-            logger.info("Attempting to load base model...")
+            self.logger.error(f"Failed to load model from {model_path}: {e}")
+            self.logger.info("Attempting to load base model...")
             self._resources = self.model_loader.load()  # Load from config name
         
         # Initialize caching if enabled
@@ -148,7 +158,7 @@ class CodeExplainer:
         if self.explanation_cache is not None:
             cached_explanation = self.explanation_cache.get(code, used_strategy, model_name)
             if cached_explanation is not None:
-                logger.debug("Using cached explanation")
+                self.logger.info("Using cached explanation")
                 return cached_explanation
 
         # Ensure model and tokenizer are loaded
@@ -459,7 +469,7 @@ provides formal conditions and properties that can be verified through testing."
                     chunk_results = future.result()
                     results.extend(chunk_results)
                 except Exception as e:
-                    logger.error(f"Error processing code chunk: {str(e)}")
+                    self.logger.error(f"Error processing code chunk: {str(e)}")
                     # Add empty strings for failed chunks
                     chunk = future_to_chunk[future]
                     results.extend([""] * len(chunk))
@@ -476,7 +486,7 @@ provides formal conditions and properties that can be verified through testing."
         try:
             return self.explain_code_batch(codes, max_length, strategy)
         except Exception as e:
-            logger.error(f"Error in code chunk processing: {str(e)}")
+            self.logger.error(f"Error in code chunk processing: {str(e)}")
             return [""] * len(codes)
 
     def explain_code_with_threading(
@@ -519,7 +529,7 @@ provides formal conditions and properties that can be verified through testing."
                     result = future.result()
                     results.append(result)
                 except Exception as e:
-                    logger.error(f"Error in threaded explanation: {str(e)}")
+                    self.logger.error(f"Error in threaded explanation: {str(e)}")
                     results.append("")
 
             # Sort results back to original order
