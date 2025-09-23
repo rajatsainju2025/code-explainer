@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Optional, Tuple, Union
+from typing import Any, Dict, Optional, Tuple, Union
 
 import torch
 from transformers import (
@@ -14,6 +14,7 @@ from transformers import (
 )
 
 from .config import ModelConfig
+from .enhanced_error_handling import ModelError, ConfigurationError, ResourceError
 
 
 @dataclass
@@ -23,21 +24,6 @@ class ModelResources:
     tokenizer: PreTrainedTokenizerBase
     device: torch.device
     model_type: str
-
-
-class ModelLoadError(Exception):
-    """Base exception for model loading errors."""
-    pass
-
-
-class ModelNotFoundError(ModelLoadError):
-    """Raised when model file or directory is not found."""
-    pass
-
-
-class ModelConfigError(ModelLoadError):
-    """Raised when model configuration is invalid."""
-    pass
 
 
 class ModelLoader:
@@ -71,12 +57,12 @@ class ModelLoader:
             ModelResources: Container with loaded model resources
             
         Raises:
-            ModelNotFoundError: If model files cannot be found
-            ModelConfigError: If model configuration is invalid
-            ModelLoadError: For other loading errors
+            ResourceError: If model files cannot be found
+            ConfigurationError: If model configuration is invalid
+            ModelError: For other loading errors
         """
+        path = str(model_path or self.config.name)
         try:
-            path = str(model_path or self.config.name)
             tokenizer = self._load_tokenizer(path)
             model = self._load_model(path, tokenizer)
             
@@ -88,11 +74,11 @@ class ModelLoader:
             )
             
         except FileNotFoundError as e:
-            raise ModelNotFoundError(f"Model not found at {path}: {e}") from e
+            raise ResourceError(f"Model not found at {path}: {e}") from e
         except ValueError as e:
-            raise ModelConfigError(f"Invalid model configuration: {e}") from e
+            raise ConfigurationError(f"Invalid model configuration: {e}") from e
         except Exception as e:
-            raise ModelLoadError(f"Failed to load model: {e}") from e
+            raise ModelError(f"Failed to load model: {e}") from e
 
     def _load_tokenizer(self, path: str) -> PreTrainedTokenizerBase:
         """Load and configure tokenizer.
@@ -147,7 +133,9 @@ class ModelLoader:
         else:
             model = AutoModelForCausalLM.from_pretrained(path, **model_kwargs)
             if getattr(model.config, "pad_token_id", None) is None:
-                model.config.pad_token_id = tokenizer.pad_token_id
+                # Use the tokenizer's pad_token_id if available
+                if hasattr(tokenizer, 'pad_token_id') and tokenizer.pad_token_id is not None:
+                    model.config.pad_token_id = tokenizer.pad_token_id
 
         # Move model to device if not using 8-bit quantization
         if not self.config.load_in_8bit:

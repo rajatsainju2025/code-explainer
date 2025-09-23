@@ -1,6 +1,6 @@
 """Hydra configuration for Code Explainer."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Dict, Optional, Union, List
 
 from omegaconf import MISSING
@@ -69,11 +69,11 @@ class PromptConfig:
 @dataclass
 class Config:
     """Root configuration."""
-    model: ModelConfig = ModelConfig()
-    training: TrainingConfig = TrainingConfig()
-    cache: CacheConfig = CacheConfig()
-    logging: LoggingConfig = LoggingConfig()
-    prompt: PromptConfig = PromptConfig()
+    model: ModelConfig = field(default_factory=ModelConfig)
+    training: TrainingConfig = field(default_factory=TrainingConfig)
+    cache: CacheConfig = field(default_factory=CacheConfig)
+    logging: LoggingConfig = field(default_factory=LoggingConfig)
+    prompt: PromptConfig = field(default_factory=PromptConfig)
 
 
 defaults = [

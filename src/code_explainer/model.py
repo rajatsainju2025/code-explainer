@@ -1,11 +1,4 @@
-"""Mafrom typing import Any, Dict, List, Optional
-from pathlib import Path
-
-import torch
-from transformers import PreTrainedModel, PreTrainedTokenizerBase
-
-from .config import Config, init_config
-from .model_loader import ModelLoader, ModelResources, ModelLoadErrors for code explanation."""
+"""Main model class for code explanation."""
 
 import logging
 import concurrent.futures
@@ -25,9 +18,14 @@ from transformers import (
 )
 
 from .cache import ExplanationCache
+from .config import Config, init_config
+from .model_loader import ModelLoader, ModelResources, ModelError
 from .multi_agent import MultiAgentOrchestrator
 from .symbolic import SymbolicAnalyzer, format_symbolic_explanation
 from .utils import get_device, load_config, prompt_for_language
+
+# Import OmegaConf for config conversion
+from omegaconf import OmegaConf
 
 logger = logging.getLogger(__name__)
 
@@ -101,7 +99,7 @@ class CodeExplainer:
         
         try:
             self._resources = self.model_loader.load(model_path)
-        except ModelLoadError as e:
+        except ModelError as e:
             logger.error(f"Failed to load model from {model_path}: {e}")
             logger.info("Attempting to load base model...")
             self._resources = self.model_loader.load()  # Load from config name
@@ -118,60 +116,6 @@ class CodeExplainer:
         # Initialize additional components
         self.symbolic_analyzer = SymbolicAnalyzer()
         self.multi_agent_orchestrator = MultiAgentOrchestrator(self)
-
-    def _load_model(self) -> None:
-        """Load the trained model and tokenizer.
-        
-        This method handles loading both the tokenizer and model from the specified path,
-        setting up proper configurations, and moving the model to the correct device.
-        It also handles fallback to base model if loading fails.
-        """
-        dtype_str: Union[str, torch.dtype] = self.config.get("model", {}).get("torch_dtype", "auto")
-        dtype_map: Dict[str, Union[torch.dtype, str]] = {
-            "float16": torch.float16,
-            "fp16": torch.float16,
-            "bfloat16": torch.bfloat16,
-            "bf16": torch.bfloat16,
-            "auto": "auto",
-        }
-        torch_dtype = dtype_map.get(str(dtype_str).lower(), "auto")
-        load_in_8bit: bool = bool(self.config.get("model", {}).get("load_in_8bit", False))
-        if load_in_8bit and self.device in ("cpu", "mps"):
-            load_in_8bit = False
-
-        def _load_from(src: Union[Path, str]) -> Tuple[PreTrainedTokenizerBase, PreTrainedModel]:
-            tok = AutoTokenizer.from_pretrained(src)
-            if getattr(tok, "pad_token", None) is None:
-                tok.pad_token = tok.eos_token
-
-            model_kwargs: Dict[str, Any] = {"torch_dtype": torch_dtype}
-            if load_in_8bit:
-                model_kwargs.update({"load_in_8bit": True, "device_map": "auto"})
-
-            if self.arch == "seq2seq":
-                mdl = AutoModelForSeq2SeqLM.from_pretrained(src, **model_kwargs)
-            else:
-                mdl = AutoModelForCausalLM.from_pretrained(src, **model_kwargs)
-                if getattr(mdl.config, "pad_token_id", None) is None:
-                    mdl.config.pad_token_id = tok.pad_token_id
-
-            if not load_in_8bit:
-                # Convert device string to torch.device
-                device = torch.device(self.device)
-                mdl.to(device)
-            mdl.eval()
-            return tok, mdl
-
-        try:
-            logger.info(f"Loading model from {self.model_path}")
-            self.tokenizer, self.model = _load_from(self.model_path)
-            logger.info("Model loaded successfully")
-        except Exception as e:
-            logger.error(f"Failed to load model: {e}")
-            # Fallback to base model
-            logger.info("Falling back to base model")
-            model_name = self.config["model"]["name"]
-            self.tokenizer, self.model = _load_from(model_name)
 
     def explain_code(
         self,
@@ -220,9 +164,9 @@ class CodeExplainer:
 
             cfg = copy.deepcopy(self.config)
             cfg.setdefault("prompt", {})["strategy"] = strategy
-            prompt = prompt_for_language(cfg, code)
+            prompt = prompt_for_language(cast(Dict[str, Any], OmegaConf.to_container(cfg, resolve=True)), code)
         else:
-            prompt = prompt_for_language(self.config, code)
+            prompt = prompt_for_language(cast(Dict[str, Any], OmegaConf.to_container(self.config, resolve=True)), code)
 
         # Prepare inputs
         inputs = tok(prompt, return_tensors="pt")
@@ -330,9 +274,9 @@ class CodeExplainer:
                 import copy
                 cfg = copy.deepcopy(self.config)
                 cfg.setdefault("prompt", {})["strategy"] = strategy
-                prompt = prompt_for_language(cfg, code)
+                prompt = prompt_for_language(cast(Dict[str, Any], OmegaConf.to_container(cfg, resolve=True)), code)
             else:
-                prompt = prompt_for_language(self.config, code)
+                prompt = prompt_for_language(cast(Dict[str, Any], OmegaConf.to_container(self.config, resolve=True)), code)
             prompts.append(prompt)
 
         # Batch tokenize
