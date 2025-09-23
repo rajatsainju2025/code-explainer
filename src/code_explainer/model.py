@@ -3,10 +3,19 @@
 import logging
 import concurrent.futures
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union, Tuple, cast
+from dataclasses import dataclass
 
 import torch
-from transformers import AutoModelForCausalLM, AutoModelForSeq2SeqLM, AutoTokenizer
+from torch.nn import Module
+from transformers import (
+    AutoModelForCausalLM,
+    AutoModelForSeq2SeqLM,
+    AutoTokenizer,
+    PreTrainedModel,
+    PreTrainedTokenizer,
+    PreTrainedTokenizerBase,
+)
 
 from .cache import ExplanationCache
 from .multi_agent import MultiAgentOrchestrator
@@ -16,48 +25,80 @@ from .utils import get_device, load_config, prompt_for_language
 logger = logging.getLogger(__name__)
 
 
-class CodeExplainer:
-    """Main class for code explanation inference."""
+@dataclass
+class ModelConfig:
+    """Configuration for model loading and inference."""
+    name: str
+    arch: str = "causal"
+    torch_dtype: Union[str, torch.dtype] = "auto"
+    load_in_8bit: bool = False
+    max_length: int = 512
+    device_map: Optional[str] = None
 
-    def __init__(self, model_path: str = "./results", config_path: str = "configs/default.yaml"):
+
+class CodeExplainer:
+    """Main class for code explanation inference.
+    
+    Attributes:
+        config (Dict[str, Any]): Configuration dictionary loaded from YAML
+        device (str): Device to run model on ('cuda', 'cpu', or 'mps')
+        model_path (Path): Path to trained model directory
+        arch (str): Model architecture type ('causal' or 'seq2seq')
+        explanation_cache (Optional[ExplanationCache]): Cache for generated explanations
+        symbolic_analyzer (SymbolicAnalyzer): Analyzer for symbolic code analysis
+        multi_agent_orchestrator (Optional[MultiAgentOrchestrator]): Orchestrator for multi-agent interactions
+        tokenizer (Optional[PreTrainedTokenizerBase]): Model tokenizer
+        model (Optional[PreTrainedModel]): Loaded model for inference
+    """
+
+    def __init__(
+        self,
+        model_path: Union[str, Path] = "./results",
+        config_path: Union[str, Path] = "configs/default.yaml"
+    ) -> None:
         """Initialize the code explainer.
 
         Args:
             model_path: Path to trained model directory
             config_path: Path to configuration file
         """
-        self.config = load_config(config_path)
-        self.device = get_device()
-        self.model_path = Path(model_path)
-        self.arch = self.config.get("model", {}).get("arch", "causal")
+        self.config: Dict[str, Any] = load_config(config_path)
+        self.device: str = get_device()
+        self.model_path: Path = Path(model_path)
+        self.arch: str = self.config.get("model", {}).get("arch", "causal")
 
         # Initialize caching
-        cache_enabled = self.config.get("cache", {}).get("enabled", True)
+        cache_enabled: bool = self.config.get("cache", {}).get("enabled", True)
         if cache_enabled:
-            cache_dir = self.config.get("cache", {}).get("directory", ".cache/explanations")
-            cache_size = self.config.get("cache", {}).get("max_size", 1000)
-            self.explanation_cache = ExplanationCache(cache_dir, cache_size)
+            cache_dir: str = self.config.get("cache", {}).get("directory", ".cache/explanations")
+            cache_size: int = self.config.get("cache", {}).get("max_size", 1000)
+            self.explanation_cache: Optional[ExplanationCache] = ExplanationCache(cache_dir, cache_size)
         else:
             self.explanation_cache = None
 
         # Initialize symbolic analyzer
-        self.symbolic_analyzer = SymbolicAnalyzer()
+        self.symbolic_analyzer: SymbolicAnalyzer = SymbolicAnalyzer()
 
         # Initialize multi-agent orchestrator (will be set up after model loading)
-        self.multi_agent_orchestrator = None
+        self.multi_agent_orchestrator: Optional[MultiAgentOrchestrator] = None
 
         # Initialize model and tokenizer
-        self.tokenizer = None
-        self.model = None
+        self.tokenizer: Optional[PreTrainedTokenizerBase] = None
+        self.model: Optional[PreTrainedModel] = None
         self._load_model()
 
         # Set up multi-agent system after model is loaded
         self.multi_agent_orchestrator = MultiAgentOrchestrator(self)
 
     def _load_model(self) -> None:
-        """Load the trained model and tokenizer."""
-        dtype_str = self.config.get("model", {}).get("torch_dtype", "auto")
-        dtype_map = {
+        """Load the trained model and tokenizer.
+        
+        This method handles loading both the tokenizer and model from the specified path,
+        setting up proper configurations, and moving the model to the correct device.
+        It also handles fallback to base model if loading fails.
+        """
+        dtype_str: Union[str, torch.dtype] = self.config.get("model", {}).get("torch_dtype", "auto")
+        dtype_map: Dict[str, Union[torch.dtype, str]] = {
             "float16": torch.float16,
             "fp16": torch.float16,
             "bfloat16": torch.bfloat16,
@@ -65,27 +106,30 @@ class CodeExplainer:
             "auto": "auto",
         }
         torch_dtype = dtype_map.get(str(dtype_str).lower(), "auto")
-        load_in_8bit = bool(self.config.get("model", {}).get("load_in_8bit", False))
+        load_in_8bit: bool = bool(self.config.get("model", {}).get("load_in_8bit", False))
         if load_in_8bit and self.device in ("cpu", "mps"):
             load_in_8bit = False
 
-        from typing import Union
-
-        def _load_from(src: Union[Path, str]):
+        def _load_from(src: Union[Path, str]) -> Tuple[PreTrainedTokenizerBase, PreTrainedModel]:
             tok = AutoTokenizer.from_pretrained(src)
             if getattr(tok, "pad_token", None) is None:
-                tok.pad_token = tok.eos_token  # type: ignore[assignment]
+                tok.pad_token = tok.eos_token
+
             model_kwargs: Dict[str, Any] = {"torch_dtype": torch_dtype}
             if load_in_8bit:
                 model_kwargs.update({"load_in_8bit": True, "device_map": "auto"})
+
             if self.arch == "seq2seq":
                 mdl = AutoModelForSeq2SeqLM.from_pretrained(src, **model_kwargs)
             else:
                 mdl = AutoModelForCausalLM.from_pretrained(src, **model_kwargs)
                 if getattr(mdl.config, "pad_token_id", None) is None:
-                    mdl.config.pad_token_id = tok.pad_token_id  # type: ignore[assignment]
+                    mdl.config.pad_token_id = tok.pad_token_id
+
             if not load_in_8bit:
-                mdl.to(self.device)
+                # Convert device string to torch.device
+                device = torch.device(self.device)
+                mdl.to(device)
             mdl.eval()
             return tok, mdl
 
@@ -101,7 +145,10 @@ class CodeExplainer:
             self.tokenizer, self.model = _load_from(model_name)
 
     def explain_code(
-        self, code: str, max_length: Optional[int] = None, strategy: Optional[str] = None
+        self,
+        code: str,
+        max_length: Optional[int] = None,
+        strategy: Optional[str] = None
     ) -> str:
         """Generate explanation for the given code.
 
@@ -109,13 +156,20 @@ class CodeExplainer:
             code: Source code to explain
             max_length: Optional max sequence length
             strategy: Optional prompt strategy override (e.g., "vanilla", "ast_augmented")
+
+        Returns:
+            str: Generated explanation for the code
+
+        Raises:
+            RuntimeError: If model or tokenizer is not initialized
+            ValueError: If invalid prompt strategy is provided
         """
         if max_length is None:
-            max_length = self.config["model"]["max_length"]
+            max_length = self.config.get("model", {}).get("max_length", 512)
 
         # Get strategy for caching
-        used_strategy = strategy or self.config.get("prompt", {}).get("strategy", "vanilla")
-        model_name = getattr(self, 'model_name', 'unknown')
+        used_strategy: str = strategy or self.config.get("prompt", {}).get("strategy", "vanilla")
+        model_name: str = getattr(self, 'model_name', 'unknown')
 
         # Check cache first
         if self.explanation_cache is not None:
@@ -124,10 +178,12 @@ class CodeExplainer:
                 logger.debug("Using cached explanation")
                 return cached_explanation
 
-        # Bind tokenizer/model to satisfy type checkers
-        assert self.tokenizer is not None and self.model is not None
-        tok = self.tokenizer
-        mdl = self.model
+        # Ensure model and tokenizer are loaded
+        if self.tokenizer is None or self.model is None:
+            raise RuntimeError("Model and tokenizer must be initialized before generating explanations")
+            
+        tok: PreTrainedTokenizerBase = self.tokenizer
+        mdl: PreTrainedModel = self.model
 
         # Language-aware prompt with optional strategy override
         if strategy is not None:
@@ -139,13 +195,16 @@ class CodeExplainer:
         else:
             prompt = prompt_for_language(self.config, code)
 
+        # Prepare inputs
         inputs = tok(prompt, return_tensors="pt")
-        inputs = {k: v.to(self.device) for k, v in inputs.items()}
+        device = torch.device(self.device)
+        inputs = {k: v.to(device) for k, v in inputs.items()}
 
+        # Generate explanation
         with torch.no_grad():
             gen_max = int(max_length) if max_length is not None else 512
             outputs = mdl.generate(
-                inputs["input_ids"],
+                input_ids=inputs["input_ids"],
                 attention_mask=inputs.get("attention_mask"),
                 max_length=min(gen_max, inputs["input_ids"].shape[1] + 150),
                 temperature=self.config["model"]["temperature"],
