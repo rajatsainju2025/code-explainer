@@ -1,4 +1,4 @@
-"""Configuration file for code explainer training and inference."""
+# Configuration file for code explainer training and inference.
 
 # Model configuration
 model:
