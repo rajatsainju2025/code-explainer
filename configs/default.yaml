@@ -8,9 +8,11 @@ model:
   temperature: 0.7    # Sampling temperature
   top_p: 0.9         # Nucleus sampling parameter
   top_k: 50          # Top-k sampling parameter
-  # Optimization/model loading
-  torch_dtype: "auto"   # "auto" | "float16" | "bfloat16"
-  load_in_8bit: false
+  # Device and optimization configuration
+  device: "auto"      # "auto" | "cuda" | "mps" | "cpu"
+  precision: "auto"   # "auto" | "fp32" | "fp16" | "bf16" | "8bit"
+  torch_dtype: "auto" # Legacy - use precision instead
+  load_in_8bit: false # Legacy - use precision: "8bit" instead
 
 # Training configuration  
 training:

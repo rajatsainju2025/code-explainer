@@ -16,6 +16,8 @@ class ModelConfig:
     max_length: int = 512
     device_map: Optional[str] = None
     cache_dir: Optional[str] = None
+    device: str = "auto"  # auto, cuda, mps, cpu
+    precision: str = "auto"  # auto, fp32, fp16, bf16, 8bit
 
 
 @dataclass
