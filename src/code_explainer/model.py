@@ -29,6 +29,24 @@ from .validation import CodeExplanationRequest, BatchCodeExplanationRequest
 # Import OmegaConf for config conversion
 from omegaconf import OmegaConf
 
+# Import new intelligent explanation components
+try:
+    from .intelligent_explainer import (
+        IntelligentExplanationGenerator,
+        ExplanationAudience,
+        ExplanationStyle,
+        EnhancedExplanation
+    )
+    INTELLIGENT_EXPLAINER_AVAILABLE = True
+except ImportError as e:
+    import logging
+    logging.getLogger(__name__).warning(f"Intelligent explainer not available: {e}")
+    INTELLIGENT_EXPLAINER_AVAILABLE = False
+    IntelligentExplanationGenerator = None
+    ExplanationAudience = None
+    ExplanationStyle = None
+    EnhancedExplanation = None
+
 logger = logging.getLogger(__name__)
 
 
@@ -442,6 +460,173 @@ provides formal conditions and properties that can be verified through testing."
             return self.explain_code(code, max_length, strategy)
 
         return self.multi_agent_orchestrator.explain_code_collaborative(code)
+
+    def explain_code_intelligent(
+        self,
+        code: str,
+        strategy: Optional[str] = None,
+        audience: Optional[str] = None,
+        style: Optional[str] = None,
+        include_examples: bool = False,
+        include_best_practices: bool = True,
+        include_security_notes: bool = True,
+        filename: Optional[str] = None
+    ) -> Union[str, Dict[str, Any]]:
+        """Generate intelligent explanation using enhanced language processing.
+
+        Args:
+            code: Source code to explain
+            strategy: Explanation strategy ("pattern_aware", "adaptive")
+            audience: Target audience ("beginner", "intermediate", "expert", "automatic")
+            style: Explanation style ("concise", "detailed", "tutorial", "reference")
+            include_examples: Whether to include code examples
+            include_best_practices: Whether to include best practice suggestions
+            include_security_notes: Whether to include security considerations
+            filename: Optional filename for better language detection
+
+        Returns:
+            Enhanced explanation (string) or detailed explanation dict if available
+        """
+        if not INTELLIGENT_EXPLAINER_AVAILABLE or IntelligentExplanationGenerator is None:
+            # Fallback to regular explanation if intelligent explainer not available
+            logger.warning("Intelligent explainer not available, falling back to standard explanation")
+            return self.explain_code(code, strategy=strategy)
+        
+        try:
+            # Re-import to avoid None type issues
+            from .intelligent_explainer import (
+                IntelligentExplanationGenerator as IEG,
+                ExplanationAudience as EA,
+                ExplanationStyle as ES
+            )
+            
+            # Initialize intelligent explainer
+            intelligent_explainer = IEG()
+            
+            # Convert string parameters to enums
+            audience_enum = EA.AUTOMATIC
+            if audience:
+                try:
+                    audience_enum = EA(audience.lower())
+                except ValueError:
+                    logger.warning(f"Unknown audience '{audience}', using automatic")
+            
+            style_enum = ES.DETAILED
+            if style:
+                try:
+                    style_enum = ES(style.lower())
+                except ValueError:
+                    logger.warning(f"Unknown style '{style}', using detailed")
+            
+            # Generate intelligent explanation
+            enhanced_explanation = intelligent_explainer.explain_code(
+                code=code,
+                strategy=strategy,
+                audience=audience_enum,
+                style=style_enum,
+                include_examples=include_examples,
+                include_best_practices=include_best_practices,
+                include_security_notes=include_security_notes,
+                filename=filename
+            )
+            
+            # Format as markdown by default
+            formatted_explanation = intelligent_explainer.format_explanation(
+                enhanced_explanation, "markdown"
+            )
+            
+            return formatted_explanation
+            
+        except ImportError as e:
+            logger.error(f"Intelligent explainer import failed: {e}")
+            return self.explain_code(code, strategy=strategy)
+        except Exception as e:
+            logger.error(f"Intelligent explanation failed: {e}")
+            # Fallback to regular explanation
+            return self.explain_code(code, strategy=strategy)
+
+    def explain_code_intelligent_detailed(
+        self,
+        code: str,
+        **kwargs
+    ) -> Optional[Dict[str, Any]]:
+        """Generate intelligent explanation with full structured output.
+
+        Args:
+            code: Source code to explain
+            **kwargs: Arguments passed to explain_code_intelligent
+
+        Returns:
+            Detailed explanation dictionary or None if not available
+        """
+        if not INTELLIGENT_EXPLAINER_AVAILABLE or IntelligentExplanationGenerator is None:
+            return None
+        
+        try:
+            # Re-import to avoid None type issues
+            from .intelligent_explainer import (
+                IntelligentExplanationGenerator as IEG,
+                ExplanationAudience as EA,
+                ExplanationStyle as ES
+            )
+            
+            intelligent_explainer = IEG()
+            
+            # Convert parameters
+            audience_enum = EA.AUTOMATIC
+            if "audience" in kwargs:
+                try:
+                    audience_enum = EA(kwargs["audience"].lower())
+                except (ValueError, AttributeError):
+                    pass
+            
+            style_enum = ES.DETAILED
+            if "style" in kwargs:
+                try:
+                    style_enum = ES(kwargs["style"].lower())
+                except (ValueError, AttributeError):
+                    pass
+            
+            enhanced_explanation = intelligent_explainer.explain_code(
+                code=code,
+                strategy=kwargs.get("strategy"),
+                audience=audience_enum,
+                style=style_enum,
+                include_examples=kwargs.get("include_examples", False),
+                include_best_practices=kwargs.get("include_best_practices", True),
+                include_security_notes=kwargs.get("include_security_notes", True),
+                filename=kwargs.get("filename")
+            )
+            
+            # Return structured data
+            return {
+                "primary_explanation": enhanced_explanation.primary_explanation,
+                "language_info": enhanced_explanation.language_info,
+                "structure_analysis": enhanced_explanation.structure_analysis,
+                "pattern_analysis": enhanced_explanation.pattern_analysis,
+                "framework_info": enhanced_explanation.framework_info,
+                "best_practices": enhanced_explanation.best_practices,
+                "security_notes": enhanced_explanation.security_notes,
+                "examples": enhanced_explanation.examples,
+                "related_concepts": enhanced_explanation.related_concepts,
+                "complexity_assessment": enhanced_explanation.complexity_assessment,
+                "analysis": {
+                    "language": enhanced_explanation.metadata["analysis"].language.value,
+                    "confidence": enhanced_explanation.metadata["analysis"].confidence,
+                    "loc": enhanced_explanation.metadata["analysis"].loc,
+                    "functions_count": len(enhanced_explanation.metadata["analysis"].functions),
+                    "classes_count": len(enhanced_explanation.metadata["analysis"].classes),
+                    "patterns_count": len(enhanced_explanation.metadata["analysis"].patterns),
+                    "frameworks_count": len(enhanced_explanation.metadata["analysis"].frameworks),
+                }
+            }
+            
+        except ImportError as e:
+            logger.error(f"Intelligent explainer import failed: {e}")
+            return None
+        except Exception as e:
+            logger.error(f"Detailed intelligent explanation failed: {e}")
+            return None
 
     def explain_code_parallel(
         self,
