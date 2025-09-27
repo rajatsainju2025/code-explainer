@@ -728,5 +728,10 @@ class EnhancedLanguageDetector:
         return suggestions
 
 
+# Create aliases for backward compatibility and easier imports
+EnhancedLanguageProcessor = EnhancedLanguageDetector
+CodeLanguage = SupportedLanguage
+AnalysisResult = LanguageAnalysis
+
 # Global instance for easy access
 enhanced_detector = EnhancedLanguageDetector()

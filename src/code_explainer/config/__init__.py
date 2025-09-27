@@ -37,8 +37,10 @@ def init_config(config_path: Optional[Union[str, Path]] = None) -> DictConfig:
     else:
         # Load from specified YAML file
         cfg = OmegaConf.load(config_path)
-        # Merge with defaults
-        defaults = OmegaConf.load(Path(__file__).parent / "config/config.yaml")
-        cfg = OmegaConf.merge(defaults, cfg)
+        # Merge with defaults if they exist
+        defaults_path = Path(__file__).parent.parent.parent / "configs/default.yaml"
+        if defaults_path.exists():
+            defaults = OmegaConf.load(defaults_path)
+            cfg = OmegaConf.merge(defaults, cfg)
     
     return cfg
