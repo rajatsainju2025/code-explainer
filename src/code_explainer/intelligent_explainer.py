@@ -289,13 +289,18 @@ class AdaptiveExplanationStrategy(ExplanationStrategy):
             pattern_strategy = PatternAwareStrategy()
             return pattern_strategy.generate_explanation(code, analysis, context)
         elif analysis.complexity_score > 0.7:
-            # Use detailed explanation for complex code
-            context.style = ExplanationStyle.DETAILED
+            # Use detailed explanation for complex code, but prefer caller's choice if provided
+            if context.style == ExplanationStyle.CONCISE:
+                # caller explicitly asked concise, keep it
+                pass
+            else:
+                context.style = ExplanationStyle.DETAILED
             pattern_strategy = PatternAwareStrategy()
             return pattern_strategy.generate_explanation(code, analysis, context)
         else:
-            # Use concise explanation for simple code
-            context.style = ExplanationStyle.CONCISE
+            # Use concise explanation for simple code if caller didn't request detailed/tutorial/reference
+            if context.style not in (ExplanationStyle.DETAILED, ExplanationStyle.TUTORIAL, ExplanationStyle.REFERENCE):
+                context.style = ExplanationStyle.CONCISE
             return self._generate_simple_explanation(code, analysis, context)
     
     def _detect_audience(self, analysis: LanguageAnalysis) -> ExplanationAudience:
@@ -315,7 +320,7 @@ class AdaptiveExplanationStrategy(ExplanationStrategy):
     ) -> EnhancedExplanation:
         """Generate simple explanation for straightforward code."""
         
-        # Simple primary explanation
+        # Simple primary explanation, audience-aware wording
         parts = [f"This {analysis.language.value} code"]
         
         if analysis.functions:
@@ -332,6 +337,11 @@ class AdaptiveExplanationStrategy(ExplanationStrategy):
             parts.append("contains basic programming logic")
         
         primary_explanation = " ".join(parts) + "."
+        # Add audience-tailored suffix to differentiate outputs
+        if context.audience == ExplanationAudience.BEGINNER:
+            primary_explanation += " It uses straightforward constructs suitable for learning."
+        elif context.audience == ExplanationAudience.EXPERT:
+            primary_explanation += " Focus is on core semantics without step-by-step guidance."
         
         # Minimal structure analysis
         structure_analysis = f"Contains {analysis.loc} lines of code."

@@ -95,9 +95,11 @@ class StructuredLogger:
 
         # File handler with rotation
         if log_file:
-            log_file.parent.mkdir(parents=True, exist_ok=True)
+            # Ensure Path type
+            log_path = log_file if isinstance(log_file, Path) else Path(str(log_file))
+            log_path.parent.mkdir(parents=True, exist_ok=True)
             file_handler = logging.handlers.RotatingFileHandler(
-                log_file, maxBytes=10*1024*1024, backupCount=5
+                log_path, maxBytes=10*1024*1024, backupCount=5
             )
             file_handler.setFormatter(formatter)
             self.logger.addHandler(file_handler)
@@ -362,10 +364,18 @@ error_handler = ErrorHandler(logger)
 performance_monitor = PerformanceMonitor(logger)
 
 # Convenience functions
-def setup_logging(log_level: str = "INFO", log_file: Optional[Path] = None):
+def setup_logging(log_level: str = "INFO", log_file: Optional[Union[Path, str]] = None):
     """Setup global logging configuration."""
     global logger
-    logger = StructuredLogger("code_explainer", log_level, log_file)
+    # Normalize to Path when provided
+    lf: Optional[Path]
+    if log_file is None:
+        lf = None
+    elif isinstance(log_file, Path):
+        lf = log_file
+    else:
+        lf = Path(str(log_file))
+    logger = StructuredLogger("code_explainer", log_level, lf)
 
 def get_logger() -> StructuredLogger:
     """Get the global logger instance."""

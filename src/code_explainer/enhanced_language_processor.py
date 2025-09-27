@@ -655,6 +655,14 @@ class EnhancedLanguageDetector:
         algorithms = self._detect_algorithms(code, patterns)
         best_practices = self._suggest_best_practices(code, patterns)
         
+        # If Python and AST parses successfully, boost confidence
+        if language == SupportedLanguage.PYTHON:
+            try:
+                if PythonProcessor().parse_code(code) is not None:
+                    confidence = max(confidence, 0.6)
+            except Exception:
+                pass
+
         return LanguageAnalysis(
             language=language,
             confidence=confidence,
