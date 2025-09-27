@@ -36,6 +36,7 @@ import tempfile
 import shutil
 from functools import wraps
 import threading
+import weakref
 import sys
 import os
 import asyncio
@@ -69,27 +70,56 @@ class PluginInterface(Protocol):
         ...
 
 class HookPoint:
-    """Represents a hook point for plugin extensions."""
+    """Represents a hook point for plugin extensions with memory optimization."""
 
     def __init__(self, name: str, description: str = ""):
         self.name = name
         self.description = description
-        self.handlers: List[Callable] = []
-        self.async_handlers: List[Callable] = []
+        # Use weak references to prevent memory leaks
+        self._handlers: weakref.WeakSet = weakref.WeakSet()
+        self._async_handlers: weakref.WeakSet = weakref.WeakSet()
+        # Cache for handler lists to avoid repeated conversions
+        self._handler_cache: Optional[List[Callable]] = None
+        self._async_handler_cache: Optional[List[Callable]] = None
+        self._cache_timestamp = 0
 
     def register(self, handler: Callable):
-        """Register a handler for this hook point."""
+        """Register a handler with weak reference."""
         if inspect.iscoroutinefunction(handler):
-            self.async_handlers.append(handler)
+            self._async_handlers.add(handler)
+            self._async_handler_cache = None  # Invalidate cache
         else:
-            self.handlers.append(handler)
+            self._handlers.add(handler)
+            self._handler_cache = None  # Invalidate cache
 
     def unregister(self, handler: Callable):
         """Unregister a handler."""
-        if handler in self.handlers:
-            self.handlers.remove(handler)
-        if handler in self.async_handlers:
-            self.async_handlers.remove(handler)
+        if handler in self._handlers:
+            self._handlers.remove(handler)
+            self._handler_cache = None
+        if handler in self._async_handlers:
+            self._async_handlers.remove(handler)
+            self._async_handler_cache = None
+
+    @property
+    def handlers(self) -> List[Callable]:
+        """Get handlers list with caching."""
+        current_time = time.time()
+        if (self._handler_cache is None or
+            current_time - self._cache_timestamp > 1.0):  # Cache for 1 second
+            self._handler_cache = list(self._handlers)
+            self._cache_timestamp = current_time
+        return self._handler_cache
+
+    @property
+    def async_handlers(self) -> List[Callable]:
+        """Get async handlers list with caching."""
+        current_time = time.time()
+        if (self._async_handler_cache is None or
+            current_time - self._cache_timestamp > 1.0):  # Cache for 1 second
+            self._async_handler_cache = list(self._async_handlers)
+            self._cache_timestamp = current_time
+        return self._async_handler_cache
 
     async def trigger(self, *args, **kwargs) -> List[Any]:
         """Trigger all handlers for this hook point."""
@@ -116,6 +146,10 @@ class HookPoint:
 @dataclass
 class PluginMetadata:
     """Metadata for a plugin."""
+    __slots__ = ('name', 'version', 'description', 'author', 'license', 'homepage',
+                 'dependencies', 'hooks', 'capabilities', 'min_core_version',
+                 'max_core_version', 'created_at', 'updated_at', 'checksum', 'is_active')
+
     name: str
     version: str
     description: str
@@ -135,6 +169,9 @@ class PluginMetadata:
 @dataclass
 class PluginInstance:
     """Represents a loaded plugin instance."""
+    __slots__ = ('metadata', 'instance', 'module_path', 'is_active',
+                 'load_time', 'last_used', 'usage_count')
+
     metadata: PluginMetadata
     instance: Any
     module_path: Path

@@ -34,16 +34,58 @@ import threading
 import psutil
 import tracemalloc
 from concurrent.futures import ThreadPoolExecutor, as_completed
-import numpy as np
-from scipy import stats
-import matplotlib.pyplot as plt
-try:
-    import seaborn as sns
-    SEABORN_AVAILABLE = True
-except ImportError:
-    SEABORN_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
+
+# Lazy-loaded heavy dependencies
+_numpy_available = None
+_scipy_available = None
+_matplotlib_available = None
+_seaborn_available = None
+
+def _ensure_numpy():
+    """Lazy load numpy."""
+    global _numpy_available
+    if _numpy_available is None:
+        try:
+            import numpy as np
+            _numpy_available = np
+        except ImportError:
+            _numpy_available = False
+    return _numpy_available
+
+def _ensure_scipy():
+    """Lazy load scipy."""
+    global _scipy_available
+    if _scipy_available is None:
+        try:
+            from scipy import stats
+            _scipy_available = stats
+        except ImportError:
+            _scipy_available = False
+    return _scipy_available
+
+def _ensure_matplotlib():
+    """Lazy load matplotlib."""
+    global _matplotlib_available
+    if _matplotlib_available is None:
+        try:
+            import matplotlib.pyplot as plt
+            _matplotlib_available = plt
+        except ImportError:
+            _matplotlib_available = False
+    return _matplotlib_available
+
+def _ensure_seaborn():
+    """Lazy load seaborn."""
+    global _seaborn_available
+    if _seaborn_available is None:
+        try:
+            import seaborn as sns
+            _seaborn_available = sns
+        except ImportError:
+            _seaborn_available = False
+    return _seaborn_available
 
 @dataclass
 class BenchmarkResult:
@@ -270,7 +312,7 @@ class BenchmarkSuite:
             "cpu_freq": psutil.cpu_freq().current if psutil.cpu_freq() else None,
             "memory_total": psutil.virtual_memory().total / 1024 / 1024,
             "python_version": f"{psutil.__version__ if hasattr(psutil, '__version__') else 'unknown'}",
-            "platform": psutil.platform()
+            "platform": "unknown",
         }
 
     def compare_with_baseline(self, result: BenchmarkResult,
@@ -383,7 +425,12 @@ class BenchmarkSuite:
             return
 
         # Set up the plotting style
-        plt.style.use('seaborn-v0_8')
+        plt = _ensure_matplotlib()
+        if not plt:
+            logger.warning("Matplotlib not available, skipping plot generation")
+            return
+
+        plt.style.use('default')
         fig, axes = plt.subplots(2, 2, figsize=(15, 10))
         fig.suptitle('Benchmark Performance Analysis', fontsize=16)
 

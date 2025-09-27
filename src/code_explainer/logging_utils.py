@@ -3,11 +3,20 @@
 import logging
 import logging.handlers
 import sys
+import time
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Dict
+from functools import lru_cache
 
 from rich.console import Console
 from rich.logging import RichHandler
+
+try:
+    import psutil
+    HAS_PSUTIL = True
+except ImportError:
+    psutil = None  # type: ignore
+    HAS_PSUTIL = False
 
 
 def setup_logging(
@@ -83,15 +92,18 @@ def setup_logging(
 
 class PerformanceLogger:
     """Logger for performance metrics and timing."""
-    
+
     def __init__(self, name: str = "performance"):
         """Initialize the performance logger.
-        
+
         Args:
             name: Logger name
         """
         self.logger = logging.getLogger(name)
-        self._timers = {}
+        self._timers: Dict[str, float] = {}
+        self._memory_cache: Optional[float] = None
+        self._memory_cache_time: float = 0.0
+        self._cache_ttl: float = 1.0  # Cache memory readings for 1 second
     
     def start_timer(self, operation: str) -> None:
         """Start timing an operation.
@@ -99,7 +111,6 @@ class PerformanceLogger:
         Args:
             operation: Name of the operation being timed
         """
-        import time
         self._timers[operation] = time.time()
     
     def end_timer(self, operation: str, extra_info: Optional[str] = None) -> float:
@@ -112,7 +123,6 @@ class PerformanceLogger:
         Returns:
             Duration in seconds
         """
-        import time
         if operation not in self._timers:
             self.logger.warning(f"Timer for '{operation}' was not started")
             return 0.0
@@ -126,18 +136,30 @@ class PerformanceLogger:
         return duration
     
     def log_memory_usage(self, operation: str) -> None:
-        """Log current memory usage.
-        
+        """Log current memory usage with caching for performance.
+
         Args:
             operation: Description of when memory is being measured
         """
-        try:
-            import psutil
-            process = psutil.Process()
-            memory_mb = process.memory_info().rss / 1024 / 1024
-            self.logger.info(f"Memory usage after {operation}: {memory_mb:.1f} MB")
-        except ImportError:
+        if not HAS_PSUTIL or psutil is None:
             self.logger.debug("psutil not available for memory monitoring")
+            return
+
+        try:
+            current_time = time.time()
+            # Use cached memory reading if recent
+            if (self._memory_cache is not None and
+                current_time - self._memory_cache_time < self._cache_ttl):
+                memory_mb = self._memory_cache
+            else:
+                process = psutil.Process()
+                memory_mb = process.memory_info().rss / 1024 / 1024
+                self._memory_cache = memory_mb
+                self._memory_cache_time = current_time
+
+            self.logger.info(f"Memory usage after {operation}: {memory_mb:.1f} MB")
+        except Exception as e:
+            self.logger.debug(f"Failed to get memory usage: {e}")
     
     def log_model_info(self, model_name: str, num_parameters: Optional[int] = None) -> None:
         """Log model information.
@@ -152,12 +174,13 @@ class PerformanceLogger:
         self.logger.info(info)
 
 
+@lru_cache(maxsize=128)
 def get_logger(name: str) -> logging.Logger:
-    """Get a logger with the given name.
-    
+    """Get a cached logger with the given name.
+
     Args:
         name: Logger name
-        
+
     Returns:
         Configured logger
     """

@@ -214,11 +214,22 @@ class CodeExplainerTrainer:
             # Support both HF datasets and plain dicts
             if hasattr(dataset, "map"):
                 return dataset.map(
-                    tokenize_function_seq2seq, batched=False, desc="Tokenizing (seq2seq)"
+                    tokenize_function_seq2seq, batched=True, batch_size=1000, desc="Tokenizing (seq2seq)"
                 )
-            # Plain dict of lists fallback
-            train_tok = [tokenize_function_seq2seq(ex) for ex in dataset["train"]]  # type: ignore[index]
-            eval_tok = [tokenize_function_seq2seq(ex) for ex in dataset["eval"]]  # type: ignore[index]
+            # Plain dict of lists fallback - use batch processing for better performance
+            batch_size = 1000
+            train_tok = []
+            for i in range(0, len(dataset["train"]), batch_size):  # type: ignore[index]
+                batch = dataset["train"][i:i + batch_size]  # type: ignore[index]
+                batch_tok = [tokenize_function_seq2seq(ex) for ex in batch]
+                train_tok.extend(batch_tok)
+
+            eval_tok = []
+            for i in range(0, len(dataset["eval"]), batch_size):  # type: ignore[index]
+                batch = dataset["eval"][i:i + batch_size]  # type: ignore[index]
+                batch_tok = [tokenize_function_seq2seq(ex) for ex in batch]
+                eval_tok.extend(batch_tok)
+
             return {"train": train_tok, "eval": eval_tok}
         else:
 
@@ -289,12 +300,14 @@ class CodeExplainerTrainer:
                 num_train_epochs=training_config["num_train_epochs"],
                 per_device_train_batch_size=training_config["per_device_train_batch_size"],
                 per_device_eval_batch_size=training_config["per_device_eval_batch_size"],
+                gradient_accumulation_steps=training_config.get("gradient_accumulation_steps", 1),
                 warmup_steps=training_config["warmup_steps"],
                 weight_decay=training_config["weight_decay"],
                 logging_dir="./logs",
                 logging_steps=training_config["logging_steps"],
                 save_steps=training_config["save_steps"],
                 load_best_model_at_end=training_config["load_best_model_at_end"],
+                save_strategy="steps",
                 report_to="none",
                 save_safetensors=True,
                 fp16=fp16,
@@ -303,6 +316,8 @@ class CodeExplainerTrainer:
                 torch_compile=torch_compile,
                 predict_with_generate=True,
                 generation_max_length=int(self.config["model"]["max_length"]),
+                dataloader_num_workers=training_config.get("dataloader_num_workers", 0),
+                dataloader_pin_memory=training_config.get("dataloader_pin_memory", True),
             )
             data_collator = DataCollatorForSeq2Seq(
                 tokenizer=self.tokenizer, model=self.model, label_pad_token_id=-100
@@ -314,18 +329,22 @@ class CodeExplainerTrainer:
                 num_train_epochs=training_config["num_train_epochs"],
                 per_device_train_batch_size=training_config["per_device_train_batch_size"],
                 per_device_eval_batch_size=training_config["per_device_eval_batch_size"],
+                gradient_accumulation_steps=training_config.get("gradient_accumulation_steps", 1),
                 warmup_steps=training_config["warmup_steps"],
                 weight_decay=training_config["weight_decay"],
                 logging_dir="./logs",
                 logging_steps=training_config["logging_steps"],
                 save_steps=training_config["save_steps"],
                 load_best_model_at_end=training_config["load_best_model_at_end"],
+                save_strategy="steps",
                 report_to="none",
                 save_safetensors=True,
                 fp16=fp16,
                 bf16=bf16,
                 gradient_checkpointing=gradient_checkpointing,
                 torch_compile=torch_compile,
+                dataloader_num_workers=training_config.get("dataloader_num_workers", 0),
+                dataloader_pin_memory=training_config.get("dataloader_pin_memory", True),
             )
             data_collator = None
             trainer_cls = Trainer

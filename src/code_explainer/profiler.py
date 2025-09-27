@@ -1,13 +1,19 @@
 """Performance profiling and benchmarking utilities."""
 
+import cProfile
+import functools
 import json
 import logging
+import pstats
 import statistics
 import time
+import tracemalloc
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, Union
+import threading
+import io
 
 import psutil
 
@@ -29,10 +35,130 @@ class PerformanceMetrics:
 class PerformanceProfiler:
     """Profiles performance of code explanation operations."""
 
-    def __init__(self):
-        """Initialize the performance profiler."""
+    def __init__(self, enable_memory_tracing: bool = True, enable_cprofile: bool = False):
+        """Initialize the performance profiler.
+
+        Args:
+            enable_memory_tracing: Whether to enable memory tracing
+            enable_cprofile: Whether to enable cProfile for detailed analysis
+        """
         self.metrics: List[PerformanceMetrics] = []
         self.process = psutil.Process()
+        self.enable_memory_tracing = enable_memory_tracing
+        self.enable_cprofile = enable_cprofile
+
+        # Advanced profiling features
+        self._profilers: Dict[str, cProfile.Profile] = {}
+        self._memory_snapshots: Dict[str, tracemalloc.Snapshot] = {}
+        self._lock = threading.Lock()
+
+        if enable_memory_tracing:
+            tracemalloc.start()
+
+        if enable_cprofile:
+            self._global_profiler = cProfile.Profile()
+            self._global_profiler.enable()
+
+    def profile_function(
+        self,
+        func_name: Optional[str] = None,
+        detailed_profile: bool = False
+    ) -> Callable:
+        """Decorator to profile a function with advanced features."""
+        def decorator(func: Callable) -> Callable:
+            name = func_name or f"{func.__module__}.{func.__qualname__}"
+
+            @functools.wraps(func)
+            def wrapper(*args, **kwargs):
+                return self._profile_function_execution(
+                    name, func, args, kwargs, detailed_profile
+                )
+
+            return wrapper
+        return decorator
+
+    def _profile_function_execution(
+        self,
+        name: str,
+        func: Callable,
+        args: tuple,
+        kwargs: dict,
+        detailed_profile: bool = False
+    ) -> Any:
+        """Execute and profile a function with advanced profiling."""
+        # Memory snapshot before execution
+        memory_before = None
+        if self.enable_memory_tracing and tracemalloc.is_tracing():
+            memory_before = tracemalloc.get_traced_memory()[0]
+
+        # Start detailed profiling if requested
+        profiler = None
+        if detailed_profile and self.enable_cprofile:
+            profiler = cProfile.Profile()
+            profiler.enable()
+
+        start_time = time.time()
+        start_memory = self.process.memory_info().rss / 1024 / 1024  # MB
+        start_cpu = self.process.cpu_percent()
+
+        try:
+            result = func(*args, **kwargs)
+            return result
+        finally:
+            end_time = time.time()
+            end_memory = self.process.memory_info().rss / 1024 / 1024  # MB
+            end_cpu = self.process.cpu_percent()
+
+            # Stop detailed profiling
+            if profiler:
+                profiler.disable()
+
+            # Memory analysis
+            memory_delta = 0
+            if self.enable_memory_tracing and tracemalloc.is_tracing() and memory_before is not None:
+                memory_after = tracemalloc.get_traced_memory()[0]
+                memory_delta = memory_after - memory_before
+
+            # Calculate metrics
+            duration_ms = (end_time - start_time) * 1000
+            memory_peak_mb = max(start_memory, end_memory)
+            cpu_percent = max(start_cpu, end_cpu)
+
+            # Store metrics
+            metrics = PerformanceMetrics(
+                operation=name,
+                duration_ms=duration_ms,
+                memory_peak_mb=memory_peak_mb,
+                cpu_percent=cpu_percent,
+                timestamp=start_time,
+                metadata={
+                    'memory_delta': memory_delta,
+                    'detailed_profile': detailed_profile,
+                    'function_name': name
+                },
+            )
+
+            with self._lock:
+                self.metrics.append(metrics)
+
+            # Log performance
+            memory_info = f", memory: {memory_delta / 1024:.1f}KB" if memory_delta != 0 else ""
+            logger.debug(
+                f"Profiled {name}: {duration_ms:.2f}ms "
+                f"(Memory: {memory_peak_mb:.1f}MB, CPU: {cpu_percent:.1f}%{memory_info})"
+            )
+
+            # Save detailed profile if requested
+            if profiler and detailed_profile:
+                self._save_detailed_profile(name, profiler)
+
+    def _save_detailed_profile(self, name: str, profiler: cProfile.Profile) -> None:
+        """Save detailed profiling results."""
+        output_file = f"profile_{name}_{int(time.time())}.prof"
+        stats = pstats.Stats(profiler)
+        stats.sort_stats('cumulative')
+        stats.dump_stats(output_file)
+        logger.info(f"Detailed profile saved to {output_file}")
 
     @contextmanager
     def profile(self, operation: str, **metadata):

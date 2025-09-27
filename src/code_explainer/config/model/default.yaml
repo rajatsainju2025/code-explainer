@@ -1,0 +1,7 @@
+name: microsoft/CodeGPT-small-py
+arch: causal
+torch_dtype: auto
+load_in_8bit: false
+max_length: 512
+device_map: null
+cache_dir: null
