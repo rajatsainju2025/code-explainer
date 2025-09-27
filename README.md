@@ -26,6 +26,11 @@
 
 ## ✨ Features
 
+Device portability and intelligent explanations:
+- Unified DeviceManager selects the best device automatically (CUDA > MPS > CPU) with safe fallbacks
+- Precision control via CODE_EXPLAINER_PRECISION (fp32, fp16, bf16, 8bit)
+- Optional IntelligentExplanationGenerator for adaptive, audience-aware explanations
+
 ### 🧠 **Core AI Capabilities**
 - **Advanced AI Models**: Fine-tuned CodeT5, CodeBERT, and GPT models for accurate explanations
 - **Enhanced RAG**: Retrieval-Augmented Generation with FAISS, BM25, and hybrid search
