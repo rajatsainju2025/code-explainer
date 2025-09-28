@@ -3,6 +3,7 @@ import os
 import sys
 from pathlib import Path
 from typing import Generator
+import torch
 import pytest
 from omegaconf import OmegaConf
 
@@ -84,14 +85,18 @@ def mock_tokenizer():
             self.pad_token = "[PAD]"
             self.eos_token = "</s>"
             self.pad_token_id = 0
+            self.eos_token_id = 2
         
         def __call__(self, text, **kwargs):
-            import torch
             # Simulate tokenization
             return {
                 "input_ids": torch.tensor([[1, 2, 3, 0, 0]]),
                 "attention_mask": torch.tensor([[1, 1, 1, 0, 0]]),
             }
+            
+        def decode(self, token_ids, skip_special_tokens=True):
+            # Return a dummy explanation
+            return "This code adds two numbers and returns the result."
     
     return MockTokenizer()
 

@@ -28,7 +28,7 @@ class ModelResources:
     tokenizer: PreTrainedTokenizerBase
     device: torch.device
     model_type: str
-    device_capabilities: DeviceCapabilities
+    device_capabilities: Optional[DeviceCapabilities] = None
 
 
 class ModelLoader:
@@ -111,6 +111,10 @@ class ModelLoader:
         Returns:
             PreTrainedModel: Configured model
         """
+        # Validate architecture early
+        if self.config.arch not in ("causal", "seq2seq"):
+            raise ValueError(f"Unsupported model architecture: {self.config.arch}")
+
         # Get precision preference from config or device manager
         precision_pref = getattr(self.config, 'precision', 'auto')
         recommended_dtype = self.device_manager.get_recommended_dtype(

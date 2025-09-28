@@ -33,6 +33,12 @@ explainer = CodeExplainer(strategy="enhanced_rag")
 # Use AST-augmented analysis
 explainer = CodeExplainer(strategy="ast_augmented")
 
+# Use retrieval-augmented generation
+explainer = CodeExplainer(strategy="retrieval_augmented")
+
+# Use execution trace for runtime analysis
+explainer = CodeExplainer(strategy="execution_trace")
+
 # Multi-agent analysis
 explainer = CodeExplainer(strategy="multi_agent")
 ```

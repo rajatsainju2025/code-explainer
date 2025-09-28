@@ -14,6 +14,10 @@ class ModelConfig:
     torch_dtype: str = "auto"
     load_in_8bit: bool = False
     max_length: int = 512
+    # Sampling/generation parameters
+    temperature: float = 0.7
+    top_p: float = 0.9
+    top_k: int = 50
     device_map: Optional[str] = None
     cache_dir: Optional[str] = None
     device: str = "auto"  # auto, cuda, mps, cpu
@@ -40,6 +44,9 @@ class TrainingConfig:
     greater_is_better: bool = False
     warmup_steps: int = 0
     fp16: bool = False
+    bf16: bool = False
+    gradient_checkpointing: bool = False
+    torch_compile: bool = False
     dataloader_num_workers: int = 2
     remove_unused_columns: bool = True
 
@@ -66,6 +73,23 @@ class PromptConfig:
     """Prompt configuration."""
     strategy: str = "vanilla"
     template: str = "Explain this Python code:\n```python\n{code}\n```\nExplanation:"
+    # Optional per-language templates to override the default template
+    language_templates: Dict[str, str] = field(default_factory=dict)
+    # Soft limits for prompt/explanation sizes
+    max_code_length: int = 200
+    max_explanation_length: int = 300
+
+
+@dataclass
+class DataConfig:
+    """Data configuration for training/eval files and dataset options."""
+    train_file: Optional[str] = "data/train.json"
+    eval_file: Optional[str] = "data/eval.json"
+    test_file: Optional[str] = "data/test.json"
+    max_examples: Optional[int] = None
+    augment_ratio: float = 0.0
+    hub_id: Optional[str] = None
+    hub_split: str = "train"
 
 
 @dataclass
@@ -73,6 +97,7 @@ class Config:
     """Root configuration."""
     model: ModelConfig = field(default_factory=ModelConfig)
     training: TrainingConfig = field(default_factory=TrainingConfig)
+    data: DataConfig = field(default_factory=DataConfig)
     cache: CacheConfig = field(default_factory=CacheConfig)
     logging: LoggingConfig = field(default_factory=LoggingConfig)
     prompt: PromptConfig = field(default_factory=PromptConfig)

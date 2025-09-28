@@ -40,7 +40,7 @@ Device portability and intelligent explanations:
 - **Symbolic Analysis**: Property-based testing and complexity analysis
 
 ### 🎯 **Smart Analysis & Prompting**
-- **Multiple Strategies**: Vanilla, AST-augmented, execution trace, RAG, and enhanced RAG
+- **Multiple Strategies**: vanilla, ast_augmented, retrieval_augmented, execution_trace, and enhanced_rag
 - **Code Understanding**: Support for functions, classes, algorithms, and data structures
 - **Complexity Analysis**: Automatic time/space complexity detection
 - **Error Pattern Recognition**: Common bug identification and debugging suggestions
@@ -140,6 +140,12 @@ make gradio
 ```bash
 # Explain a file
 code-explainer explain --file examples/fibonacci.py --strategy enhanced_rag
+
+# Use different strategies
+code-explainer explain --file mycode.py --strategy vanilla
+code-explainer explain --file mycode.py --strategy ast_augmented
+code-explainer explain --file mycode.py --strategy retrieval_augmented
+code-explainer explain --file mycode.py --strategy execution_trace
 
 # Run evaluations
 code-explainer eval --dataset humaneval --model codet5-small

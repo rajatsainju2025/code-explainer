@@ -20,8 +20,11 @@ class CodeExplanationRequest(BaseModel):
     @field_validator('strategy')
     @classmethod
     def validate_strategy(cls, v):
-        if v is not None and v not in ["vanilla", "ast_augmented"]:
-            raise ValueError('Strategy must be either "vanilla" or "ast_augmented"')
+        # Supported strategies across the project
+        allowed = {"vanilla", "ast_augmented", "retrieval_augmented", "execution_trace"}
+        if v is not None and v not in allowed:
+            allowed_str = ", ".join(sorted(allowed))
+            raise ValueError(f'Strategy must be one of: {allowed_str}')
         return v
 
 
@@ -48,8 +51,10 @@ class BatchCodeExplanationRequest(BaseModel):
     @field_validator('strategy')
     @classmethod
     def validate_strategy(cls, v):
-        if v is not None and v not in ["vanilla", "ast_augmented"]:
-            raise ValueError('Strategy must be either "vanilla" or "ast_augmented"')
+        allowed = {"vanilla", "ast_augmented", "retrieval_augmented", "execution_trace"}
+        if v is not None and v not in allowed:
+            allowed_str = ", ".join(sorted(allowed))
+            raise ValueError(f'Strategy must be one of: {allowed_str}')
         return v
 
 
