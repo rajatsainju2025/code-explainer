@@ -4,6 +4,7 @@
 .PHONY: help install install-poetry install-pip install-dev install-minimal install-full
 .PHONY: test test-all test-unit test-integration test-e2e test-cov
 .PHONY: benchmark benchmark-regression benchmark-baseline benchmark-compare benchmark-profile benchmark-ci benchmark-report benchmark-all
+.PHONY: security-scan security-vulnerabilities security-code security-semgrep security-all
 .PHONY: lint type format precommit check quality setup
 .PHONY: clean validate-env
 .PHONY: requirements generate-requirements
@@ -29,6 +30,8 @@ help: ## Show this help message
 	@echo "  test            Run tests"
 	@echo "  benchmark       Run performance benchmarks"
 	@echo "  benchmark-all   Run complete benchmarking suite"
+	@echo "  security-scan   Run comprehensive security scan"
+	@echo "  security-all    Run complete security audit"
 	@echo "  lint            Run linting"
 	@echo "  format          Format code"
 	@echo "  type            Run type checking"
@@ -231,6 +234,46 @@ benchmark-all: ## Run all benchmarking tasks
 	$(MAKE) benchmark-regression
 	$(MAKE) benchmark-compare
 	$(MAKE) benchmark-report
+
+# Security scanning targets
+security-scan: ## Run comprehensive security scan
+	@echo "🔒 Running comprehensive security scan..."
+	@if command -v poetry >/dev/null 2>&1; then \
+		poetry run python scripts/security_scan.py; \
+	else \
+		python scripts/security_scan.py; \
+	fi
+
+security-vulnerabilities: ## Check for dependency vulnerabilities
+	@echo "🔍 Checking for dependency vulnerabilities..."
+	@if command -v poetry >/dev/null 2>&1; then \
+		poetry run safety check; \
+	else \
+		safety check || echo "⚠️  Safety not installed. Run: pip install safety"; \
+	fi
+
+security-code: ## Run code security analysis
+	@echo "🔍 Running code security analysis..."
+	@if command -v poetry >/dev/null 2>&1; then \
+		poetry run bandit -r src/; \
+	else \
+		bandit -r src/ || echo "⚠️  Bandit not installed. Run: pip install bandit"; \
+	fi
+
+security-semgrep: ## Run Semgrep security analysis
+	@echo "🔍 Running Semgrep security analysis..."
+	@if command -v poetry >/dev/null 2>&1; then \
+		poetry run semgrep --config auto src/; \
+	else \
+		semgrep --config auto src/ || echo "⚠️  Semgrep not installed. Run: pip install semgrep"; \
+	fi
+
+security-all: ## Run all security checks
+	@echo "🚨 Running complete security audit..."
+	$(MAKE) security-vulnerabilities
+	$(MAKE) security-code
+	$(MAKE) security-semgrep
+	$(MAKE) security-scan
 
 # Quality assurance targets
 check: ## Run all quality checks (lint, type, format)
