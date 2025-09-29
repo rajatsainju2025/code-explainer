@@ -1,0 +1,94 @@
+version: '3.8'
+
+services:
+  # Main API service
+  api:
+    build:
+      context: .
+      target: development
+    ports:
+      - "8000:8000"  # API
+      - "8001:8001"  # Docs
+    volumes:
+      - .:/app
+      - ./models:/app/models
+      - ./data:/app/data
+    environment:
+      - DEV=true
+      - CODE_EXPLAINER_MODEL_PATH=/app/models
+      - CODE_EXPLAINER_CONFIG_PATH=/app/configs/default.yaml
+      - CODE_EXPLAINER_RETRIEVAL_WARMUP=true
+      - PYTHONPATH=/app/src
+    depends_on:
+      - redis
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    command: uvicorn code_explainer.api.server:app --host 0.0.0.0 --port 8000 --reload --reload-dir /app/src
+
+  # Web UI service
+  web:
+    build:
+      context: .
+      target: development
+    ports:
+      - "7860:7860"
+    volumes:
+      - .:/app
+    environment:
+      - DEV=true
+      - PYTHONPATH=/app/src
+    depends_on:
+      - api
+    command: streamlit run streamlit_app.py --server.address 0.0.0.0 --server.port 7860
+
+  # Redis for caching (optional)
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
+  # Testing service
+  test:
+    build:
+      context: .
+      target: testing
+    volumes:
+      - .:/app
+    environment:
+      - PYTHONPATH=/app/src
+    command: pytest tests/ -v --tb=short
+    profiles:
+      - testing
+
+  # Documentation server
+  docs:
+    build:
+      context: .
+      target: development
+    ports:
+      - "8002:8000"
+    volumes:
+      - .:/app
+    environment:
+      - PYTHONPATH=/app/src
+    command: mkdocs serve -a 0.0.0.0:8000
+    profiles:
+      - docs
+
+volumes:
+  redis_data:
+
+networks:
+  default:
+    name: code-explainer-network

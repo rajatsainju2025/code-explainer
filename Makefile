@@ -259,13 +259,42 @@ docker-build: ## Build Docker image
 	@echo "🐳 Building Docker image..."
 	docker build -t code-explainer .
 
+docker-build-dev: ## Build development Docker image
+	@echo "🐳 Building development Docker image..."
+	docker build --target development -t code-explainer:dev .
+
+docker-build-prod: ## Build production Docker image
+	@echo "🐳 Building production Docker image..."
+	docker build --target production -t code-explainer:prod .
+
 docker-run: ## Run Docker container
 	@echo "🐳 Running Docker container..."
 	docker run -p 8000:8000 -v $(PWD):/app code-explainer
 
 docker-dev: ## Run Docker container in development mode
 	@echo "🐳 Running Docker container in development mode..."
-	docker run -p 8000:8000 -p 8001:8001 -v $(PWD):/app -e DEV=true code-explainer
+	docker run -p 8000:8000 -p 8001:8001 -v $(PWD):/app -e DEV=true code-explainer:dev
+
+docker-compose-up: ## Start all services with docker-compose
+	@echo "🐳 Starting services with docker-compose..."
+	docker-compose up -d
+
+docker-compose-dev: ## Start development services with docker-compose
+	@echo "🐳 Starting development services..."
+	docker-compose --profile docs up -d api web docs
+
+docker-compose-test: ## Run tests in Docker container
+	@echo "🧪 Running tests in Docker..."
+	docker-compose --profile testing run --rm test
+
+docker-compose-down: ## Stop all docker-compose services
+	@echo "🐳 Stopping services..."
+	docker-compose down
+
+docker-clean: ## Clean Docker artifacts
+	@echo "🧹 Cleaning Docker artifacts..."
+	docker system prune -f
+	docker image prune -f
 
 # Release management
 version: ## Show current version
