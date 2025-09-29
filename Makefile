@@ -2,10 +2,15 @@
 # Supports both Poetry and pip workflows with device detection
 
 .PHONY: help install install-poetry install-pip install-dev install-minimal install-full
-.PHONY: test lint type format precommit clean validate-env
+.PHONY: test test-all test-unit test-integration test-e2e test-cov
+.PHONY: lint type format precommit check quality setup
+.PHONY: clean validate-env
 .PHONY: requirements generate-requirements
 .PHONY: api eval-fast ab api-serve icml-all icml-analysis icml-outputs
-.PHONY: docs-serve docs-deploy device-info
+.PHONY: docs-serve docs-deploy docs-build
+.PHONY: docker-build docker-run docker-dev
+.PHONY: release version bump-major bump-minor bump-patch
+.PHONY: device-info intake-validate provenance-cards
 
 # Default target
 help: ## Show this help message
@@ -120,6 +125,67 @@ test: ## Run tests with coverage
 		pytest --cov=code_explainer --cov-report=term-missing; \
 	fi
 
+# Enhanced test targets
+test-all: ## Run all test types (unit, integration, e2e)
+	@echo "🧪 Running all tests..."
+	$(MAKE) test-unit
+	$(MAKE) test-integration
+	$(MAKE) test-e2e
+
+test-unit: ## Run unit tests only
+	@echo "🧪 Running unit tests..."
+	@if command -v poetry >/dev/null 2>&1; then \
+		poetry run pytest tests/unit/ -v; \
+	else \
+		pytest tests/unit/ -v; \
+	fi
+
+test-integration: ## Run integration tests only
+	@echo "🔗 Running integration tests..."
+	@if command -v poetry >/dev/null 2>&1; then \
+		poetry run pytest -m integration -v; \
+	else \
+		pytest -m integration -v; \
+	fi
+
+test-e2e: ## Run end-to-end tests only
+	@echo "🚀 Running end-to-end tests..."
+	@if command -v poetry >/dev/null 2>&1; then \
+		poetry run pytest -m e2e -v; \
+	else \
+		pytest -m e2e -v; \
+	fi
+
+test-cov: ## Run tests with detailed coverage report
+	@echo "📊 Running tests with coverage..."
+	@if command -v poetry >/dev/null 2>&1; then \
+		poetry run pytest --cov=code_explainer --cov-report=html --cov-report=term-missing; \
+	else \
+		pytest --cov=code_explainer --cov-report=html --cov-report=term-missing; \
+	fi
+	@echo "📈 Coverage report generated in htmlcov/"
+
+# Quality assurance targets
+check: ## Run all quality checks (lint, type, format)
+	@echo "🔍 Running quality checks..."
+	$(MAKE) format
+	$(MAKE) lint
+	$(MAKE) type
+
+quality: ## Run comprehensive quality checks
+	@echo "✨ Running comprehensive quality checks..."
+	$(MAKE) check
+	$(MAKE) precommit
+	$(MAKE) test-unit
+	@echo "✅ All quality checks passed!"
+
+setup: ## Complete development environment setup
+	@echo "🚀 Setting up complete development environment..."
+	$(MAKE) install-dev
+	$(MAKE) validate-env
+	@echo "💡 Run 'make quality' to verify everything works"
+	@echo "📚 Run 'make docs-serve' to view documentation"
+
 # Utility commands
 validate-env: ## Validate development environment
 	@echo "🔍 Validating environment..."
@@ -185,10 +251,64 @@ docs-serve:
 docs-deploy:
 	mkdocs gh-deploy --force
 
-# Data governance helpers
-.PHONY: intake-validate provenance-cards
-intake-validate:
-	python scripts/validate_intake.py data
+docs-build: ## Build documentation
+	mkdocs build
 
-provenance-cards:
-	python scripts/provenance_card.py --preds out/preds.jsonl --out out/cards
+# Docker targets
+docker-build: ## Build Docker image
+	@echo "🐳 Building Docker image..."
+	docker build -t code-explainer .
+
+docker-run: ## Run Docker container
+	@echo "🐳 Running Docker container..."
+	docker run -p 8000:8000 -v $(PWD):/app code-explainer
+
+docker-dev: ## Run Docker container in development mode
+	@echo "🐳 Running Docker container in development mode..."
+	docker run -p 8000:8000 -p 8001:8001 -v $(PWD):/app -e DEV=true code-explainer
+
+# Release management
+version: ## Show current version
+	@if command -v poetry >/dev/null 2>&1; then \
+		poetry version; \
+	else \
+		python -c "import toml; print(toml.load('pyproject.toml')['tool']['poetry']['version'])" 2>/dev/null || \
+		python setup.py --version 2>/dev/null || \
+		echo "Unable to determine version"; \
+	fi
+
+bump-major: ## Bump major version
+	@if command -v poetry >/dev/null 2>&1; then \
+		poetry version major; \
+	else \
+		echo "❌ Poetry required for version bumping"; \
+	fi
+
+bump-minor: ## Bump minor version
+	@if command -v poetry >/dev/null 2>&1; then \
+		poetry version minor; \
+	else \
+		echo "❌ Poetry required for version bumping"; \
+	fi
+
+bump-patch: ## Bump patch version
+	@if command -v poetry >/dev/null 2>&1; then \
+		poetry version patch; \
+	else \
+		echo "❌ Poetry required for version bumping"; \
+	fi
+
+release: ## Create and publish a new release
+	@echo "🚀 Creating release..."
+	$(MAKE) quality
+	$(MAKE) test-all
+	@echo "📦 Building distribution..."
+	@if command -v poetry >/dev/null 2>&1; then \
+		poetry build; \
+		echo "📤 Publishing to PyPI..."; \
+		poetry publish; \
+	else \
+		python setup.py sdist bdist_wheel; \
+		echo "📤 Upload to PyPI manually: twine upload dist/*"; \
+	fi
+	@echo "✅ Release complete!"
