@@ -59,7 +59,73 @@ from ..retrieval import CodeRetriever
 # Setup logging
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="Code Explainer API")
+# Enhanced FastAPI app with comprehensive OpenAPI documentation
+app = FastAPI(
+    title="Code Explainer API",
+    description="""
+    AI-powered code explanation and retrieval service.
+
+    This API provides intelligent code analysis capabilities including:
+    * **Code Explanation**: Generate natural language explanations for Python code
+    * **Retrieval-Augmented Generation**: Find similar code examples for context
+    * **Multiple Strategies**: Choose from vanilla, AST-augmented, retrieval-augmented, and execution trace methods
+    * **Symbolic Analysis**: Include symbolic execution information in explanations
+
+    ## Features
+
+    * **Multi-strategy explanation** with configurable prompt engineering
+    * **Advanced code retrieval** with FAISS, BM25, and hybrid search
+    * **Cross-encoder reranking** for improved relevance
+    * **MMR (Maximal Marginal Relevance)** for result diversity
+    * **Comprehensive metrics** and health monitoring
+    * **Rate limiting** and request tracking
+
+    ## Authentication
+
+    Currently, this API does not require authentication for basic usage.
+    Rate limiting may be applied based on server configuration.
+
+    ## Error Handling
+
+    The API uses standard HTTP status codes:
+    * `200` - Success
+    * `400` - Bad Request (invalid input)
+    * `429` - Too Many Requests (rate limited)
+    * `500` - Internal Server Error
+    * `503` - Service Unavailable (retrieval service not ready)
+    """,
+    version=__version__,
+    contact={
+        "name": "Code Explainer Team",
+        "url": "https://github.com/rsainju/code-explainer",
+        "email": "code-explainer@example.com",
+    },
+    license_info={
+        "name": "MIT License",
+        "url": "https://opensource.org/licenses/MIT",
+    },
+    openapi_tags=[
+        {
+            "name": "health",
+            "description": "Health check and monitoring endpoints",
+        },
+        {
+            "name": "explanation",
+            "description": "Code explanation and analysis",
+        },
+        {
+            "name": "retrieval",
+            "description": "Code retrieval and similarity search",
+        },
+        {
+            "name": "metrics",
+            "description": "Performance metrics and monitoring",
+        },
+    ],
+    docs_url="/docs",
+    redoc_url="/redoc",
+    openapi_url="/openapi.json",
+)
 
 # Request ID middleware
 def get_request_id() -> str:
@@ -103,6 +169,8 @@ except Exception:  # pragma: no cover
             return None
         def observe(self, *a, **k):
             return None
+        def start_timer(self):  # Add start_timer method
+            return self
 
     def Counter(*args, **kwargs):  # type: ignore
         return _NoopMetric()
@@ -146,7 +214,22 @@ async def add_request_id_and_metrics(request: Request, call_next):
             response.headers["X-Request-ID"] = request_id
 
 
-@app.get("/metrics")
+@app.get(
+    "/metrics",
+    tags=["metrics"],
+    summary="Prometheus Metrics",
+    description="Exposes Prometheus metrics for monitoring API performance and usage.",
+    responses={
+        200: {
+            "description": "Prometheus metrics in text format",
+            "content": {
+                "text/plain": {
+                    "example": "# HELP cx_requests_total Total HTTP requests\n# TYPE cx_requests_total counter\ncx_requests_total{method=\"POST\",path=\"/explain\",status=\"200\"} 42\n"
+                }
+            }
+        }
+    }
+)
 async def metrics():
     data = generate_latest()
     return PlainTextResponse(data, media_type=CONTENT_TYPE_LATEST)
@@ -231,7 +314,33 @@ class EnhancedRetrievalResponse(BaseModel):
     total_results: int
 
 
-@app.get("/health")
+@app.get(
+    "/health",
+    tags=["health"],
+    summary="Health Check",
+    description="Check the overall health of the API service and its components.",
+    responses={
+        200: {
+            "description": "Service is healthy",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "status": "ok",
+                        "retrieval": {
+                            "index_path": "data/code_retrieval_index.faiss",
+                            "index_exists": True,
+                            "corpus_exists": True,
+                            "index_size": 1000,
+                            "warmed_up": True,
+                            "last_error": None,
+                            "top_k_max": 20
+                        }
+                    }
+                }
+            }
+        }
+    }
+)
 async def health():
     # Retrieval quick status (without loading model)
     index_exists = os.path.exists(RETRIEVAL_INDEX_PATH)
@@ -259,12 +368,65 @@ async def health():
     }
 
 
-@app.get("/version")
+@app.get(
+    "/version",
+    tags=["health"],
+    summary="Get API Version",
+    description="Returns the current version of the Code Explainer API.",
+    responses={
+        200: {
+            "description": "Version information",
+            "content": {
+                "application/json": {
+                    "example": {"version": "0.3.0"}
+                }
+            }
+        }
+    }
+)
 async def version():
     return {"version": __version__}
 
 
-@app.post("/explain")
+@app.post(
+    "/explain",
+    tags=["explanation"],
+    summary="Explain Python Code",
+    description="""
+    Generate a natural language explanation for the provided Python code.
+
+    This endpoint supports multiple explanation strategies:
+    * **vanilla**: Basic prompt engineering
+    * **ast_augmented**: Includes AST analysis for better understanding
+    * **retrieval_augmented**: Uses similar code examples for context
+    * **execution_trace**: Includes execution path analysis
+
+    The `symbolic` parameter enables symbolic execution analysis for more detailed explanations.
+    """,
+    responses={
+        200: {
+            "description": "Code explanation generated successfully",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "explanation": "This function calculates the factorial of a number using recursion. It takes an integer n as input and returns n! (n factorial). The base case is when n is 0 or 1, returning 1. Otherwise, it multiplies n by the factorial of n-1."
+                    }
+                }
+            }
+        },
+        400: {
+            "description": "Invalid request - empty or invalid code",
+            "content": {
+                "application/json": {
+                    "example": {"detail": "code must not be empty"}
+                }
+            }
+        },
+        500: {
+            "description": "Internal server error during explanation generation"
+        }
+    }
+)
 async def explain(req: ExplainRequest):
     if not req.code.strip():
         raise HTTPException(status_code=400, detail="code must not be empty")
@@ -278,7 +440,29 @@ async def explain(req: ExplainRequest):
     return {"explanation": explanation}
 
 
-@app.get("/strategies")
+@app.get(
+    "/strategies",
+    tags=["explanation"],
+    summary="List Available Strategies",
+    description="Returns a list of all available explanation strategies supported by the API.",
+    responses={
+        200: {
+            "description": "List of available strategies",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "strategies": [
+                            "vanilla",
+                            "ast_augmented",
+                            "retrieval_augmented",
+                            "execution_trace"
+                        ]
+                    }
+                }
+            }
+        }
+    }
+)
 async def strategies():
     return {
         "strategies": [
@@ -290,7 +474,55 @@ async def strategies():
     }
 
 
-@app.post("/retrieve")
+@app.post(
+    "/retrieve",
+    tags=["retrieval"],
+    summary="Retrieve Similar Code",
+    description="""
+    Find similar code snippets using various retrieval methods.
+
+    Supports multiple retrieval strategies:
+    * **faiss**: Pure vector similarity search using FAISS
+    * **bm25**: Text-based retrieval using BM25 algorithm
+    * **hybrid**: Combination of vector and text-based search
+
+    Optional advanced features:
+    * **Cross-encoder reranking** for improved relevance
+    * **MMR (Maximal Marginal Relevance)** for result diversity
+    """,
+    responses={
+        200: {
+            "description": "Similar code snippets retrieved successfully",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "similar_codes": [
+                            "def factorial(n):\n    if n <= 1:\n        return 1\n    return n * factorial(n-1)",
+                            "def fibonacci(n):\n    if n <= 1:\n        return n\n    return fibonacci(n-1) + fibonacci(n-2)"
+                        ],
+                        "metadata": {
+                            "enhanced": True,
+                            "reranker_used": True,
+                            "mmr_used": False,
+                            "results_metadata": [...]
+                        }
+                    }
+                }
+            }
+        },
+        400: {
+            "description": "Invalid request parameters"
+        },
+        503: {
+            "description": "Retrieval service not available",
+            "content": {
+                "application/json": {
+                    "example": {"detail": "Retrieval service not available"}
+                }
+            }
+        }
+    }
+)
 async def retrieve_similar(
     request: RetrievalRequest,
     request_id: str = Depends(get_request_id)
@@ -349,7 +581,44 @@ async def retrieve_similar(
         raise HTTPException(status_code=500, detail=f"Retrieval failed: {str(e)}")
 
 
-@app.post("/retrieve/enhanced")
+@app.post(
+    "/retrieve/enhanced",
+    tags=["retrieval"],
+    summary="Enhanced Code Retrieval",
+    description="""
+    Advanced code retrieval with reranking and diversity features.
+
+    This endpoint provides enhanced retrieval capabilities with:
+    * **Cross-encoder reranking** for better relevance scoring
+    * **MMR (Maximal Marginal Relevance)** to balance relevance and diversity
+    * **Detailed metadata** for each result including scores and rankings
+    """,
+    responses={
+        200: {
+            "description": "Enhanced retrieval completed successfully",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "results": [
+                            {
+                                "content": "def factorial(n): ...",
+                                "score": 0.95,
+                                "rerank_score": 0.87,
+                                "metadata": {...}
+                            }
+                        ],
+                        "query": "recursive function",
+                        "method_used": "hybrid",
+                        "total_results": 3
+                    }
+                }
+            }
+        },
+        503: {
+            "description": "Retrieval service not available"
+        }
+    }
+)
 async def retrieve_similar_enhanced(
     request: EnhancedRetrievalRequest,
     request_id: str = Depends(get_request_id)
@@ -391,7 +660,30 @@ async def retrieve_similar_enhanced(
         raise HTTPException(status_code=500, detail=f"Enhanced retrieval failed: {str(e)}")
 
 
-@app.get("/retrieval/health")
+@app.get(
+    "/retrieval/health",
+    tags=["health"],
+    summary="Retrieval Service Health",
+    description="Detailed health check for the code retrieval service without loading models.",
+    responses={
+        200: {
+            "description": "Retrieval service health information",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "index_path": "data/code_retrieval_index.faiss",
+                        "index_exists": True,
+                        "corpus_exists": True,
+                        "index_size": 1000,
+                        "warmed_up": True,
+                        "last_error": None,
+                        "top_k_max": 20
+                    }
+                }
+            }
+        }
+    }
+)
 async def retrieval_health():
     """Detailed retrieval health without requiring model load."""
     index_exists = os.path.exists(RETRIEVAL_INDEX_PATH)
@@ -417,7 +709,30 @@ async def retrieval_health():
     }
 
 
-@app.get("/retrieval/stats")
+@app.get(
+    "/retrieval/stats",
+    tags=["metrics"],
+    summary="Retrieval Statistics",
+    description="Runtime statistics and information about the loaded retrieval service.",
+    responses={
+        200: {
+            "description": "Retrieval service statistics",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "loaded": True,
+                        "index_loaded": True,
+                        "corpus_size": 1000,
+                        "faiss_ntotal": 1000,
+                        "bm25_built": True,
+                        "index_path": "data/code_retrieval_index.faiss",
+                        "top_k_max": 20
+                    }
+                }
+            }
+        }
+    }
+)
 async def retrieval_stats():
     """Runtime stats of the loaded retriever (if any)."""
     info = {
