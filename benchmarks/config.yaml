@@ -1,0 +1,97 @@
+# Benchmarking Configuration
+# This file defines the benchmarking scenarios and thresholds for performance monitoring
+
+benchmark:
+  # General settings
+  warmup_samples: 2
+  benchmark_samples: 10
+  output_dir: "benchmarks/results"
+
+  # Performance thresholds (in seconds)
+  thresholds:
+    simple_explanation: 1.0    # Max time for simple code explanation
+    complex_explanation: 5.0   # Max time for complex code explanation
+    memory_limit_mb: 500       # Max memory usage in MB
+    regression_threshold: 0.1  # 10% performance degradation threshold
+
+  # Test scenarios
+  scenarios:
+    - name: "simple_function"
+      code: "def add(a, b): return a + b"
+      strategies: ["vanilla", "ast_augmented"]
+      expected_min_length: 10
+
+    - name: "recursive_algorithm"
+      code: |
+        def fibonacci(n):
+            if n <= 1:
+                return n
+            return fibonacci(n-1) + fibonacci(n-2)
+      strategies: ["vanilla", "ast_augmented", "execution_trace"]
+      expected_min_length: 20
+
+    - name: "class_with_methods"
+      code: |
+        class Calculator:
+            def __init__(self):
+                self.history = []
+
+            def add(self, a, b):
+                result = a + b
+                self.history.append(f"{a} + {b} = {result}")
+                return result
+
+            def get_history(self):
+                return self.history.copy()
+      strategies: ["vanilla", "ast_augmented"]
+      expected_min_length: 30
+
+    - name: "complex_algorithm"
+      code: |
+        def quicksort(arr):
+            if len(arr) <= 1:
+                return arr
+            pivot = arr[len(arr) // 2]
+            left = [x for x in arr if x < pivot]
+            middle = [x for x in arr if x == pivot]
+            right = [x for x in arr if x > pivot]
+            return quicksort(left) + middle + quicksort(right)
+      strategies: ["vanilla", "ast_augmented", "execution_trace"]
+      expected_min_length: 40
+
+  # CI/CD integration
+  ci:
+    baseline_file: "baseline_performance.json"
+    fail_on_regression: true
+    publish_results: true
+
+  # Reporting
+  reporting:
+    generate_charts: true
+    compare_with_baseline: true
+    export_formats: ["json", "csv", "html"]
+
+  # Hardware-specific configurations
+  hardware_profiles:
+    - name: "cpu_basic"
+      cpu_count_min: 1
+      memory_gb_min: 2
+      expected_multiplier: 1.0
+
+    - name: "cpu_standard"
+      cpu_count_min: 4
+      memory_gb_min: 8
+      expected_multiplier: 0.8
+
+    - name: "cpu_high_end"
+      cpu_count_min: 8
+      memory_gb_min: 16
+      expected_multiplier: 0.6
+
+    - name: "gpu_basic"
+      gpu_memory_gb_min: 4
+      expected_multiplier: 0.3
+
+    - name: "gpu_high_end"
+      gpu_memory_gb_min: 24
+      expected_multiplier: 0.1

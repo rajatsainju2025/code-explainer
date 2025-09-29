@@ -3,6 +3,7 @@
 
 .PHONY: help install install-poetry install-pip install-dev install-minimal install-full
 .PHONY: test test-all test-unit test-integration test-e2e test-cov
+.PHONY: benchmark benchmark-regression benchmark-baseline benchmark-compare benchmark-profile benchmark-ci benchmark-report benchmark-all
 .PHONY: lint type format precommit check quality setup
 .PHONY: clean validate-env
 .PHONY: requirements generate-requirements
@@ -26,6 +27,8 @@ help: ## Show this help message
 	@echo ""
 	@echo "Development Commands:"
 	@echo "  test            Run tests"
+	@echo "  benchmark       Run performance benchmarks"
+	@echo "  benchmark-all   Run complete benchmarking suite"
 	@echo "  lint            Run linting"
 	@echo "  format          Format code"
 	@echo "  type            Run type checking"
@@ -164,6 +167,70 @@ test-cov: ## Run tests with detailed coverage report
 		pytest --cov=code_explainer --cov-report=html --cov-report=term-missing; \
 	fi
 	@echo "📈 Coverage report generated in htmlcov/"
+
+# Benchmarking targets
+benchmark: ## Run performance benchmarks
+	@echo "⚡ Running performance benchmarks..."
+	@if command -v poetry >/dev/null 2>&1; then \
+		poetry run python benchmarks/benchmark_inference.py; \
+	else \
+		python benchmarks/benchmark_inference.py; \
+	fi
+
+benchmark-regression: ## Run performance regression tests
+	@echo "📈 Running performance regression tests..."
+	@if command -v poetry >/dev/null 2>&1; then \
+		poetry run pytest tests/test_performance_regression.py --benchmark-only -v; \
+	else \
+		pytest tests/test_performance_regression.py --benchmark-only -v; \
+	fi
+
+benchmark-baseline: ## Establish new performance baseline
+	@echo "📊 Establishing new performance baseline..."
+	@if command -v poetry >/dev/null 2>&1; then \
+		poetry run python benchmarks/benchmark_inference.py --baseline; \
+	else \
+		python benchmarks/benchmark_inference.py --baseline; \
+	fi
+
+benchmark-compare: ## Compare current performance with baseline
+	@echo "🔍 Comparing performance with baseline..."
+	@if command -v poetry >/dev/null 2>&1; then \
+		poetry run python benchmarks/benchmark_inference.py --compare; \
+	else \
+		python benchmarks/benchmark_inference.py --compare; \
+	fi
+
+benchmark-profile: ## Run profiling benchmarks with memory tracking
+	@echo "🔬 Running profiling benchmarks..."
+	@if command -v poetry >/dev/null 2>&1; then \
+		poetry run pytest tests/test_performance_regression.py::test_memory_usage -v --profile; \
+	else \
+		pytest tests/test_performance_regression.py::test_memory_usage -v --profile; \
+	fi
+
+benchmark-ci: ## Run benchmarks for CI/CD (fail on regression)
+	@echo "🔄 Running CI benchmarks..."
+	@if command -v poetry >/dev/null 2>&1; then \
+		poetry run python benchmarks/benchmark_inference.py --ci --fail-on-regression; \
+	else \
+		python benchmarks/benchmark_inference.py --ci --fail-on-regression; \
+	fi
+
+benchmark-report: ## Generate comprehensive benchmark report
+	@echo "📋 Generating benchmark report..."
+	@if command -v poetry >/dev/null 2>&1; then \
+		poetry run python benchmarks/benchmark_inference.py --report; \
+	else \
+		python benchmarks/benchmark_inference.py --report; \
+	fi
+
+benchmark-all: ## Run all benchmarking tasks
+	@echo "🚀 Running complete benchmarking suite..."
+	$(MAKE) benchmark
+	$(MAKE) benchmark-regression
+	$(MAKE) benchmark-compare
+	$(MAKE) benchmark-report
 
 # Quality assurance targets
 check: ## Run all quality checks (lint, type, format)
