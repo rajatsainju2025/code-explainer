@@ -34,12 +34,12 @@ class CollaborationMessage:
 
 class CollaborationHub:
     """Manages real-time collaboration sessions."""
-    
+
     def __init__(self):
         self.sessions: Dict[str, CollaborationSession] = {}
         self.connections: Dict[str, WebSocketServerProtocol] = {}
         self.session_participants: Dict[str, Set[str]] = {}
-    
+
     def create_session(self, creator: str) -> str:
         """Create new collaboration session."""
         session_id = str(uuid.uuid4())
@@ -49,16 +49,16 @@ class CollaborationHub:
         self.session_participants[session_id] = {creator}
         logger.info(f"Created session {session_id} by {creator}")
         return session_id
-    
+
     def join_session(self, session_id: str, user: str) -> bool:
         """Join existing session."""
         if session_id not in self.sessions:
             return False
-        
+
         session = self.sessions[session_id]
         if not session.active:
             return False
-        
+
         session.participants.add(user)
         self.session_participants[session_id].add(user)
         self._broadcast_message(session_id, {
@@ -67,36 +67,36 @@ class CollaborationHub:
             "participants": list(session.participants)
         })
         return True
-    
+
     def leave_session(self, session_id: str, user: str):
         """Leave session."""
         if session_id in self.sessions:
             session = self.sessions[session_id]
             session.participants.discard(user)
             self.session_participants[session_id].discard(user)
-            
+
             self._broadcast_message(session_id, {
                 "type": "user_left",
                 "user": user,
                 "participants": list(session.participants)
             })
-            
+
             # End session if no participants
             if not session.participants:
                 session.active = False
-    
+
     def update_code(self, session_id: str, user: str, code: str):
         """Update code in session."""
         if session_id in self.sessions:
             session = self.sessions[session_id]
             session.code_state = code
-            
+
             self._broadcast_message(session_id, {
                 "type": "code_update",
                 "user": user,
                 "code": code
             }, exclude_user=user)
-    
+
     def send_message(self, session_id: str, user: str, message: str):
         """Send chat message."""
         if session_id in self.sessions:
@@ -105,14 +105,14 @@ class CollaborationHub:
                 "user": user,
                 "message": message
             })
-    
+
     def _broadcast_message(self, session_id: str, message: Dict[str, Any], exclude_user: Optional[str] = None):
         """Broadcast message to session participants."""
         if session_id not in self.session_participants:
             return
-        
+
         message["timestamp"] = datetime.now().isoformat()
-        
+
         for user in self.session_participants[session_id]:
             if user == exclude_user:
                 continue
@@ -121,26 +121,26 @@ class CollaborationHub:
                     asyncio.create_task(self._send_to_user(user, message))
                 except Exception as e:
                     logger.error(f"Failed to send to {user}: {e}")
-    
+
     async def _send_to_user(self, user: str, message: Dict[str, Any]):
         """Send message to specific user."""
         if user in self.connections:
             conn = self.connections[user]
             await conn.send(json.dumps(message))
-    
+
     def register_connection(self, user: str, connection: WebSocketServerProtocol):
         """Register WebSocket connection."""
         self.connections[user] = connection
-    
+
     def unregister_connection(self, user: str):
         """Unregister connection."""
         self.connections.pop(user, None)
-    
+
     def get_session_info(self, session_id: str) -> Optional[Dict[str, Any]]:
         """Get session information."""
         if session_id not in self.sessions:
             return None
-        
+
         session = self.sessions[session_id]
         return {
             "session_id": session_id,
@@ -154,20 +154,20 @@ class CollaborationHub:
 async def collaboration_handler(websocket: WebSocketServerProtocol, path: str):
     """Handle WebSocket connections for collaboration."""
     hub = CollaborationHub()  # In practice, use shared instance
-    
+
     user = None
     current_session = None
-    
+
     try:
         async for message in websocket:
             data = json.loads(message)
             action = data.get("action")
-            
+
             if action == "join":
                 user = data["user"]
                 session_id = data["session_id"]
                 hub.register_connection(user, websocket)
-                
+
                 if hub.join_session(session_id, user):
                     current_session = session_id
                     await websocket.send(json.dumps({
@@ -179,7 +179,7 @@ async def collaboration_handler(websocket: WebSocketServerProtocol, path: str):
                         "type": "error",
                         "message": "Failed to join session"
                     }))
-            
+
             elif action == "create_session":
                 user = data["user"]
                 hub.register_connection(user, websocket)
@@ -189,13 +189,13 @@ async def collaboration_handler(websocket: WebSocketServerProtocol, path: str):
                     "type": "session_created",
                     "session_id": session_id
                 }))
-            
+
             elif action == "update_code" and current_session and user:
                 hub.update_code(current_session, user, data["code"])
-            
+
             elif action == "send_message" and current_session and user:
                 hub.send_message(current_session, user, data["message"])
-    
+
     except Exception as e:
         logger.error(f"WebSocket error: {e}")
     finally:

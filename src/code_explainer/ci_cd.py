@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 class BuildStatus(Enum):
     """Build status enumeration."""
     PENDING = "pending"
-    RUNNING = "running" 
+    RUNNING = "running"
     SUCCESS = "success"
     FAILURE = "failure"
     CANCELLED = "cancelled"
@@ -74,10 +74,10 @@ class PipelineConfig:
 
 class CIRunner:
     """Continuous Integration runner."""
-    
+
     def __init__(self, config: PipelineConfig, workspace_dir: str = "."):
         """Initialize CI runner.
-        
+
         Args:
             config: Pipeline configuration
             workspace_dir: Workspace directory
@@ -86,7 +86,7 @@ class CIRunner:
         self.workspace_dir = Path(workspace_dir).resolve()
         self.results: List[BuildResult] = []
         self.start_time: Optional[float] = None
-        
+
     def run_command(
         self,
         command: str,
@@ -95,23 +95,23 @@ class CIRunner:
         env: Optional[Dict[str, str]] = None
     ) -> Tuple[int, str, str]:
         """Run a shell command with timeout and error handling.
-        
+
         Args:
             command: Command to run
             working_dir: Working directory
             timeout: Timeout in seconds
             env: Environment variables
-            
+
         Returns:
             Tuple of (return_code, stdout, stderr)
         """
         full_env = os.environ.copy()
         if env:
             full_env.update(env)
-        
+
         try:
             logger.info(f"Running command: {command}")
-            
+
             process = subprocess.Popen(
                 command,
                 shell=True,
@@ -121,7 +121,7 @@ class CIRunner:
                 cwd=working_dir,
                 env=full_env
             )
-            
+
             try:
                 stdout, stderr = process.communicate(timeout=timeout)
                 return process.returncode, stdout, stderr
@@ -129,36 +129,36 @@ class CIRunner:
                 process.kill()
                 stdout, stderr = process.communicate()
                 return -1, stdout, f"Command timed out after {timeout} seconds\n{stderr}"
-                
+
         except Exception as e:
             logger.error(f"Command execution failed: {e}")
             return -1, "", str(e)
-    
+
     def run_build_step(self, step: BuildStep) -> BuildResult:
         """Run a single build step.
-        
+
         Args:
             step: Build step to execute
-            
+
         Returns:
             Build result
         """
         start_time = time.time()
-        
+
         logger.info(f"Executing build step: {step.name}")
-        
+
         try:
             working_dir = os.path.join(self.workspace_dir, step.working_dir)
-            
+
             return_code, stdout, stderr = self.run_command(
                 step.command,
                 working_dir=working_dir,
                 timeout=step.timeout_seconds,
                 env=step.environment
             )
-            
+
             duration = time.time() - start_time
-            
+
             # Collect artifacts
             artifacts_collected = []
             for artifact_pattern in step.artifacts:
@@ -171,7 +171,7 @@ class CIRunner:
                     artifacts_collected.extend(matches)
                 except Exception as e:
                     logger.warning(f"Failed to collect artifact {artifact_pattern}: {e}")
-            
+
             # Determine status
             if return_code == 0:
                 status = BuildStatus.SUCCESS
@@ -181,7 +181,7 @@ class CIRunner:
                 error_message = f"Command failed with code {return_code}"
                 if stderr:
                     error_message += f": {stderr[:500]}"
-            
+
             result = BuildResult(
                 step_name=step.name,
                 status=status,
@@ -192,30 +192,30 @@ class CIRunner:
                 artifacts_collected=artifacts_collected,
                 error_message=error_message
             )
-            
+
             logger.info(f"Build step {step.name} completed: {status.value} ({duration:.1f}s)")
             return result
-            
+
         except Exception as e:
             duration = time.time() - start_time
             error_message = f"Build step execution failed: {e}"
             logger.error(error_message)
-            
+
             return BuildResult(
                 step_name=step.name,
                 status=BuildStatus.FAILURE,
                 duration_seconds=duration,
                 error_message=error_message
             )
-    
+
     def run_tests(self) -> List[BuildResult]:
         """Run all configured test commands.
-        
+
         Returns:
             List of test results
         """
         test_results = []
-        
+
         for i, test_command in enumerate(self.config.test_commands):
             step = BuildStep(
                 name=f"test_{i+1}",
@@ -223,76 +223,76 @@ class CIRunner:
                 description=f"Test command: {test_command}",
                 timeout_seconds=600  # Longer timeout for tests
             )
-            
+
             result = self.run_build_step(step)
             test_results.append(result)
-            
+
             # Stop on test failure unless configured otherwise
             if result.status == BuildStatus.FAILURE:
                 logger.error(f"Test failed: {test_command}")
                 break
-        
+
         return test_results
-    
+
     def run_full_pipeline(self) -> Dict[str, Any]:
         """Run the complete CI/CD pipeline.
-        
+
         Returns:
             Pipeline execution summary
         """
         self.start_time = time.time()
         self.results = []
-        
+
         logger.info(f"Starting CI pipeline: {self.config.name}")
-        
+
         pipeline_status = BuildStatus.SUCCESS
         failed_step = None
-        
+
         try:
             # Run build steps
             for step in self.config.build_steps:
                 result = self.run_build_step(step)
                 self.results.append(result)
-                
+
                 if result.status == BuildStatus.FAILURE:
                     pipeline_status = BuildStatus.FAILURE
                     failed_step = step.name
-                    
+
                     if not step.continue_on_error:
                         logger.error(f"Pipeline failed at step: {step.name}")
                         break
-            
+
             # Run tests if build succeeded or continue_on_error is True
             if pipeline_status == BuildStatus.SUCCESS or any(
                 step.continue_on_error for step in self.config.build_steps
             ):
                 test_results = self.run_tests()
                 self.results.extend(test_results)
-                
+
                 # Check if any tests failed
                 if any(r.status == BuildStatus.FAILURE for r in test_results):
                     pipeline_status = BuildStatus.FAILURE
                     if not failed_step:
                         failed_step = "tests"
-            
+
             # Run deployment steps if everything passed
             if pipeline_status == BuildStatus.SUCCESS and self.config.deploy_steps:
                 for step in self.config.deploy_steps:
                     result = self.run_build_step(step)
                     self.results.append(result)
-                    
+
                     if result.status == BuildStatus.FAILURE:
                         pipeline_status = BuildStatus.FAILURE
                         failed_step = step.name
                         break
-            
+
         except Exception as e:
             logger.error(f"Pipeline execution failed: {e}")
             pipeline_status = BuildStatus.FAILURE
             failed_step = "execution"
-        
+
         total_duration = time.time() - self.start_time
-        
+
         # Generate summary
         summary = {
             "pipeline_name": self.config.name,
@@ -314,16 +314,16 @@ class CIRunner:
                 for r in self.results
             ]
         }
-        
+
         logger.info(f"Pipeline completed: {pipeline_status.value} ({total_duration:.1f}s)")
         return summary
-    
+
     def generate_github_workflow(self, output_file: str = ".github/workflows/ci.yml") -> str:
         """Generate GitHub Actions workflow file.
-        
+
         Args:
             output_file: Output file path
-            
+
         Returns:
             Generated workflow YAML content
         """
@@ -345,12 +345,12 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
-    
+
     - name: Set up Python ${{{{ matrix.python-version }}}}
       uses: actions/setup-python@v4
       with:
         python-version: ${{{{ matrix.python-version }}}}
-    
+
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
@@ -366,7 +366,7 @@ jobs:
 """
             if step.working_dir != ".":
                 workflow_content += f"      working-directory: {step.working_dir}\n"
-            
+
             if step.environment:
                 workflow_content += "      env:\n"
                 for key, value in step.environment.items():
@@ -396,20 +396,20 @@ jobs:
         try:
             output_path = Path(output_file)
             output_path.parent.mkdir(parents=True, exist_ok=True)
-            
+
             with open(output_path, 'w') as f:
                 f.write(workflow_content)
-            
+
             logger.info(f"GitHub workflow written to {output_file}")
         except Exception as e:
             logger.error(f"Failed to write workflow file: {e}")
-        
+
         return workflow_content
 
 
 def create_default_pipeline() -> PipelineConfig:
     """Create a default CI/CD pipeline configuration.
-    
+
     Returns:
         Default pipeline configuration
     """
@@ -465,10 +465,10 @@ def create_default_pipeline() -> PipelineConfig:
 
 def run_ci_locally(config_file: Optional[str] = None) -> Dict[str, Any]:
     """Run CI pipeline locally for testing.
-    
+
     Args:
         config_file: Optional config file path
-        
+
     Returns:
         Pipeline execution results
     """
@@ -485,7 +485,7 @@ def run_ci_locally(config_file: Optional[str] = None) -> Dict[str, Any]:
             config = create_default_pipeline()
     else:
         config = create_default_pipeline()
-    
+
     runner = CIRunner(config)
     return runner.run_full_pipeline()
 
@@ -493,7 +493,7 @@ def run_ci_locally(config_file: Optional[str] = None) -> Dict[str, Any]:
 # Quality gates and metrics
 class QualityGate:
     """Quality gate checker for CI/CD."""
-    
+
     def __init__(self):
         """Initialize quality gate."""
         self.thresholds = {
@@ -502,13 +502,13 @@ class QualityGate:
             "security_issues": 0,
             "test_pass_rate": 95.0
         }
-    
+
     def check_coverage(self, coverage_file: str = "coverage.xml") -> Tuple[bool, float]:
         """Check test coverage against threshold.
-        
+
         Args:
             coverage_file: Coverage report file
-            
+
         Returns:
             Tuple of (passed, coverage_percentage)
         """
@@ -517,7 +517,7 @@ class QualityGate:
             if os.path.exists(coverage_file):
                 with open(coverage_file) as f:
                     content = f.read()
-                    
+
                 # Extract coverage percentage (simplified)
                 import re
                 match = re.search(r'line-rate="([0-9.]+)"', content)
@@ -525,21 +525,21 @@ class QualityGate:
                     coverage = float(match.group(1)) * 100
                     passed = coverage >= self.thresholds["test_coverage"]
                     return passed, coverage
-            
+
             return False, 0.0
-            
+
         except Exception as e:
             logger.error(f"Coverage check failed: {e}")
             return False, 0.0
-    
+
     def check_all_gates(self) -> Dict[str, Any]:
         """Check all quality gates.
-        
+
         Returns:
             Quality gate results
         """
         results = {}
-        
+
         # Check coverage
         coverage_passed, coverage_value = self.check_coverage()
         results["coverage"] = {
@@ -547,10 +547,10 @@ class QualityGate:
             "value": coverage_value,
             "threshold": self.thresholds["test_coverage"]
         }
-        
+
         # Overall gate status
         all_passed = all(gate["passed"] for gate in results.values())
-        
+
         return {
             "overall_passed": all_passed,
             "gates": results,

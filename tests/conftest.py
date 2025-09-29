@@ -72,7 +72,7 @@ def test_code_samples() -> list[str]:
             def __init__(self, width, height):
                 self.width = width
                 self.height = height
-            
+
             def area(self):
                 return self.width * self.height""",
     ]
@@ -86,18 +86,18 @@ def mock_tokenizer():
             self.eos_token = "</s>"
             self.pad_token_id = 0
             self.eos_token_id = 2
-        
+
         def __call__(self, text, **kwargs):
             # Simulate tokenization
             return {
                 "input_ids": torch.tensor([[1, 2, 3, 0, 0]]),
                 "attention_mask": torch.tensor([[1, 1, 1, 0, 0]]),
             }
-            
+
         def decode(self, token_ids, skip_special_tokens=True):
             # Return a dummy explanation
             return "This code adds two numbers and returns the result."
-    
+
     return MockTokenizer()
 
 @pytest.fixture
@@ -106,15 +106,15 @@ def mock_model():
     class MockModel:
         def __init__(self):
             self.config = type("Config", (), {"pad_token_id": 0})
-        
+
         def eval(self):
             return self
-        
+
         def to(self, device):
             return self
-        
+
         def generate(self, **kwargs):
             import torch
             return torch.tensor([[4, 5, 6, 0, 0]])
-    
+
     return MockModel()

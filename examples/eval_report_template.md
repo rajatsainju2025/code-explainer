@@ -6,9 +6,9 @@
 - Dataset:
 
 ## Metrics
-- BLEU: 
-- ROUGE-L: 
-- BERTScore: 
+- BLEU:
+- ROUGE-L:
+- BERTScore:
 
 ## Notes
 - Observations:

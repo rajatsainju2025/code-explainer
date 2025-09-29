@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class JudgmentCriteria:
     """Criteria for evaluating explanations."""
-    
+
     name: str
     description: str
     scale: List[int] = field(default_factory=lambda: [1, 2, 3, 4, 5])
@@ -30,7 +30,7 @@ class JudgmentCriteria:
 @dataclass
 class JudgeResult:
     """Result from a single judge evaluation."""
-    
+
     judge_model: str
     criteria_scores: Dict[str, float]
     overall_score: float
@@ -42,7 +42,7 @@ class JudgeResult:
 @dataclass
 class MultiJudgeResult:
     """Result from multiple judge evaluation."""
-    
+
     individual_results: List[JudgeResult]
     consensus_scores: Dict[str, float]
     agreement_metrics: Dict[str, float]
@@ -51,12 +51,12 @@ class MultiJudgeResult:
 
 class LLMJudge:
     """Base class for LLM judges."""
-    
+
     def __init__(self, model_name: str, api_key: Optional[str] = None, **kwargs):
         self.model_name = model_name
         self.api_key = api_key
         self.config = kwargs
-    
+
     def evaluate(
         self,
         code: str,
@@ -66,7 +66,7 @@ class LLMJudge:
     ) -> JudgeResult:
         """Evaluate an explanation using this judge."""
         raise NotImplementedError
-    
+
     def _prepare_prompt(
         self,
         code: str,
@@ -76,7 +76,7 @@ class LLMJudge:
     ) -> str:
         """Prepare the evaluation prompt."""
         criteria = criteria or self._default_criteria()
-        
+
         prompt = f"""You are an expert code reviewer tasked with evaluating the quality of a code explanation.
 
 **Code to Explain:**
@@ -87,23 +87,23 @@ class LLMJudge:
 **Generated Explanation:**
 {explanation}
 """
-        
+
         if reference:
             prompt += f"""
 **Reference Explanation:**
 {reference}
 """
-        
+
         prompt += """
 **Evaluation Criteria:**
 """
-        
+
         for criterion in criteria:
             prompt += f"""
 {criterion.name} ({criterion.weight:.1f}x weight): {criterion.description}
 Scale: {min(criterion.scale)} (poor) to {max(criterion.scale)} (excellent)
 """
-        
+
         prompt += """
 **Instructions:**
 1. Evaluate the explanation against each criterion
@@ -122,9 +122,9 @@ Scale: {min(criterion.scale)} (poor) to {max(criterion.scale)} (excellent)
     "confidence": confidence_level_0_to_1
 }
 """
-        
+
         return prompt
-    
+
     def _default_criteria(self) -> List[JudgmentCriteria]:
         """Default evaluation criteria."""
         return [
@@ -148,11 +148,11 @@ Scale: {min(criterion.scale)} (poor) to {max(criterion.scale)} (excellent)
 
 class OpenAIJudge(LLMJudge):
     """OpenAI GPT-based judge."""
-    
+
     def __init__(self, model_name: str = "gpt-4-turbo", api_key: Optional[str] = None, **kwargs):
         super().__init__(model_name, api_key, **kwargs)
         self._client = None
-    
+
     def _get_client(self):
         """Get OpenAI client, importing if needed."""
         if self._client is None:
@@ -162,7 +162,7 @@ class OpenAIJudge(LLMJudge):
             except ImportError:
                 raise ImportError("openai package required for OpenAI judge")
         return self._client
-    
+
     def evaluate(
         self,
         code: str,
@@ -172,9 +172,9 @@ class OpenAIJudge(LLMJudge):
     ) -> JudgeResult:
         """Evaluate using OpenAI API."""
         start_time = time.time()
-        
+
         prompt = self._prepare_prompt(code, explanation, reference, criteria)
-        
+
         try:
             client = self._get_client()
             response = client.chat.completions.create(
@@ -186,12 +186,12 @@ class OpenAIJudge(LLMJudge):
                 temperature=self.config.get("temperature", 0.0),
                 max_tokens=self.config.get("max_tokens", 1000),
             )
-            
+
             content = response.choices[0].message.content
             result_data = json.loads(content)
-            
+
             latency_ms = int((time.time() - start_time) * 1000)
-            
+
             return JudgeResult(
                 judge_model=self.model_name,
                 criteria_scores=result_data["criteria_scores"],
@@ -200,7 +200,7 @@ class OpenAIJudge(LLMJudge):
                 confidence=result_data.get("confidence", 1.0),
                 latency_ms=latency_ms
             )
-            
+
         except Exception as e:
             logger.error(f"OpenAI judge evaluation failed: {e}")
             return JudgeResult(
@@ -215,11 +215,11 @@ class OpenAIJudge(LLMJudge):
 
 class AnthropicJudge(LLMJudge):
     """Anthropic Claude-based judge."""
-    
+
     def __init__(self, model_name: str = "claude-3-sonnet-20240229", api_key: Optional[str] = None, **kwargs):
         super().__init__(model_name, api_key, **kwargs)
         self._client = None
-    
+
     def _get_client(self):
         """Get Anthropic client, importing if needed."""
         if self._client is None:
@@ -229,7 +229,7 @@ class AnthropicJudge(LLMJudge):
             except ImportError:
                 raise ImportError("anthropic package required for Anthropic judge")
         return self._client
-    
+
     def evaluate(
         self,
         code: str,
@@ -239,9 +239,9 @@ class AnthropicJudge(LLMJudge):
     ) -> JudgeResult:
         """Evaluate using Anthropic API."""
         start_time = time.time()
-        
+
         prompt = self._prepare_prompt(code, explanation, reference, criteria)
-        
+
         try:
             client = self._get_client()
             response = client.messages.create(
@@ -252,12 +252,12 @@ class AnthropicJudge(LLMJudge):
                     {"role": "user", "content": prompt}
                 ]
             )
-            
+
             content = response.content[0].text
             result_data = json.loads(content)
-            
+
             latency_ms = int((time.time() - start_time) * 1000)
-            
+
             return JudgeResult(
                 judge_model=self.model_name,
                 criteria_scores=result_data["criteria_scores"],
@@ -266,7 +266,7 @@ class AnthropicJudge(LLMJudge):
                 confidence=result_data.get("confidence", 1.0),
                 latency_ms=latency_ms
             )
-            
+
         except Exception as e:
             logger.error(f"Anthropic judge evaluation failed: {e}")
             return JudgeResult(
@@ -281,10 +281,10 @@ class AnthropicJudge(LLMJudge):
 
 class MultiJudgeEvaluator:
     """Evaluator using multiple LLM judges for consensus."""
-    
+
     def __init__(self, judges: List[LLMJudge]):
         self.judges = judges
-    
+
     def evaluate(
         self,
         code: str,
@@ -295,33 +295,33 @@ class MultiJudgeEvaluator:
     ) -> MultiJudgeResult:
         """Evaluate using multiple judges."""
         individual_results = []
-        
+
         for judge in self.judges:
             try:
                 result = judge.evaluate(code, explanation, reference, criteria)
                 individual_results.append(result)
             except Exception as e:
                 logger.error(f"Judge {judge.model_name} failed: {e}")
-        
+
         if not individual_results:
             raise ValueError("All judges failed to provide evaluations")
-        
+
         # Compute consensus scores
         consensus_scores = self._compute_consensus(individual_results, consensus_method)
-        
+
         # Compute agreement metrics
         agreement_metrics = self._compute_agreement(individual_results)
-        
+
         # Compute final score
         final_score = consensus_scores.get("overall", 0.0)
-        
+
         return MultiJudgeResult(
             individual_results=individual_results,
             consensus_scores=consensus_scores,
             agreement_metrics=agreement_metrics,
             final_score=final_score
         )
-    
+
     def _compute_consensus(
         self,
         results: List[JudgeResult],
@@ -330,24 +330,24 @@ class MultiJudgeEvaluator:
         """Compute consensus scores across judges."""
         if not results:
             return {}
-        
+
         # Collect all criteria
         all_criteria = set()
         for result in results:
             all_criteria.update(result.criteria_scores.keys())
-        
+
         consensus = {}
-        
+
         if method == "average":
             # Simple average
             for criterion in all_criteria:
                 scores = [r.criteria_scores.get(criterion, 0.0) for r in results if criterion in r.criteria_scores]
                 if scores:
                     consensus[criterion] = sum(scores) / len(scores)
-            
+
             overall_scores = [r.overall_score for r in results]
             consensus["overall"] = sum(overall_scores) / len(overall_scores)
-        
+
         elif method == "median":
             # Median consensus
             import statistics
@@ -355,10 +355,10 @@ class MultiJudgeEvaluator:
                 scores = [r.criteria_scores.get(criterion, 0.0) for r in results if criterion in r.criteria_scores]
                 if scores:
                     consensus[criterion] = statistics.median(scores)
-            
+
             overall_scores = [r.overall_score for r in results]
             consensus["overall"] = statistics.median(overall_scores)
-        
+
         elif method == "majority":
             # Majority voting (for discrete scores)
             for criterion in all_criteria:
@@ -366,24 +366,24 @@ class MultiJudgeEvaluator:
                 if scores:
                     # Find most common score
                     consensus[criterion] = Counter(scores).most_common(1)[0][0]
-            
+
             overall_scores = [r.overall_score for r in results]
             consensus["overall"] = Counter(overall_scores).most_common(1)[0][0]
-        
+
         return consensus
-    
+
     def _compute_agreement(self, results: List[JudgeResult]) -> Dict[str, float]:
         """Compute inter-judge agreement metrics."""
         if len(results) < 2:
             return {"agreement": 1.0}
-        
+
         # Collect all criteria
         all_criteria = set()
         for result in results:
             all_criteria.update(result.criteria_scores.keys())
-        
+
         agreements = {}
-        
+
         # Compute pairwise correlation for each criterion
         for criterion in all_criteria:
             scores = [r.criteria_scores.get(criterion, 0.0) for r in results if criterion in r.criteria_scores]
@@ -396,13 +396,13 @@ class MultiJudgeEvaluator:
                     agreements[criterion] = max(0.0, 1.0 - variance / 4.0)  # Assume max variance of 4
                 else:
                     agreements[criterion] = 1.0  # Perfect agreement
-        
+
         # Overall agreement
         if agreements:
             agreements["overall"] = sum(agreements.values()) / len(agreements)
         else:
             agreements["overall"] = 0.0
-        
+
         return agreements
 
 
@@ -410,7 +410,7 @@ def create_judge_from_config(config: Dict[str, Any]) -> LLMJudge:
     """Create a judge from configuration."""
     model_name = config["model"]
     judge_type = config.get("type", "openai")
-    
+
     if judge_type == "openai" or model_name.startswith("gpt"):
         return OpenAIJudge(model_name, **config.get("params", {}))
     elif judge_type == "anthropic" or model_name.startswith("claude"):
@@ -425,10 +425,10 @@ def load_criteria_from_file(criteria_file: Union[str, Path]) -> List[JudgmentCri
         import yaml
     except ImportError:
         raise ImportError("PyYAML required for loading criteria from file")
-    
+
     with open(criteria_file, 'r') as f:
         criteria_data = yaml.safe_load(f)
-    
+
     criteria = []
     for name, config in criteria_data.get("criteria", {}).items():
         criteria.append(JudgmentCriteria(
@@ -437,7 +437,7 @@ def load_criteria_from_file(criteria_file: Union[str, Path]) -> List[JudgmentCri
             scale=config.get("scale", [1, 2, 3, 4, 5]),
             weight=config.get("weight", 1.0)
         ))
-    
+
     return criteria
 
 
@@ -452,21 +452,21 @@ def evaluate_with_judges(
     # Load predictions
     with open(predictions_file, 'r') as f:
         predictions = [json.loads(line) for line in f]
-    
+
     # Create judges
     judges = []
     for judge_name, judge_config in judges_config.items():
         judge = create_judge_from_config(judge_config)
         judges.append(judge)
-    
+
     evaluator = MultiJudgeEvaluator(judges)
-    
+
     results = []
     for pred in predictions:
         code = pred.get("code", "")
         explanation = pred.get("prediction", pred.get("explanation", ""))
         reference = pred.get("reference", pred.get("target", ""))
-        
+
         result = evaluator.evaluate(
             code=code,
             explanation=explanation,
@@ -475,7 +475,7 @@ def evaluate_with_judges(
             consensus_method=consensus_method
         )
         results.append(result)
-    
+
     # Save results if output file specified
     if output_file:
         with open(output_file, 'w') as f:
@@ -497,5 +497,5 @@ def evaluate_with_judges(
                     ]
                 }
                 f.write(json.dumps(result_dict) + "\n")
-    
+
     return results

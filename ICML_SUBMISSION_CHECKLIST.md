@@ -37,7 +37,7 @@ This document provides a comprehensive checklist for preparing and submitting ou
 
 ### ✅ Datasets
 - [x] ConCode dataset integration
-- [x] CodeXGLUE dataset integration  
+- [x] CodeXGLUE dataset integration
 - [x] CodeSearchNet dataset integration
 - [x] Validation datasets prepared
 - [x] Human evaluation data curated

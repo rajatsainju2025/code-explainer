@@ -21,31 +21,31 @@ The project provides comprehensive CLI commands for all evaluation methods:
 
 ```bash
 # LLM-as-a-Judge evaluation (requires API keys)
-code-explainer eval-llm-judge 
-  --test-data test.jsonl 
-  --predictions predictions.jsonl 
-  --judges gpt-4 claude-3-sonnet 
+code-explainer eval-llm-judge
+  --test-data test.jsonl
+  --predictions predictions.jsonl
+  --judges gpt-4 claude-3-sonnet
   --criteria accuracy clarity completeness
 
-# Preference-based evaluation  
-code-explainer eval-preference 
-  --test-data test.jsonl 
-  --predictions-a model_a.jsonl 
-  --predictions-b model_b.jsonl 
+# Preference-based evaluation
+code-explainer eval-preference
+  --test-data test.jsonl
+  --predictions-a model_a.jsonl
+  --predictions-b model_b.jsonl
   --use-bradley-terry
 
 # Contamination detection
-code-explainer eval-contamination 
-  --train-data train.jsonl 
-  --test-data test.jsonl 
-  --methods exact ngram substring 
+code-explainer eval-contamination
+  --train-data train.jsonl
+  --test-data test.jsonl
+  --methods exact ngram substring
   --include-semantic
 
 # Robustness testing
-code-explainer eval-robustness 
-  --test-data test.jsonl 
-  --model-path ./results 
-  --test-types typo case whitespace punctuation 
+code-explainer eval-robustness
+  --test-data test.jsonl
+  --model-path ./results
+  --test-types typo case whitespace punctuation
   --severity-levels 0.05 0.1 0.2
 
 # Traditional metrics evaluation
@@ -64,7 +64,7 @@ import json
 from pathlib import Path
 
 from code_explainer.evaluation.metrics import calculate_all_metrics
-from code_explainer.evaluation.contamination import run_contamination_detection  
+from code_explainer.evaluation.contamination import run_contamination_detection
 from code_explainer.evaluation.robustness import run_robustness_tests
 from code_explainer.model import CodeExplainer
 
@@ -72,25 +72,25 @@ def run_comprehensive_evaluation(
     model_path: str,
     train_data: str,
     test_data: str,
-    predictions: str, 
+    predictions: str,
     output_dir: str
 ):
     """Run complete evaluation pipeline following open-eval best practices."""
     output_dir = Path(output_dir)
     output_dir.mkdir(exist_ok=True)
-    
+
     print("🚀 Starting comprehensive evaluation...")
-    
+
     # 1. Traditional metrics
     print("📊 Running traditional metrics...")
     metrics = calculate_all_metrics(
         predictions_file=predictions,
         references_file=test_data
     )
-    
+
     with open(output_dir / "traditional_metrics.json", "w") as f:
         json.dump(metrics, f, indent=2)
-    
+
     # 2. Contamination detection
     print("🔍 Running contamination detection...")
     contamination_report = run_contamination_detection(
@@ -99,17 +99,17 @@ def run_comprehensive_evaluation(
         output_file=output_dir / "contamination_report.json",
         methods=["exact", "ngram", "substring"]
     )
-    
+
     # 3. Robustness testing
     print("🛡️ Running robustness tests...")
     with open(test_data) as f:
         test_examples = [json.loads(line) for line in f]
-    
+
     explainer = CodeExplainer(model_path=model_path)
-    
+
     def predict_func(example):
         return explainer.explain_code(example['code'])
-    
+
     robustness_report = run_robustness_tests(
         examples=test_examples[:100],  # Limit for demonstration
         predict_func=predict_func,
@@ -118,7 +118,7 @@ def run_comprehensive_evaluation(
         severity_levels=[0.05, 0.1, 0.2],
         random_seed=42
     )
-    
+
     # 4. Generate summary report
     summary = {
         "evaluation_metadata": {
@@ -140,10 +140,10 @@ def run_comprehensive_evaluation(
         },
         "recommendations": generate_recommendations(metrics, contamination_report, robustness_report)
     }
-    
+
     with open(output_dir / "evaluation_summary.json", "w") as f:
         json.dump(summary, f, indent=2)
-    
+
     print(f"✅ Evaluation complete! Results saved to {output_dir}")
     print_summary_table(summary)
     return summary
@@ -151,51 +151,51 @@ def run_comprehensive_evaluation(
 def generate_recommendations(metrics, contamination_report, robustness_report):
     """Generate actionable recommendations based on evaluation results."""
     recommendations = []
-    
+
     # Traditional metrics recommendations
     if metrics.get("bleu", 0) < 0.3:
         recommendations.append("Consider improving model training data quality or training duration")
-    
-    # Contamination recommendations  
+
+    # Contamination recommendations
     if contamination_report.contamination_rate > 0.05:
         recommendations.append("⚠️ High contamination detected - review data preparation pipeline")
-    
+
     # Robustness recommendations
     if robustness_report.overall_robustness_score < 0.7:
         recommendations.append("Consider robustness training or data augmentation")
-    
+
     return recommendations
 
 def print_summary_table(summary):
     """Print a nice summary table of results."""
     from rich.console import Console
     from rich.table import Table
-    
+
     console = Console()
     table = Table(title="Evaluation Summary")
-    
+
     table.add_column("Metric", style="cyan")
-    table.add_column("Score", style="magenta") 
+    table.add_column("Score", style="magenta")
     table.add_column("Status", style="green")
-    
+
     # Traditional metrics
     bleu_score = summary["traditional_metrics"].get("bleu", 0)
     table.add_row("BLEU", f"{bleu_score:.3f}", "✅" if bleu_score > 0.3 else "⚠️")
-    
+
     # Contamination
     contam_rate = summary["contamination"]["rate"]
     table.add_row("Contamination Rate", f"{contam_rate:.1%}", "✅" if contam_rate < 0.05 else "⚠️")
-    
+
     # Robustness
     robust_score = summary["robustness"]["overall_score"]
     table.add_row("Robustness", f"{robust_score:.3f}", "✅" if robust_score > 0.7 else "⚠️")
-    
+
     console.print(table)
 
 # Example usage
 if __name__ == "__main__":
     summary = run_comprehensive_evaluation(
-        model_path="./results", 
+        model_path="./results",
         train_data="data/train.jsonl",
         test_data="data/test.jsonl",
         predictions="predictions.jsonl",
@@ -227,7 +227,7 @@ wandb.log(summary["traditional_metrics"])
 wandb.log({"contamination_rate": summary["contamination"]["rate"]})
 wandb.log({"robustness_score": summary["robustness"]["overall_score"]})
 
-# MLflow integration  
+# MLflow integration
 import mlflow
 
 with mlflow.start_run():

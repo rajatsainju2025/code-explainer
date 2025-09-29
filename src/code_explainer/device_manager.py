@@ -1,7 +1,7 @@
 """
 Device Management and Auto-Detection Utilities
 
-This module provides unified device detection, capability assessment, and 
+This module provides unified device detection, capability assessment, and
 configuration management for PyTorch models across CPU, CUDA, and MPS devices.
 """
 
@@ -30,24 +30,24 @@ class DeviceCapabilities:
 
 class DeviceManager:
     """Centralized device detection and management."""
-    
+
     def __init__(self):
         self._cached_capabilities: Dict[str, DeviceCapabilities] = {}
-        
+
     def get_optimal_device(self, prefer_device: Optional[str] = None) -> DeviceCapabilities:
         """Get optimal device with fallback strategy."""
         # Check environment variable override
         env_device = os.getenv('CODE_EXPLAINER_DEVICE', '').lower()
         if env_device in ['cpu', 'cuda', 'mps', 'auto']:
             prefer_device = env_device if env_device != 'auto' else prefer_device
-            
+
         # Default preference order: cuda > mps > cpu
         device_order = ['cuda', 'mps', 'cpu']
         if prefer_device and prefer_device in device_order:
             # Move preferred device to front
             device_order.remove(prefer_device)
             device_order.insert(0, prefer_device)
-            
+
         for device_type in device_order:
             capabilities = self._get_device_capabilities(device_type)
             if capabilities:
@@ -55,22 +55,22 @@ class DeviceManager:
                 if capabilities.memory_gb:
                     logger.info(f"Available memory: {capabilities.memory_gb:.1f} GB")
                 return capabilities
-                
+
         # Fallback to CPU (should always work)
         capabilities = self._get_device_capabilities('cpu')
         if capabilities:
             logger.warning("Falling back to CPU device")
             return capabilities
-            
+
         raise RuntimeError("No compatible device found")
-    
+
     def _get_device_capabilities(self, device_type: str) -> Optional[DeviceCapabilities]:
         """Get capabilities for a specific device type."""
         if device_type in self._cached_capabilities:
             return self._cached_capabilities[device_type]
-            
+
         capabilities = None
-        
+
         try:
             if device_type == 'cuda' and torch.cuda.is_available():
                 capabilities = self._analyze_cuda_device()
@@ -78,31 +78,31 @@ class DeviceManager:
                 capabilities = self._analyze_mps_device()
             elif device_type == 'cpu':
                 capabilities = self._analyze_cpu_device()
-                
+
         except Exception as e:
             logger.warning(f"Failed to analyze {device_type} device: {e}")
-            
+
         if capabilities:
             self._cached_capabilities[device_type] = capabilities
-            
+
         return capabilities
-    
+
     def _analyze_cuda_device(self) -> DeviceCapabilities:
         """Analyze CUDA device capabilities."""
         device = torch.device('cuda')
         device_props = torch.cuda.get_device_properties(0)
-        
+
         # Memory in GB
         memory_gb = device_props.total_memory / (1024**3)
-        
+
         # Compute capability
         compute_capability = f"{device_props.major}.{device_props.minor}"
-        
+
         # Check precision support
         supports_fp16 = device_props.major >= 6  # Pascal and newer
         supports_bf16 = device_props.major >= 8  # Ampere and newer
         supports_8bit = supports_fp16  # Approximate - depends on specific libraries
-        
+
         return DeviceCapabilities(
             device_type='cuda',
             device=device,
@@ -113,11 +113,11 @@ class DeviceManager:
             compute_capability=compute_capability,
             device_name=device_props.name
         )
-    
+
     def _analyze_mps_device(self) -> DeviceCapabilities:
         """Analyze MPS (Apple Silicon) device capabilities."""
         device = torch.device('mps')
-        
+
         # MPS generally supports fp16 but not bf16 or 8bit reliably
         return DeviceCapabilities(
             device_type='mps',
@@ -129,11 +129,11 @@ class DeviceManager:
             compute_capability=None,
             device_name="Apple Silicon GPU"
         )
-    
+
     def _analyze_cpu_device(self) -> DeviceCapabilities:
         """Analyze CPU device capabilities."""
         device = torch.device('cpu')
-        
+
         return DeviceCapabilities(
             device_type='cpu',
             device=device,
@@ -144,15 +144,15 @@ class DeviceManager:
             compute_capability=None,
             device_name="CPU"
         )
-    
-    def get_recommended_dtype(self, device_caps: DeviceCapabilities, 
+
+    def get_recommended_dtype(self, device_caps: DeviceCapabilities,
                             prefer_precision: Optional[str] = None) -> torch.dtype:
         """Get recommended dtype for a device."""
         # Check environment variable override
         env_precision = os.getenv('CODE_EXPLAINER_PRECISION', '').lower()
         if env_precision in ['fp32', 'fp16', 'bf16', '8bit', 'auto']:
             prefer_precision = env_precision if env_precision != 'auto' else prefer_precision
-            
+
         # Handle explicit precision requests
         if prefer_precision == 'fp32':
             return torch.float32
@@ -165,7 +165,7 @@ class DeviceManager:
                 logger.warning("8-bit quantization not supported, falling back to fp16")
             # 8-bit is handled separately in model loading
             return torch.float16 if device_caps.supports_fp16 else torch.float32
-            
+
         # Auto-select based on device capabilities
         if device_caps.device_type == 'cuda':
             # Prefer bf16 on newer cards, fp16 on older
@@ -181,25 +181,25 @@ class DeviceManager:
         else:  # CPU
             # CPU usually best with fp32, but fp16 can save memory
             return torch.float32
-    
+
     def should_use_quantization(self, device_caps: DeviceCapabilities) -> bool:
         """Determine if 8-bit quantization should be used."""
         env_precision = os.getenv('CODE_EXPLAINER_PRECISION', '').lower()
         if env_precision == '8bit':
             return device_caps.supports_8bit
-            
+
         # Auto-decide based on device memory (if available)
         if device_caps.memory_gb and device_caps.memory_gb < 8.0:
             return device_caps.supports_8bit
-            
+
         return False
-    
+
     def validate_device_compatibility(self, model_name: str, device_type: str) -> bool:
         """Check if a model is compatible with a device."""
         capabilities = self._get_device_capabilities(device_type)
         if not capabilities:
             return False
-            
+
         # Basic compatibility checks
         if device_type == 'mps':
             # Some models have issues with MPS
@@ -207,35 +207,35 @@ class DeviceManager:
             if any(model in model_name.lower() for model in problematic_models):
                 logger.warning(f"Model {model_name} may have issues with MPS")
                 return False
-                
+
         return True
-    
+
     def handle_oom_error(self, error: Exception, current_device: str) -> Optional[DeviceCapabilities]:
         """Handle out-of-memory errors with fallback strategy."""
         fallback_enabled = os.getenv('CODE_EXPLAINER_FALLBACK_ENABLED', 'true').lower() == 'true'
-        
+
         if not fallback_enabled:
             logger.error("OOM fallback disabled, re-raising error")
             raise error
-            
+
         logger.warning(f"OOM error on {current_device}: {error}")
-        
+
         # Try fallback devices
         fallback_order = {
             'cuda': ['mps', 'cpu'],
             'mps': ['cpu'],
             'cpu': []  # No fallback from CPU
         }.get(current_device, [])
-        
+
         for fallback_device in fallback_order:
             capabilities = self._get_device_capabilities(fallback_device)
             if capabilities:
                 logger.info(f"Falling back to {fallback_device}")
                 return capabilities
-                
+
         logger.error("No fallback device available")
         return None
-    
+
     def get_device_info(self) -> Dict[str, Any]:
         """Get comprehensive device information for debugging."""
         info = {
@@ -244,7 +244,7 @@ class DeviceManager:
             'mps_available': torch.backends.mps.is_available() if hasattr(torch.backends, 'mps') else False,
             'devices': {}
         }
-        
+
         for device_type in ['cuda', 'mps', 'cpu']:
             capabilities = self._get_device_capabilities(device_type)
             if capabilities:
@@ -256,7 +256,7 @@ class DeviceManager:
                     'memory_gb': capabilities.memory_gb,
                     'compute_capability': capabilities.compute_capability
                 }
-                
+
         return info
 
 
@@ -269,7 +269,7 @@ def get_device_capabilities(prefer_device: Optional[str] = None) -> DeviceCapabi
     return device_manager.get_optimal_device(prefer_device)
 
 
-def get_recommended_dtype(device_caps: DeviceCapabilities, 
+def get_recommended_dtype(device_caps: DeviceCapabilities,
                          prefer_precision: Optional[str] = None) -> torch.dtype:
     """Get recommended dtype for device (convenience function)."""
     return device_manager.get_recommended_dtype(device_caps, prefer_precision)

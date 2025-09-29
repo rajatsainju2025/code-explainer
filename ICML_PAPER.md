@@ -39,7 +39,7 @@ Formally, we seek to learn a function $f: (C, X) \to E$ that maximizes explanati
 We propose **CodeExplainGPT**, a multi-component architecture that addresses these challenges through:
 
 - **Adaptive Retrieval**: Dynamic selection of relevant examples from large code corpora
-- **Symbolic Analysis**: Integration of program analysis techniques for structural understanding  
+- **Symbolic Analysis**: Integration of program analysis techniques for structural understanding
 - **Multi-Agent Orchestration**: Specialized agents for different aspects of code comprehension
 - **Hierarchical Generation**: Multi-level explanation generation from high-level concepts to implementation details
 
@@ -68,7 +68,7 @@ Multi-agent approaches in NLP [Li et al., 2023] demonstrate improved performance
 Our framework consists of four main components:
 
 1. **Retrieval Module** ($R$): Identifies relevant code examples from a large corpus
-2. **Symbolic Analyzer** ($S$): Extracts structural and semantic program features  
+2. **Symbolic Analyzer** ($S$): Extracts structural and semantic program features
 3. **Multi-Agent Orchestrator** ($M$): Coordinates specialized understanding agents
 4. **Explanation Generator** ($G$): Produces natural language explanations
 
@@ -88,7 +88,7 @@ $$\text{embed}(c) = \text{CodeBERT}_{\text{ft}}(\text{tokenize}(c))$$
 
 We define a composite similarity measure that considers:
 - **Syntactic Similarity**: Based on AST structural comparison
-- **Semantic Similarity**: Using learned embeddings  
+- **Semantic Similarity**: Using learned embeddings
 - **Functional Similarity**: Based on execution traces and I/O patterns
 
 $$\text{sim}(c_1, c_2) = \alpha \cdot \text{sim}_{\text{syn}}(c_1, c_2) + \beta \cdot \text{sim}_{\text{sem}}(c_1, c_2) + \gamma \cdot \text{sim}_{\text{func}}(c_1, c_2)$$
@@ -97,7 +97,7 @@ $$\text{sim}(c_1, c_2) = \alpha \cdot \text{sim}_{\text{syn}}(c_1, c_2) + \beta 
 
 The retrieval strategy adapts based on code characteristics:
 - **Simple Functions**: Focus on syntactic similarity
-- **Complex Algorithms**: Emphasize functional similarity  
+- **Complex Algorithms**: Emphasize functional similarity
 - **API Usage**: Prioritize semantic context
 
 ### 3.3 Symbolic Analysis Integration
@@ -116,7 +116,7 @@ These features are integrated into the neural generation process through attenti
 We employ four specialized agents:
 
 1. **Structural Agent** ($A_s$): Focuses on code organization and architecture
-2. **Semantic Agent** ($A_{sem}$): Handles meaning and functionality  
+2. **Semantic Agent** ($A_{sem}$): Handles meaning and functionality
 3. **Contextual Agent** ($A_c$)$: Manages external dependencies and usage patterns
 4. **Verification Agent** ($A_v$): Validates explanation accuracy and completeness
 
@@ -164,7 +164,7 @@ We compare against:
 
 #### Human Evaluation
 - **Accuracy**: Technical correctness of explanations (1-5 scale)
-- **Clarity**: Understandability and readability (1-5 scale)  
+- **Clarity**: Understandability and readability (1-5 scale)
 - **Completeness**: Coverage of important code aspects (1-5 scale)
 - **Preference**: Pairwise comparison with baseline methods
 
@@ -259,7 +259,7 @@ Our results demonstrate that combining retrieval, symbolic analysis, and multi-a
 ### 7.3 Future Work
 
 - **Efficiency Optimization**: Faster multi-agent coordination algorithms
-- **Interactive Explanation**: Dynamic explanation adjustment based on user feedback  
+- **Interactive Explanation**: Dynamic explanation adjustment based on user feedback
 - **Code Generation**: Extending to bidirectional code-explanation tasks
 
 ## 8. Conclusion

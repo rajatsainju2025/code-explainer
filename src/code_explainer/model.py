@@ -63,7 +63,7 @@ class ModelConfig:
 
 class CodeExplainer:
     """Main class for code explanation inference.
-    
+
     Attributes:
         config (Config): Hydra configuration object
         explanation_cache (Optional[ExplanationCache]): Cache for generated explanations
@@ -74,7 +74,7 @@ class CodeExplainer:
     model_loader: Optional["ModelLoader"]
     _resources: Optional[Any]
     explanation_cache: Optional["ExplanationCache"]
-    
+
     @property
     def model(self) -> PreTrainedModel:
         """Get the loaded model.
@@ -150,7 +150,7 @@ class CodeExplainer:
             level, lf = self._get_logging_settings(cfg_dict)
             setup_logging(log_level=level, log_file=lf)
         self.logger = get_logger()
-        
+
         # Set up model loader and load model resources
         self.model_loader = None
         self._resources = None
@@ -199,7 +199,7 @@ class CodeExplainer:
                     device=torch.device("cpu"),
                     model_type="causal"
                 )
-        
+
         # Initialize caching if enabled
         cache_enabled = self._cfg_get("cache.enabled", False)
         if cache_enabled:
@@ -236,7 +236,7 @@ class CodeExplainer:
         """
         # Validate inputs
         request = CodeExplanationRequest(code=code, max_length=max_length, strategy=strategy)
-        
+
         # Use validated data
         code = request.code
         max_length = request.max_length
@@ -258,7 +258,7 @@ class CodeExplainer:
         # Ensure model and tokenizer are loaded
         if self.tokenizer is None or self.model is None:
             raise RuntimeError("Model and tokenizer must be initialized before generating explanations")
-            
+
         tok: PreTrainedTokenizerBase = self.tokenizer
         mdl: PreTrainedModel = self.model
 
@@ -357,12 +357,12 @@ class CodeExplainer:
         """
         # Validate inputs
         request = BatchCodeExplanationRequest(codes=codes, max_length=max_length, strategy=strategy)
-        
+
         # Use validated data
         codes = request.codes
         max_length = request.max_length
         strategy = request.strategy
-        
+
         if not codes:
             return []
 
@@ -594,7 +594,7 @@ provides formal conditions and properties that can be verified through testing."
             # Fallback to regular explanation if intelligent explainer not available
             logger.warning("Intelligent explainer not available, falling back to standard explanation")
             return self.explain_code(code, strategy=strategy)
-        
+
         try:
             # Re-import to avoid None type issues
             from .intelligent_explainer import (
@@ -602,10 +602,10 @@ provides formal conditions and properties that can be verified through testing."
                 ExplanationAudience as EA,
                 ExplanationStyle as ES
             )
-            
+
             # Initialize intelligent explainer
             intelligent_explainer = IEG()
-            
+
             # Convert string parameters to enums
             audience_enum = EA.AUTOMATIC
             if audience:
@@ -613,14 +613,14 @@ provides formal conditions and properties that can be verified through testing."
                     audience_enum = EA(audience.lower())
                 except ValueError:
                     logger.warning(f"Unknown audience '{audience}', using automatic")
-            
+
             style_enum = ES.DETAILED
             if style:
                 try:
                     style_enum = ES(style.lower())
                 except ValueError:
                     logger.warning(f"Unknown style '{style}', using detailed")
-            
+
             # Generate intelligent explanation
             enhanced_explanation = intelligent_explainer.explain_code(
                 code=code,
@@ -632,14 +632,14 @@ provides formal conditions and properties that can be verified through testing."
                 include_security_notes=include_security_notes,
                 filename=filename
             )
-            
+
             # Format as markdown by default
             formatted_explanation = intelligent_explainer.format_explanation(
                 enhanced_explanation, "markdown"
             )
-            
+
             return formatted_explanation
-            
+
         except ImportError as e:
             logger.error(f"Intelligent explainer import failed: {e}")
             return self.explain_code(code, strategy=strategy)
@@ -664,7 +664,7 @@ provides formal conditions and properties that can be verified through testing."
         """
         if not INTELLIGENT_EXPLAINER_AVAILABLE or IntelligentExplanationGenerator is None:
             return None
-        
+
         try:
             # Re-import to avoid None type issues
             from .intelligent_explainer import (
@@ -672,9 +672,9 @@ provides formal conditions and properties that can be verified through testing."
                 ExplanationAudience as EA,
                 ExplanationStyle as ES
             )
-            
+
             intelligent_explainer = IEG()
-            
+
             # Convert parameters
             audience_enum = EA.AUTOMATIC
             if "audience" in kwargs:
@@ -682,14 +682,14 @@ provides formal conditions and properties that can be verified through testing."
                     audience_enum = EA(kwargs["audience"].lower())
                 except (ValueError, AttributeError):
                     pass
-            
+
             style_enum = ES.DETAILED
             if "style" in kwargs:
                 try:
                     style_enum = ES(kwargs["style"].lower())
                 except (ValueError, AttributeError):
                     pass
-            
+
             enhanced_explanation = intelligent_explainer.explain_code(
                 code=code,
                 strategy=kwargs.get("strategy"),
@@ -700,7 +700,7 @@ provides formal conditions and properties that can be verified through testing."
                 include_security_notes=kwargs.get("include_security_notes", True),
                 filename=kwargs.get("filename")
             )
-            
+
             # Return structured data
             return {
                 "primary_explanation": enhanced_explanation.primary_explanation,
@@ -723,7 +723,7 @@ provides formal conditions and properties that can be verified through testing."
                     "frameworks_count": len(enhanced_explanation.metadata["analysis"].frameworks),
                 }
             }
-            
+
         except ImportError as e:
             logger.error(f"Intelligent explainer import failed: {e}")
             return None

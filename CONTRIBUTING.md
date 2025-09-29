@@ -83,14 +83,14 @@ We use docstrings for API documentation. Please follow the Google style:
 ```python
 def example_function(param1: str, param2: int) -> bool:
     """Brief description of the function.
-    
+
     Args:
         param1: Description of param1
         param2: Description of param2
-        
+
     Returns:
         Description of return value
-        
+
     Raises:
         ValueError: When something goes wrong
     """

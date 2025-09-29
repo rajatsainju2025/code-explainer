@@ -16,13 +16,13 @@ except Exception:  # pragma: no cover
 try:
     from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_LATEST
     PROMETHEUS_AVAILABLE = True
-    
+
     # Metrics
     REQUESTS = Counter('api_requests_total', 'Total API requests', ['method', 'endpoint'])
     RETRIEVAL_REQUESTS = Counter('retrieval_requests_total', 'Total retrieval requests')
-    RETRIEVAL_ERRORS = Counter('retrieval_errors_total', 'Total retrieval errors') 
+    RETRIEVAL_ERRORS = Counter('retrieval_errors_total', 'Total retrieval errors')
     RETRIEVAL_DURATION = Histogram('retrieval_duration_seconds', 'Retrieval request duration')
-    
+
 except ImportError:
     PROMETHEUS_AVAILABLE = False
     # Mock metrics for when prometheus is not available
@@ -30,7 +30,7 @@ except ImportError:
         def inc(self): pass
         def observe(self, value=None): pass
         def start_timer(self): return self
-    
+
     REQUESTS = MockMetric()
     RETRIEVAL_REQUESTS = MockMetric()
     RETRIEVAL_ERRORS = MockMetric()
@@ -217,7 +217,7 @@ class EnhancedRetrievalRequest(BaseModel):
     query: str = Field(..., min_length=3, max_length=200000, description="Code query")
     k: int = Field(default=3, ge=1, le=50, description="Number of results")
     method: str = Field(default="hybrid", description="Retrieval method")
-    alpha: float = Field(default=0.5, ge=0.0, le=1.0, description="Hybrid weight") 
+    alpha: float = Field(default=0.5, ge=0.0, le=1.0, description="Hybrid weight")
     use_reranker: bool = Field(default=True, description="Use cross-encoder reranking")
     use_mmr: bool = Field(default=True, description="Use MMR for diversity")
     rerank_top_k: int = Field(default=20, ge=1, le=100, description="Candidates to rerank")
@@ -300,12 +300,12 @@ async def retrieve_similar(
         # Update metrics
         RETRIEVAL_REQUESTS.inc()
         retrieval_timer = RETRIEVAL_DURATION.start_timer()
-        
+
         logger.info(f"Retrieval request: method={request.method}, k={request.k}, request_id={request_id}")
-        
+
         if retriever is None:
             raise HTTPException(status_code=503, detail="Retrieval service not available")
-        
+
         # Use enhanced retrieval if advanced features are requested
         if request.use_reranker or request.use_mmr:
             results = retriever.retrieve_similar_code_enhanced(
@@ -335,14 +335,14 @@ async def retrieve_similar(
                 alpha=request.alpha
             )
             metadata = {"enhanced": False}
-        
+
         retrieval_timer.observe()
-        
+
         return RetrievalResponse(
             similar_codes=similar_codes,
             metadata=metadata
         )
-        
+
     except Exception as e:
         RETRIEVAL_ERRORS.inc()
         logger.error(f"Retrieval failed: {e}")
@@ -359,12 +359,12 @@ async def retrieve_similar_enhanced(
         # Update metrics
         RETRIEVAL_REQUESTS.inc()
         retrieval_timer = RETRIEVAL_DURATION.start_timer()
-        
+
         logger.info(f"Enhanced retrieval: method={request.method}, rerank={request.use_reranker}, mmr={request.use_mmr}, request_id={request_id}")
-        
+
         if retriever is None:
             raise HTTPException(status_code=503, detail="Retrieval service not available")
-        
+
         results = retriever.retrieve_similar_code_enhanced(
             query_code=request.query,
             k=request.k,
@@ -375,16 +375,16 @@ async def retrieve_similar_enhanced(
             rerank_top_k=request.rerank_top_k,
             mmr_lambda=request.mmr_lambda
         )
-        
+
         retrieval_timer.observe()
-        
+
         return EnhancedRetrievalResponse(
             results=results,
             query=request.query,
             method_used=request.method,
             total_results=len(results)
         )
-            
+
     except Exception as e:
         RETRIEVAL_ERRORS.inc()
         logger.error(f"Enhanced retrieval failed: {e}")

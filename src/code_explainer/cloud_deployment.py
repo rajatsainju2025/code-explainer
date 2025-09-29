@@ -7,11 +7,11 @@ from pathlib import Path
 
 class CloudDeployment:
     """Cloud-native deployment configurations."""
-    
+
     def __init__(self, config_path: Optional[str] = None):
         self.config_path = config_path or "deployments"
         self.templates = self._load_templates()
-    
+
     def _load_templates(self) -> Dict[str, Dict[str, Any]]:
         """Load deployment templates."""
         return {
@@ -85,17 +85,17 @@ class CloudDeployment:
                 }
             }
         }
-    
+
     def generate_kubernetes_manifests(self, output_dir: str = "k8s"):
         """Generate Kubernetes manifests."""
         output_path = Path(output_dir)
         output_path.mkdir(exist_ok=True)
-        
+
         # Deployment
         deployment = self.templates["kubernetes"]
         with open(output_path / "deployment.yaml", 'w') as f:
             yaml.dump(deployment, f)
-        
+
         # Service
         service = {
             "apiVersion": "v1",
@@ -109,7 +109,7 @@ class CloudDeployment:
         }
         with open(output_path / "service.yaml", 'w') as f:
             yaml.dump(service, f)
-        
+
         # ConfigMap
         configmap = {
             "apiVersion": "v1",
@@ -124,24 +124,24 @@ class CloudDeployment:
         }
         with open(output_path / "configmap.yaml", 'w') as f:
             yaml.dump(configmap, f)
-    
+
     def generate_docker_compose(self, output_file: str = "docker-compose.yml"):
         """Generate Docker Compose file."""
         compose = self.templates["docker_compose"]
         with open(output_file, 'w') as f:
             yaml.dump(compose, f)
-    
+
     def generate_serverless_config(self, output_file: str = "serverless.yml"):
         """Generate Serverless Framework config."""
         serverless = self.templates["serverless"]
         with open(output_file, 'w') as f:
             yaml.dump(serverless, f)
-    
+
     def generate_terraform_config(self, output_dir: str = "terraform"):
         """Generate Terraform configurations."""
         output_path = Path(output_dir)
         output_path.mkdir(exist_ok=True)
-        
+
         # Main config
         main_tf = '''
 terraform {
@@ -167,7 +167,7 @@ resource "aws_ecs_task_definition" "code_explainer" {
   requires_compatibilities = ["FARGATE"]
   cpu                      = "512"
   memory                   = "1024"
-  
+
   container_definitions = jsonencode([{
     name  = "code-explainer"
     image = var.container_image
@@ -186,12 +186,12 @@ resource "aws_ecs_service" "code_explainer" {
   cluster         = aws_ecs_cluster.code_explainer.id
   task_definition = aws_ecs_task_definition.code_explainer.arn
   desired_count   = var.desired_count
-  
+
   network_configuration {
     subnets         = var.subnet_ids
     security_groups = [aws_security_group.code_explainer.id]
   }
-  
+
   load_balancer {
     target_group_arn = aws_lb_target_group.code_explainer.arn
     container_name   = "code-explainer"
@@ -201,7 +201,7 @@ resource "aws_ecs_service" "code_explainer" {
 
 resource "aws_security_group" "code_explainer" {
   name_prefix = "code-explainer-"
-  
+
   ingress {
     from_port   = 8000
     to_port     = 8000
@@ -222,7 +222,7 @@ resource "aws_lb_target_group" "code_explainer" {
   port        = 8000
   protocol    = "HTTP"
   vpc_id      = var.vpc_id
-  
+
   health_check {
     path = "/health"
   }
@@ -232,17 +232,17 @@ resource "aws_lb_listener" "code_explainer" {
   load_balancer_arn = aws_lb.code_explainer.arn
   port              = "80"
   protocol          = "HTTP"
-  
+
   default_action {
     type             = "forward"
     target_group_arn = aws_lb_target_group.code_explainer.arn
   }
 }
 '''
-        
+
         with open(output_path / "main.tf", 'w') as f:
             f.write(main_tf)
-        
+
         # Variables
         variables_tf = '''
 variable "region" {
@@ -277,7 +277,7 @@ variable "subnet_ids" {
   type        = list(string)
 }
 '''
-        
+
         with open(output_path / "variables.tf", 'w') as f:
             f.write(variables_tf)
 
@@ -285,19 +285,19 @@ variable "subnet_ids" {
 def generate_all_deployments():
     """Generate all deployment configurations."""
     deployment = CloudDeployment()
-    
+
     # Kubernetes
     deployment.generate_kubernetes_manifests()
-    
+
     # Docker Compose
     deployment.generate_docker_compose()
-    
+
     # Serverless
     deployment.generate_serverless_config()
-    
+
     # Terraform
     deployment.generate_terraform_config()
-    
+
     print("All deployment configurations generated!")
 
 if __name__ == "__main__":

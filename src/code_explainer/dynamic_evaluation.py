@@ -74,17 +74,17 @@ class EvaluationResult:
 
 class TaskGenerator:
     """Generates dynamic evaluation tasks."""
-    
+
     def __init__(self, template_path: Optional[str] = None):
         """Initialize task generator.
-        
+
         Args:
             template_path: Path to task templates
         """
         self.template_path = template_path
         self.templates = self._load_templates()
         self.used_combinations = set()
-    
+
     def _load_templates(self) -> Dict[str, Any]:
         """Load task templates from file or use defaults."""
         if self.template_path and Path(self.template_path).exists():
@@ -93,7 +93,7 @@ class TaskGenerator:
                     return json.load(f)
             except Exception as e:
                 logger.warning(f"Failed to load templates: {e}")
-        
+
         # Default templates
         return {
             "code_explanation": [
@@ -118,14 +118,14 @@ class TaskGenerator:
                 }
             ]
         }
-    
+
     def generate_code_sample(self, difficulty: DifficultyLevel, language: str = "python") -> str:
         """Generate a code sample based on difficulty.
-        
+
         Args:
             difficulty: Target difficulty level
             language: Programming language
-            
+
         Returns:
             Generated code sample
         """
@@ -156,45 +156,45 @@ class TaskGenerator:
                 samples = [
                     "import ast\nimport inspect\nfrom typing import Dict, List, Any, Optional, Union\n\nclass CodeAnalyzer(ast.NodeVisitor):\n    def __init__(self):\n        self.metrics = {\n            'complexity': 0,\n            'functions': [],\n            'classes': [],\n            'imports': [],\n            'security_issues': []\n        }\n        self.current_function = None\n    \n    def visit_FunctionDef(self, node: ast.FunctionDef) -> None:\n        self.current_function = node.name\n        func_info = {\n            'name': node.name,\n            'args': [arg.arg for arg in node.args.args],\n            'decorators': [self._get_decorator_name(d) for d in node.decorator_list],\n            'complexity': self._calculate_complexity(node)\n        }\n        self.metrics['functions'].append(func_info)\n        self.generic_visit(node)\n        self.current_function = None\n    \n    def _calculate_complexity(self, node: ast.AST) -> int:\n        complexity = 1\n        for child in ast.walk(node):\n            if isinstance(child, (ast.If, ast.While, ast.For, ast.ExceptHandler)):\n                complexity += 1\n            elif isinstance(child, ast.BoolOp):\n                complexity += len(child.values) - 1\n        return complexity\n    \n    def _get_decorator_name(self, decorator: ast.AST) -> str:\n        if isinstance(decorator, ast.Name):\n            return decorator.id\n        elif isinstance(decorator, ast.Attribute):\n            return f'{decorator.value.id}.{decorator.attr}'\n        return 'unknown'"
                 ]
-            
+
             return random.choice(samples)
-        
+
         # Add more languages as needed
         return f"// {language} code sample for difficulty {difficulty.name}"
-    
-    def generate_task(self, 
+
+    def generate_task(self,
                      difficulty: DifficultyLevel,
                      dimensions: List[EvaluationDimension],
                      constraints: Optional[Dict[str, Any]] = None) -> DynamicTask:
         """Generate a dynamic evaluation task.
-        
+
         Args:
             difficulty: Target difficulty level
             dimensions: Evaluation dimensions to focus on
             constraints: Additional constraints for task generation
-            
+
         Returns:
             Generated dynamic task
         """
         constraints = constraints or {}
-        
+
         # Select task type based on dimensions
         if EvaluationDimension.CORRECTNESS in dimensions:
             task_type = "code_explanation"
         elif EvaluationDimension.SECURITY in dimensions:
-            task_type = "bug_detection" 
+            task_type = "bug_detection"
         elif EvaluationDimension.EFFICIENCY in dimensions:
             task_type = "optimization"
         else:
             task_type = random.choice(list(self.templates.keys()))
-        
+
         # Generate unique task ID
         task_id = hashlib.sha256(f"{task_type}_{difficulty.name}_{time.time()}".encode()).hexdigest()[:16]
-        
+
         # Get template
         template_data = random.choice(self.templates[task_type])
         template = template_data["template"]
-        
+
         # Generate variables
         variables = {}
         for var in template_data["variables"]:
@@ -202,14 +202,14 @@ class TaskGenerator:
                 variables[var] = constraints.get("language", "python")
             elif var == "code":
                 variables[var] = self.generate_code_sample(difficulty, variables.get("language", "python"))
-        
+
         # Fill template
         try:
             prompt = template.format(**variables)
         except KeyError as e:
             logger.error(f"Template formatting error: {e}")
             prompt = template  # Fallback to raw template
-        
+
         return DynamicTask(
             task_id=task_id,
             prompt=prompt,
@@ -226,16 +226,16 @@ class TaskGenerator:
 
 class CapabilityTracker:
     """Tracks model capabilities over time."""
-    
+
     def __init__(self):
         """Initialize capability tracker."""
         self.capabilities: Dict[EvaluationDimension, ModelCapability] = {}
         self.history: List[EvaluationResult] = []
         self.adaptation_threshold = 0.1  # Score change threshold for adaptation
-    
+
     def update_capability(self, dimension: EvaluationDimension, score: float) -> None:
         """Update capability for a dimension.
-        
+
         Args:
             dimension: Evaluation dimension
             score: New score to incorporate
@@ -250,12 +250,12 @@ class CapabilityTracker:
             )
         else:
             cap = self.capabilities[dimension]
-            
+
             # Update running average
             old_score = cap.current_score
             cap.sample_size += 1
             cap.current_score = (cap.current_score * (cap.sample_size - 1) + score) / cap.sample_size
-            
+
             # Update confidence interval (simplified)
             recent_scores = [r.scores.get(dimension, 0) for r in self.history[-10:] if dimension in r.scores]
             if recent_scores:
@@ -264,7 +264,7 @@ class CapabilityTracker:
                     max(0.0, cap.current_score - 1.96 * std),
                     min(1.0, cap.current_score + 1.96 * std)
                 )
-            
+
             # Determine trend
             if cap.current_score > old_score + self.adaptation_threshold:
                 cap.trend = "improving"
@@ -272,24 +272,24 @@ class CapabilityTracker:
                 cap.trend = "declining"
             else:
                 cap.trend = "stable"
-            
+
             cap.last_updated = datetime.now()
-    
+
     def get_adaptive_difficulty(self, dimension: EvaluationDimension) -> DifficultyLevel:
         """Get adaptive difficulty for a dimension.
-        
+
         Args:
             dimension: Evaluation dimension
-            
+
         Returns:
             Recommended difficulty level
         """
         if dimension not in self.capabilities:
             return DifficultyLevel.MEDIUM  # Default
-        
+
         cap = self.capabilities[dimension]
         score = cap.current_score
-        
+
         # Adaptive difficulty based on current capability
         if score < 0.3:
             return DifficultyLevel.EASY
@@ -299,21 +299,21 @@ class CapabilityTracker:
             return DifficultyLevel.HARD
         else:
             return DifficultyLevel.EXPERT
-    
+
     def should_adapt_evaluation(self, dimension: EvaluationDimension) -> bool:
         """Check if evaluation should be adapted for a dimension.
-        
+
         Args:
             dimension: Evaluation dimension
-            
+
         Returns:
             True if adaptation is needed
         """
         if dimension not in self.capabilities:
             return True  # First evaluation
-        
+
         cap = self.capabilities[dimension]
-        
+
         # Adapt if trend is strong or confidence interval is wide
         ci_width = cap.confidence_interval[1] - cap.confidence_interval[0]
         return cap.trend != "stable" or ci_width > 0.3
@@ -321,10 +321,10 @@ class CapabilityTracker:
 
 class DynamicEvaluator:
     """Dynamic evaluation system that adapts to model capabilities."""
-    
+
     def __init__(self, config: Optional[Dict[str, Any]] = None):
         """Initialize dynamic evaluator.
-        
+
         Args:
             config: Configuration dictionary
         """
@@ -334,37 +334,37 @@ class DynamicEvaluator:
         self.evaluation_history: List[EvaluationResult] = []
         self.min_sample_size = self.config.get("min_sample_size", 5)
         self.adaptation_frequency = self.config.get("adaptation_frequency", 10)
-    
-    async def evaluate_model(self, 
+
+    async def evaluate_model(self,
                            model_fn: Callable[[str], Any],
                            dimensions: List[EvaluationDimension],
                            num_tasks: int = 10) -> List[EvaluationResult]:
         """Evaluate model with dynamic task generation.
-        
+
         Args:
             model_fn: Function that takes prompt and returns response
             dimensions: Evaluation dimensions to test
             num_tasks: Number of tasks to generate
-            
+
         Returns:
             List of evaluation results
         """
         results = []
-        
+
         for i in range(num_tasks):
             # Select dimension to focus on (round-robin or based on needs)
             focus_dimension = dimensions[i % len(dimensions)]
-            
+
             # Get adaptive difficulty
             difficulty = self.capability_tracker.get_adaptive_difficulty(focus_dimension)
-            
+
             # Generate task
             task = self.task_generator.generate_task(
                 difficulty=difficulty,
                 dimensions=[focus_dimension],
                 constraints=self.config.get("task_constraints", {})
             )
-            
+
             # Evaluate task
             start_time = time.time()
             try:
@@ -374,13 +374,13 @@ class DynamicEvaluator:
                     model_response = await model_response_raw
                 else:
                     model_response = str(model_response_raw)
-                    
+
                 execution_time = time.time() - start_time
-                
+
                 # Score response (simplified - would use sophisticated scoring)
                 scores = await self._score_response(task, model_response)
                 overall_score = sum(scores.values()) / len(scores)
-                
+
                 result = EvaluationResult(
                     task_id=task.task_id,
                     model_response=model_response,
@@ -388,33 +388,33 @@ class DynamicEvaluator:
                     overall_score=overall_score,
                     execution_time=execution_time
                 )
-                
+
                 results.append(result)
                 self.evaluation_history.append(result)
-                
+
                 # Update capability tracking
                 for dim, score in scores.items():
                     self.capability_tracker.update_capability(dim, score)
-                
+
                 logger.info(f"Task {i+1}/{num_tasks} completed - Score: {overall_score:.3f}")
-                
+
             except Exception as e:
                 logger.error(f"Evaluation failed for task {task.task_id}: {e}")
-        
+
         return results
-    
+
     async def _score_response(self, task: DynamicTask, response: str) -> Dict[EvaluationDimension, float]:
         """Score model response (simplified implementation).
-        
+
         Args:
             task: Evaluation task
             response: Model response
-            
+
         Returns:
             Scores for each dimension
         """
         scores = {}
-        
+
         # Simplified scoring logic - in practice would use sophisticated metrics
         for dimension in task.dimensions:
             if dimension == EvaluationDimension.CORRECTNESS:
@@ -431,24 +431,24 @@ class DynamicEvaluator:
             else:
                 # Default scoring
                 score = random.uniform(0.4, 0.9)  # Placeholder
-            
+
             scores[dimension] = max(0, min(1, score))
-        
+
         return scores
-    
+
     def get_evaluation_summary(self) -> Dict[str, Any]:
         """Get summary of evaluation results.
-        
+
         Returns:
             Evaluation summary
         """
         if not self.evaluation_history:
             return {"message": "No evaluations completed"}
-        
+
         # Calculate statistics
         all_scores = [r.overall_score for r in self.evaluation_history]
         execution_times = [r.execution_time for r in self.evaluation_history]
-        
+
         # Capability breakdown
         capability_summary = {}
         for dimension, capability in self.capability_tracker.capabilities.items():
@@ -458,7 +458,7 @@ class DynamicEvaluator:
                 "trend": capability.trend,
                 "sample_size": capability.sample_size
             }
-        
+
         return {
             "total_evaluations": len(self.evaluation_history),
             "overall_statistics": {
@@ -474,10 +474,10 @@ class DynamicEvaluator:
                 "trend": "improving" if len(all_scores) > 5 and np.mean(all_scores[-5:]) > np.mean(all_scores[:-5]) else "stable"
             }
         }
-    
+
     def save_evaluation_state(self, filepath: str) -> None:
         """Save evaluation state to file.
-        
+
         Args:
             filepath: Path to save state
         """
@@ -497,12 +497,12 @@ class DynamicEvaluator:
                 "evaluation_count": len(self.evaluation_history),
                 "last_update": datetime.now().isoformat()
             }
-            
+
             with open(filepath, 'w') as f:
                 json.dump(state, f, indent=2)
-            
+
             logger.info(f"Evaluation state saved to {filepath}")
-            
+
         except Exception as e:
             logger.error(f"Failed to save evaluation state: {e}")
 
@@ -510,33 +510,33 @@ class DynamicEvaluator:
 # Example usage
 async def demo_dynamic_evaluation():
     """Demonstrate dynamic evaluation system."""
-    
+
     # Mock model function
     def mock_model(prompt: str) -> str:
         time.sleep(0.1)  # Simulate processing time
         return f"Mock response to: {prompt[:50]}..."
-    
+
     # Create evaluator
     evaluator = DynamicEvaluator({
         "min_sample_size": 3,
         "adaptation_frequency": 5,
         "task_constraints": {"language": "python"}
     })
-    
+
     # Run evaluation
     dimensions = [
         EvaluationDimension.CORRECTNESS,
         EvaluationDimension.CLARITY,
         EvaluationDimension.COMPLETENESS
     ]
-    
+
     results = await evaluator.evaluate_model(mock_model, dimensions, num_tasks=10)
-    
+
     # Get summary
     summary = evaluator.get_evaluation_summary()
     print("Evaluation Summary:")
     print(json.dumps(summary, indent=2))
-    
+
     return evaluator, results
 
 

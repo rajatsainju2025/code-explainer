@@ -14,7 +14,7 @@ model:
   torch_dtype: "auto" # Legacy - use precision instead
   load_in_8bit: false # Legacy - use precision: "8bit" instead
 
-# Training configuration  
+# Training configuration
 training:
   output_dir: "./results"
   num_train_epochs: 50
@@ -32,7 +32,7 @@ training:
   bf16: false
   gradient_checkpointing: false
   torch_compile: false
-  
+
 # Data configuration
 data:
   train_file: "data/train.json"
@@ -43,7 +43,7 @@ data:
   # Optional: Hugging Face Hub dataset id
   hub_id: null
   hub_split: "train"
-  
+
 # Prompt configuration
 prompt:
   template: "Explain this Python code:\n```python\n{code}\n```\nExplanation:"

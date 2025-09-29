@@ -11,10 +11,10 @@
 
 ## Metrics
 
-- BLEU-4: 
-- ROUGE-L: 
-- BERTScore: 
-- CodeBLEU: 
+- BLEU-4:
+- ROUGE-L:
+- BERTScore:
+- CodeBLEU:
 
 ## Limitations
 

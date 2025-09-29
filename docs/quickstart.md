@@ -200,7 +200,7 @@ results = []
 for file_path in files:
     with open(file_path, 'r') as f:
         code = f.read()
-    
+
     explanation = explainer.explain(code)
     results.append({
         "file": file_path,

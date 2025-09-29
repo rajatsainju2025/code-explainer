@@ -36,30 +36,30 @@ class ModelLoader:
 
     def __init__(self, config: ModelConfig):
         """Initialize model loader.
-        
+
         Args:
             config: Model configuration
         """
         self.config = config
         self.device_manager = DeviceManager()
-        
+
         # Get device preference from config, fallback to "auto"
         device_pref = getattr(config, 'device', 'auto')
         if device_pref == 'auto':
             device_pref = None
-            
+
         self.device_capabilities = self.device_manager.get_optimal_device(device_pref)
         self.device = self.device_capabilities.device
 
     def load(self, model_path: Optional[Union[str, Path]] = None) -> ModelResources:
         """Load model and tokenizer from path or configuration.
-        
+
         Args:
             model_path: Optional path to model files. If None, uses config.name.
-        
+
         Returns:
             ModelResources: Container with loaded model resources
-            
+
         Raises:
             ResourceError: If model files cannot be found
             ConfigurationError: If model configuration is invalid
@@ -69,7 +69,7 @@ class ModelLoader:
         try:
             tokenizer = self._load_tokenizer(path)
             model = self._load_model(path, tokenizer)
-            
+
             return ModelResources(
                 model=model,
                 tokenizer=tokenizer,
@@ -77,7 +77,7 @@ class ModelLoader:
                 model_type=self.config.arch,
                 device_capabilities=self.device_capabilities
             )
-            
+
         except FileNotFoundError as e:
             raise ResourceError(f"Model not found at {path}: {e}") from e
         except ValueError as e:
@@ -87,10 +87,10 @@ class ModelLoader:
 
     def _load_tokenizer(self, path: str) -> PreTrainedTokenizerBase:
         """Load and configure tokenizer.
-        
+
         Args:
             path: Path or name of model/tokenizer
-            
+
         Returns:
             PreTrainedTokenizerBase: Configured tokenizer
         """
@@ -103,11 +103,11 @@ class ModelLoader:
         self, path: str, tokenizer: PreTrainedTokenizerBase
     ) -> PreTrainedModel:
         """Load and configure model.
-        
+
         Args:
             path: Path or name of model
             tokenizer: Associated tokenizer for pad token configuration
-            
+
         Returns:
             PreTrainedModel: Configured model
         """
@@ -120,15 +120,15 @@ class ModelLoader:
         recommended_dtype = self.device_manager.get_recommended_dtype(
             self.device_capabilities, precision_pref
         )
-        
+
         # Check if we should use 8-bit quantization
         use_8bit = self.config.load_in_8bit or self.device_manager.should_use_quantization(
             self.device_capabilities
         )
-        
+
         # Prepare model loading arguments
         model_kwargs: Dict[str, Any] = {"torch_dtype": recommended_dtype}
-        
+
         if use_8bit and self.device_capabilities.supports_8bit:
             if self.device_capabilities.device_type not in ("cpu", "mps"):
                 model_kwargs.update({
@@ -178,6 +178,6 @@ class ModelLoader:
                     model = model.to(device_obj)  # type: ignore
                 else:
                     raise
-            
+
         model.eval()
         return model

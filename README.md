@@ -53,7 +53,7 @@ Device portability and intelligent explanations:
 
 ### 🔒 **Security & Safety**
 - **Code Redaction**: Automatic PII and credential detection and redaction
-- **Security Validation**: AST-based dangerous pattern detection  
+- **Security Validation**: AST-based dangerous pattern detection
 - **Safe Execution**: Sandboxed code execution with resource limits
 - **Input Validation**: Comprehensive request validation and sanitization
 
@@ -256,21 +256,21 @@ graph TB
     A[Code Input] --> B[Security Validation]
     B --> C[AST Analysis]
     C --> D[Strategy Selection]
-    
+
     D --> E1[Vanilla LLM]
     D --> E2[AST-Augmented]
     D --> E3[Enhanced RAG]
     D --> E4[Multi-Agent]
-    
+
     E3 --> F[Vector Store]
     E3 --> G[BM25 Index]
     E3 --> H[Cross-Encoder Reranker]
-    
+
     E1 --> I[Response Synthesis]
     E2 --> I
     E3 --> I
     E4 --> I
-    
+
     I --> J[Quality Validation]
     J --> K[Security Redaction]
     K --> L[Final Explanation]
@@ -368,7 +368,7 @@ Contribute examples/data: see the discussion “Call for community samples (tiny
 class BankAccount:
     def __init__(self, balance=0):
         self.balance = balance
-    
+
     def deposit(self, amount):
         self.balance += amount
         return self.balance
@@ -445,7 +445,7 @@ docker run -v $(pwd)/data:/app/data code-explainer train --data /app/data/train.
 
 - [ ] **Multi-language Support**: JavaScript, Java, C++, etc.
 - [ ] **Advanced Models**: Integration with CodeT5, CodeBERT, StarCoder
-- [ ] **VS Code Extension**: Direct integration with development environment  
+- [ ] **VS Code Extension**: Direct integration with development environment
 - [ ] **API Service**: RESTful API for integration with other tools
 - [ ] **Performance Optimization**: Model quantization and optimization
 - [ ] **Enterprise Features**: Authentication, usage tracking, custom deployments

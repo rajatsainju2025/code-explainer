@@ -39,7 +39,7 @@ class APIResponse(BaseModel):
 
 class EnterpriseAPISuite:
     """Enterprise-grade API suite."""
-    
+
     def __init__(self, model_fn: Optional[Callable[[str], str]] = None):
         self.app = FastAPI(
             title="Code Intelligence Platform API",
@@ -49,19 +49,19 @@ class EnterpriseAPISuite:
         self.model_fn = model_fn or self._default_model
         self.security = HTTPBearer()
         self._setup_routes()
-    
+
     def _default_model(self, prompt: str) -> str:
         """Default mock model."""
         return f"Response to: {prompt[:50]}..."
-    
+
     def _setup_routes(self):
         """Setup API routes."""
-        
+
         @self.app.get("/health")
         async def health_check():
             """Health check endpoint."""
             return {"status": "healthy", "version": "1.0.0"}
-        
+
         @self.app.post("/analyze", response_model=APIResponse)
         async def analyze_code(
             request: CodeAnalysisRequest,
@@ -79,7 +79,7 @@ class EnterpriseAPISuite:
                 return APIResponse(success=True, data=analysis)
             except Exception as e:
                 raise HTTPException(status_code=500, detail=str(e))
-        
+
         @self.app.post("/generate", response_model=APIResponse)
         async def generate_code(
             request: CodeGenerationRequest,
@@ -93,7 +93,7 @@ class EnterpriseAPISuite:
                 return APIResponse(success=True, data={"status": "processing"})
             except Exception as e:
                 raise HTTPException(status_code=500, detail=str(e))
-        
+
         @self.app.post("/evaluate", response_model=APIResponse)
         async def evaluate_model(
             request: EvaluationRequest,
@@ -106,7 +106,7 @@ class EnterpriseAPISuite:
                 return APIResponse(success=True, data={"status": "evaluating"})
             except Exception as e:
                 raise HTTPException(status_code=500, detail=str(e))
-        
+
         @self.app.get("/metrics")
         async def get_metrics(credentials: HTTPAuthorizationCredentials = Depends(self.security)):
             """Get API metrics."""
@@ -115,20 +115,20 @@ class EnterpriseAPISuite:
                 "errors_total": 2,
                 "avg_response_time": 0.5
             }
-    
+
     async def _async_generate(self, request: CodeGenerationRequest):
         """Async code generation."""
         # Mock async processing
         await asyncio.sleep(1)
         result = await asyncio.to_thread(self.model_fn, request.prompt)
         logger.info(f"Generated code for: {request.prompt[:30]}...")
-    
+
     async def _async_evaluate(self, request: EvaluationRequest):
         """Async model evaluation."""
         # Mock async evaluation
         await asyncio.sleep(2)
         logger.info(f"Evaluated model: {request.model_path}")
-    
+
     def start_server(self, host: str = "0.0.0.0", port: int = 8000):
         """Start the API server."""
         uvicorn.run(self.app, host=host, port=port)
@@ -136,15 +136,15 @@ class EnterpriseAPISuite:
 # GraphQL support (optional)
 try:
     from graphene import ObjectType, String, Schema
-    
+
     class Query(ObjectType):
         hello = String()
-        
+
         def resolve_hello(self, info):
             return "Hello from Code Intelligence Platform"
-    
+
     graphql_schema = Schema(query=Query)
-    
+
 except ImportError:
     graphql_schema = None
 

@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 def setup_logging(verbose: bool = False) -> None:
     """Setup logging configuration.
-    
+
     Args:
         verbose: Enable verbose logging
     """
@@ -36,33 +36,33 @@ def setup_logging(verbose: bool = False) -> None:
 
 def load_model_function(model_path: str) -> Any:
     """Load model function from path.
-    
+
     Args:
         model_path: Path to model or model configuration
-        
+
     Returns:
         Model function
     """
     # Mock implementation - in practice would load actual model
     def mock_model(prompt: str) -> str:
         return f"Mock response to: {prompt[:100]}..."
-    
+
     logger.info(f"Loaded mock model from {model_path}")
     return mock_model
 
 
 def load_test_prompts(prompts_file: Optional[str]) -> Optional[list]:
     """Load test prompts from file.
-    
+
     Args:
         prompts_file: Path to prompts file
-        
+
     Returns:
         List of prompts or None
     """
     if not prompts_file:
         return None
-    
+
     try:
         with open(prompts_file) as f:
             if prompts_file.endswith('.json'):
@@ -80,7 +80,7 @@ def load_test_prompts(prompts_file: Optional[str]) -> Optional[list]:
 
 async def run_evaluation(args: argparse.Namespace) -> None:
     """Run comprehensive evaluation.
-    
+
     Args:
         args: Command line arguments
     """
@@ -94,18 +94,18 @@ async def run_evaluation(args: argparse.Namespace) -> None:
         output_dir=args.output_dir,
         detailed_logging=args.verbose
     )
-    
+
     # Load model
     model_fn = load_model_function(args.model_path)
-    
+
     # Load test prompts
     test_prompts = load_test_prompts(args.prompts_file)
-    
+
     # Create orchestrator
     orchestrator = ResearchEvaluationOrchestrator(config)
-    
+
     logger.info(f"Starting evaluation of model: {args.model_identifier}")
-    
+
     # Run evaluation
     try:
         result = await orchestrator.evaluate_model(
@@ -113,7 +113,7 @@ async def run_evaluation(args: argparse.Namespace) -> None:
             model_identifier=args.model_identifier,
             test_prompts=test_prompts
         )
-        
+
         # Print summary
         print("\n" + "="*80)
         print("RESEARCH EVALUATION SUMMARY")
@@ -123,44 +123,44 @@ async def run_evaluation(args: argparse.Namespace) -> None:
         print(f"Timestamp: {result.timestamp}")
         print(f"Execution Time: {result.execution_time:.2f} seconds")
         print()
-        
+
         print("SCORES:")
         print(f"  Overall Score:      {result.overall_score:.3f}")
         print(f"  Reliability Score:  {result.reliability_score:.3f}")
         print(f"  Safety Score:       {result.safety_score:.3f}")
         print(f"  Collaboration Score: {result.collaboration_score:.3f}")
         print()
-        
+
         print(f"DEPLOYMENT READINESS: {result.deployment_readiness}")
         print()
-        
+
         if result.improvement_areas:
             print("IMPROVEMENT AREAS:")
             for area in result.improvement_areas:
                 print(f"  • {area}")
             print()
-        
+
         if result.risk_factors:
             print("RISK FACTORS:")
             for risk in result.risk_factors:
                 print(f"  ⚠ {risk}")
             print()
-        
+
         print("TEST COUNTS:")
         for test_type, count in result.test_counts.items():
             print(f"  {test_type}: {count}")
         print()
-        
+
         # Component summaries
         print("COMPONENT RESULTS:")
-        
+
         # Contamination Detection
         contamination = result.contamination_results
         if contamination:
             print(f"  Contamination Detection:")
             print(f"    Rate: {contamination.get('contamination_rate', 0):.2%}")
             print(f"    Samples: {contamination.get('contaminated_samples', 0)}/{contamination.get('total_samples', 0)}")
-        
+
         # Dynamic Evaluation
         dynamic = result.dynamic_evaluation_results
         if dynamic and 'summary' in dynamic:
@@ -169,14 +169,14 @@ async def run_evaluation(args: argparse.Namespace) -> None:
             print(f"    Mean Score: {stats.get('mean_score', 0):.3f}")
             print(f"    Std Dev: {stats.get('std_score', 0):.3f}")
             print(f"    Response Time: {stats.get('mean_execution_time', 0):.2f}s")
-        
+
         # Multi-Agent Evaluation
         multi_agent = result.multi_agent_results
         if multi_agent and not multi_agent.get('error'):
             print(f"  Multi-Agent Evaluation:")
             print(f"    Average Score: {multi_agent.get('average_score', 0):.3f}")
             print(f"    Collaboration Quality: {multi_agent.get('average_collaboration_quality', 0):.3f}")
-        
+
         # Adversarial Testing
         adversarial = result.adversarial_results
         if adversarial:
@@ -184,9 +184,9 @@ async def run_evaluation(args: argparse.Namespace) -> None:
             print(f"    Vulnerability Rate: {adversarial.get('overall_vulnerability_rate', 0):.2%}")
             print(f"    Critical Vulnerabilities: {adversarial.get('critical_vulnerabilities', 0)}")
             print(f"    Safety Assessment: {adversarial.get('safety_assessment', 'UNKNOWN')}")
-        
+
         print("="*80)
-        
+
         # Additional detailed output if requested
         if args.detailed_output:
             print("\nDETAILED RESULTS:")
@@ -196,7 +196,7 @@ async def run_evaluation(args: argparse.Namespace) -> None:
                 'multi_agent': multi_agent,
                 'adversarial': adversarial
             }, indent=2, default=str))
-        
+
     except Exception as e:
         logger.error(f"Evaluation failed: {e}")
         print(f"ERROR: Evaluation failed - {e}")
@@ -212,7 +212,7 @@ def main() -> None:
 Examples:
   # Basic evaluation
   python -m code_explainer.cli_evaluation --model-path ./model --model-id "my-model-v1"
-  
+
   # Full evaluation with custom settings
   python -m code_explainer.cli_evaluation \\
     --model-path ./model \\
@@ -226,19 +226,19 @@ Examples:
     --verbose
         """
     )
-    
+
     # Model configuration
     parser.add_argument(
-        '--model-path', 
+        '--model-path',
         required=True,
         help='Path to model or model configuration'
     )
     parser.add_argument(
-        '--model-id', 
+        '--model-id',
         required=True,
         help='Identifier for the model being evaluated'
     )
-    
+
     # Test configuration
     parser.add_argument(
         '--prompts-file',
@@ -248,7 +248,7 @@ Examples:
         '--corpus-path',
         help='Path to training corpus for contamination detection'
     )
-    
+
     # Evaluation settings
     parser.add_argument(
         '--dynamic-rounds',
@@ -272,7 +272,7 @@ Examples:
         action='store_true',
         help='Run evaluation components in parallel (faster)'
     )
-    
+
     # Output configuration
     parser.add_argument(
         '--output-dir',
@@ -289,26 +289,26 @@ Examples:
         action='store_true',
         help='Enable verbose logging'
     )
-    
+
     # Parse arguments
     args = parser.parse_args()
-    
+
     # Setup logging
     setup_logging(args.verbose)
-    
+
     # Validate arguments
     if not Path(args.model_path).exists():
         print(f"ERROR: Model path does not exist: {args.model_path}")
         sys.exit(1)
-    
+
     if args.prompts_file and not Path(args.prompts_file).exists():
         print(f"ERROR: Prompts file does not exist: {args.prompts_file}")
         sys.exit(1)
-    
+
     if args.corpus_path and not Path(args.corpus_path).exists():
         print(f"ERROR: Corpus path does not exist: {args.corpus_path}")
         sys.exit(1)
-    
+
     # Run evaluation
     try:
         asyncio.run(run_evaluation(args))

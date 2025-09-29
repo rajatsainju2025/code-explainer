@@ -30,19 +30,19 @@ logger = logging.getLogger(__name__)
 
 class ICMLDatasetPreparer:
     """Prepares datasets for ICML experiments with quality validation."""
-    
+
     def __init__(self, config_path: str, output_dir: str = "data"):
         self.config_path = config_path
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(exist_ok=True)
-        
+
         with open(config_path, 'r') as f:
             self.config = yaml.safe_load(f)
-    
+
     def prepare_all_datasets(self):
         """Prepare all datasets specified in the configuration."""
         logger.info("Starting ICML dataset preparation...")
-        
+
         # Create dataset directories
         for dataset_group in ['primary', 'validation']:
             if dataset_group in self.config['datasets']:
@@ -50,9 +50,9 @@ class ICMLDatasetPreparer:
                     dataset_name = dataset_config['name']
                     dataset_path = self.output_dir / dataset_name
                     dataset_path.mkdir(exist_ok=True)
-                    
+
                     logger.info(f"Preparing dataset: {dataset_name}")
-                    
+
                     if dataset_name == "concode":
                         self._prepare_concode(dataset_config, dataset_path)
                     elif dataset_name == "codexglue":
@@ -63,128 +63,128 @@ class ICMLDatasetPreparer:
                         self._prepare_code_docstring_corpus(dataset_config, dataset_path)
                     elif dataset_name == "stackoverflow_qa":
                         self._prepare_stackoverflow_qa(dataset_config, dataset_path)
-                    
+
                     # Validate dataset quality
                     self._validate_dataset_quality(dataset_path, dataset_config)
-        
+
         logger.info("Dataset preparation complete!")
         self._generate_dataset_summary()
-    
+
     def _prepare_concode(self, config: Dict, output_path: Path):
         """Prepare ConCode dataset."""
         logger.info("Downloading ConCode dataset...")
-        
+
         try:
             # Download ConCode from HuggingFace
             dataset = load_dataset("neulab/concode")
-            
+
             # Process and format
             train_data = []
             for item in dataset['train']:
                 if len(train_data) >= config.get('max_samples', 10000):
                     break
-                    
+
                 train_data.append({
                     'code': item['code'],
                     'nl': item['nl'],
                     'language': 'java',
                     'source': 'concode'
                 })
-            
+
             # Split into train/val/test
             train_split, temp_split = train_test_split(
-                train_data, 
-                test_size=0.2, 
+                train_data,
+                test_size=0.2,
                 random_state=42
             )
             val_split, test_split = train_test_split(
-                temp_split, 
-                test_size=0.5, 
+                temp_split,
+                test_size=0.5,
                 random_state=42
             )
-            
+
             # Save splits
             self._save_split(train_split, output_path / "train.jsonl")
             self._save_split(val_split, output_path / "val.jsonl")
             self._save_split(test_split, output_path / "test.jsonl")
-            
+
             logger.info(f"ConCode prepared: {len(train_split)} train, {len(val_split)} val, {len(test_split)} test")
-            
+
         except Exception as e:
             logger.error(f"Error preparing ConCode: {e}")
             self._create_dummy_dataset(output_path, "java")
-    
+
     def _prepare_codexglue(self, config: Dict, output_path: Path):
         """Prepare CodeXGLUE dataset."""
         logger.info("Downloading CodeXGLUE dataset...")
-        
+
         try:
             # Download code summarization task from CodeXGLUE
             all_data = []
             languages = config.get('languages', ['python', 'java', 'javascript'])
-            
+
             for lang in languages[:3]:  # Limit to avoid rate limits
                 try:
                     dataset = load_dataset("code_x_glue_tc_text_to_code", lang)
-                    
+
                     for item in dataset['train']:
                         if len(all_data) >= config.get('max_samples', 50000):
                             break
-                            
+
                         all_data.append({
                             'code': item.get('code', ''),
                             'nl': item.get('docstring', ''),
                             'language': lang,
                             'source': 'codexglue'
                         })
-                        
+
                 except Exception as e:
                     logger.warning(f"Could not load CodeXGLUE for {lang}: {e}")
-            
+
             if not all_data:
                 logger.warning("No CodeXGLUE data loaded, creating dummy dataset")
                 self._create_dummy_dataset(output_path, "multiple")
                 return
-            
+
             # Split data
             train_split, temp_split = train_test_split(
-                all_data, 
-                test_size=0.2, 
+                all_data,
+                test_size=0.2,
                 random_state=42
             )
             val_split, test_split = train_test_split(
-                temp_split, 
-                test_size=0.5, 
+                temp_split,
+                test_size=0.5,
                 random_state=42
             )
-            
+
             # Save splits
             self._save_split(train_split, output_path / "train.jsonl")
             self._save_split(val_split, output_path / "val.jsonl")
             self._save_split(test_split, output_path / "test.jsonl")
-            
+
             logger.info(f"CodeXGLUE prepared: {len(train_split)} train, {len(val_split)} val, {len(test_split)} test")
-            
+
         except Exception as e:
             logger.error(f"Error preparing CodeXGLUE: {e}")
             self._create_dummy_dataset(output_path, "multiple")
-    
+
     def _prepare_codesearchnet(self, config: Dict, output_path: Path):
         """Prepare CodeSearchNet dataset."""
         logger.info("Downloading CodeSearchNet dataset...")
-        
+
         try:
             all_data = []
             languages = config.get('languages', ['python', 'java', 'javascript'])
-            
+
             for lang in languages[:2]:  # Limit to avoid memory issues
                 try:
                     dataset = load_dataset("code_search_net", lang)
-                    
+
                     for item in dataset['train']:
                         if len(all_data) >= config.get('max_samples', 100000):
                             break
-                            
+
                         if item.get('func_code_string') and item.get('func_documentation_string'):
                             all_data.append({
                                 'code': item['func_code_string'],
@@ -192,42 +192,42 @@ class ICMLDatasetPreparer:
                                 'language': lang,
                                 'source': 'codesearchnet'
                             })
-                            
+
                 except Exception as e:
                     logger.warning(f"Could not load CodeSearchNet for {lang}: {e}")
-            
+
             if not all_data:
                 logger.warning("No CodeSearchNet data loaded, creating dummy dataset")
                 self._create_dummy_dataset(output_path, "multiple")
                 return
-            
+
             # Split data
             train_split, temp_split = train_test_split(
-                all_data, 
-                test_size=0.2, 
+                all_data,
+                test_size=0.2,
                 random_state=42
             )
             val_split, test_split = train_test_split(
-                temp_split, 
-                test_size=0.5, 
+                temp_split,
+                test_size=0.5,
                 random_state=42
             )
-            
+
             # Save splits
             self._save_split(train_split, output_path / "train.jsonl")
             self._save_split(val_split, output_path / "val.jsonl")
             self._save_split(test_split, output_path / "test.jsonl")
-            
+
             logger.info(f"CodeSearchNet prepared: {len(train_split)} train, {len(val_split)} val, {len(test_split)} test")
-            
+
         except Exception as e:
             logger.error(f"Error preparing CodeSearchNet: {e}")
             self._create_dummy_dataset(output_path, "multiple")
-    
+
     def _prepare_code_docstring_corpus(self, config: Dict, output_path: Path):
         """Prepare Code-Docstring Corpus for validation."""
         logger.info("Preparing Code-Docstring Corpus...")
-        
+
         # Create a curated validation set
         validation_data = [
             {
@@ -249,14 +249,14 @@ class ICMLDatasetPreparer:
                 'source': 'validation'
             }
         ] * 100  # Duplicate to create larger validation set
-        
+
         self._save_split(validation_data, output_path / "validation.jsonl")
         logger.info(f"Code-Docstring Corpus prepared: {len(validation_data)} samples")
-    
+
     def _prepare_stackoverflow_qa(self, config: Dict, output_path: Path):
         """Prepare StackOverflow Q&A data for human evaluation."""
         logger.info("Preparing StackOverflow Q&A data...")
-        
+
         # Create sample human evaluation data
         human_eval_data = [
             {
@@ -274,14 +274,14 @@ class ICMLDatasetPreparer:
                 'difficulty': 'easy'
             }
         ] * 500  # Create larger human evaluation set
-        
+
         self._save_split(human_eval_data, output_path / "human_eval.jsonl")
         logger.info(f"StackOverflow Q&A prepared: {len(human_eval_data)} samples")
-    
+
     def _create_dummy_dataset(self, output_path: Path, language: str):
         """Create a dummy dataset for testing when real data unavailable."""
         logger.warning(f"Creating dummy dataset for {output_path.name}")
-        
+
         dummy_data = [
             {
                 'code': f'# Example {language} code\ndef example_function():\n    return "Hello, World!"',
@@ -290,25 +290,25 @@ class ICMLDatasetPreparer:
                 'source': 'dummy'
             }
         ] * 100
-        
+
         train_split = dummy_data[:80]
         val_split = dummy_data[80:90]
         test_split = dummy_data[90:]
-        
+
         self._save_split(train_split, output_path / "train.jsonl")
         self._save_split(val_split, output_path / "val.jsonl")
         self._save_split(test_split, output_path / "test.jsonl")
-    
+
     def _save_split(self, data: List[Dict], filepath: Path):
         """Save dataset split to JSONL format."""
         with open(filepath, 'w', encoding='utf-8') as f:
             for item in data:
                 f.write(json.dumps(item, ensure_ascii=False) + '\n')
-    
+
     def _validate_dataset_quality(self, dataset_path: Path, config: Dict):
         """Validate dataset quality and generate statistics."""
         logger.info(f"Validating dataset quality for {dataset_path.name}")
-        
+
         stats = {
             'dataset_name': dataset_path.name,
             'total_samples': 0,
@@ -317,73 +317,73 @@ class ICMLDatasetPreparer:
             'avg_nl_length': 0,
             'quality_issues': []
         }
-        
+
         for split_file in ['train.jsonl', 'val.jsonl', 'test.jsonl']:
             split_path = dataset_path / split_file
             if split_path.exists():
                 with open(split_path, 'r', encoding='utf-8') as f:
                     split_data = [json.loads(line) for line in f]
-                    
+
                     stats['total_samples'] += len(split_data)
-                    
+
                     for item in split_data:
                         stats['languages'].add(item.get('language', 'unknown'))
-                        
+
                         code_len = len(item.get('code', ''))
                         nl_len = len(item.get('nl', ''))
-                        
+
                         stats['avg_code_length'] += code_len
                         stats['avg_nl_length'] += nl_len
-                        
+
                         # Quality checks
                         if code_len < 10:
                             stats['quality_issues'].append('short_code')
                         if nl_len < 5:
                             stats['quality_issues'].append('short_explanation')
-        
+
         if stats['total_samples'] > 0:
             stats['avg_code_length'] /= stats['total_samples']
             stats['avg_nl_length'] /= stats['total_samples']
-        
+
         stats['languages'] = list(stats['languages'])
-        
+
         # Save statistics
         with open(dataset_path / 'stats.json', 'w') as f:
             json.dump(stats, f, indent=2)
-        
+
         logger.info(f"Dataset {dataset_path.name}: {stats['total_samples']} samples, "
                    f"{len(stats['languages'])} languages, "
                    f"{len(stats['quality_issues'])} quality issues")
-    
+
     def _generate_dataset_summary(self):
         """Generate overall dataset summary."""
         logger.info("Generating dataset summary...")
-        
+
         summary = {
             'total_datasets': 0,
             'total_samples': 0,
             'languages': set(),
             'datasets': {}
         }
-        
+
         for dataset_dir in self.output_dir.iterdir():
             if dataset_dir.is_dir():
                 stats_file = dataset_dir / 'stats.json'
                 if stats_file.exists():
                     with open(stats_file, 'r') as f:
                         dataset_stats = json.load(f)
-                        
+
                         summary['total_datasets'] += 1
                         summary['total_samples'] += dataset_stats['total_samples']
                         summary['languages'].update(dataset_stats['languages'])
                         summary['datasets'][dataset_stats['dataset_name']] = dataset_stats
-        
+
         summary['languages'] = list(summary['languages'])
-        
+
         # Save summary
         with open(self.output_dir / 'dataset_summary.json', 'w') as f:
             json.dump(summary, f, indent=2)
-        
+
         logger.info(f"Dataset preparation complete: {summary['total_datasets']} datasets, "
                    f"{summary['total_samples']} total samples, "
                    f"{len(summary['languages'])} languages")
@@ -391,7 +391,7 @@ class ICMLDatasetPreparer:
 def main():
     parser = argparse.ArgumentParser(description="Prepare ICML datasets")
     parser.add_argument(
-        "--config", 
+        "--config",
         default="configs/icml_experiment_full.yaml",
         help="Path to experiment configuration file"
     )
@@ -405,9 +405,9 @@ def main():
         action="store_true",
         help="Force re-download of datasets"
     )
-    
+
     args = parser.parse_args()
-    
+
     preparer = ICMLDatasetPreparer(args.config, args.output_dir)
     preparer.prepare_all_datasets()
 

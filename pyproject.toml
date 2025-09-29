@@ -57,7 +57,7 @@ web = ["gradio", "streamlit", "fastapi", "uvicorn", "prometheus-client", "reques
 rag = ["sentence-transformers", "faiss-cpu", "rank-bm25", "scikit-learn"]
 metrics = ["sacrebleu", "rouge-score", "bert-score", "codebleu"]
 monitoring = ["wandb", "tensorboard"]
-all = ["gradio", "streamlit", "fastapi", "uvicorn", "prometheus-client", "requests", 
+all = ["gradio", "streamlit", "fastapi", "uvicorn", "prometheus-client", "requests",
        "sentence-transformers", "faiss-cpu", "rank-bm25", "scikit-learn",
        "sacrebleu", "rouge-score", "bert-score", "codebleu", "wandb", "tensorboard"]
 

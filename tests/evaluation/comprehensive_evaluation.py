@@ -1,6 +1,6 @@
 """Comprehensive evaluation system for intelligent code explanation features.
 
-This module provides automated benchmarks, quality metrics, and 
+This module provides automated benchmarks, quality metrics, and
 cross-device testing for the enhanced intelligent code explanation system.
 """
 
@@ -25,7 +25,7 @@ try:
     from src.code_explainer.model import CodeExplainer, INTELLIGENT_EXPLAINER_AVAILABLE
     from src.code_explainer.config import Config, init_config
     from src.code_explainer.device_manager import DeviceManager
-    
+
     # Import intelligent features if available
     if INTELLIGENT_EXPLAINER_AVAILABLE:
         from src.code_explainer.intelligent_explainer import (
@@ -37,20 +37,20 @@ try:
             EnhancedLanguageProcessor,
             CodeLanguage
         )
-        
+
 except ImportError as e:
     print(f"Warning: Could not import code explainer modules: {e}")
     print("Trying alternative import paths...")
-    
+
     try:
         # Alternative import without src prefix
         sys.path.insert(0, os.path.dirname(__file__))
         sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
-        
+
         from code_explainer.model import CodeExplainer, INTELLIGENT_EXPLAINER_AVAILABLE
         from code_explainer.config import Config, init_config
         from code_explainer.device_manager import DeviceManager
-        
+
         # Import intelligent features if available
         INTELLIGENT_EXPLAINER_AVAILABLE = False  # Default to False for safety
         try:
@@ -66,7 +66,7 @@ except ImportError as e:
             INTELLIGENT_EXPLAINER_AVAILABLE = True
         except ImportError:
             pass
-            
+
     except ImportError as e2:
         print(f"Failed alternative imports: {e2}")
         sys.exit(1)
@@ -75,7 +75,7 @@ except ImportError as e:
 @dataclass
 class EvaluationResult:
     """Results from a single evaluation."""
-    
+
     test_name: str
     method: str
     duration: float
@@ -88,7 +88,7 @@ class EvaluationResult:
 @dataclass
 class BenchmarkSuite:
     """Collection of benchmark results."""
-    
+
     test_suite: str
     results: List[EvaluationResult]
     total_duration: float
@@ -99,13 +99,13 @@ class BenchmarkSuite:
 
 class CodeExplainerEvaluator:
     """Comprehensive evaluator for code explainer functionality."""
-    
+
     def __init__(self, config_path: Optional[str] = None):
         """Initialize evaluator with configuration."""
         self.config_path = config_path or "configs/default.yaml"
         self.device_manager = DeviceManager()
         self.test_cases = self._load_test_cases()
-        
+
     def _load_test_cases(self) -> List[Dict[str, Any]]:
         """Load test cases for evaluation."""
         return [
@@ -126,7 +126,7 @@ def add_numbers(a, b):
 class Calculator:
     def __init__(self, precision=2):
         self.precision = precision
-    
+
     def multiply(self, x, y):
         result = x * y
         return round(result, self.precision)
@@ -141,23 +141,23 @@ class Calculator:
 def quicksort(arr, low=0, high=None):
     if high is None:
         high = len(arr) - 1
-    
+
     if low < high:
         pivot = partition(arr, low, high)
         quicksort(arr, low, pivot - 1)
         quicksort(arr, pivot + 1, high)
-    
+
     return arr
 
 def partition(arr, low, high):
     pivot = arr[high]
     i = low - 1
-    
+
     for j in range(low, high):
         if arr[j] <= pivot:
             i += 1
             arr[i], arr[j] = arr[j], arr[i]
-    
+
     arr[i + 1], arr[high] = arr[high], arr[i + 1]
     return i + 1
 """,
@@ -172,14 +172,14 @@ function fibonacci(n) {
     if (n <= 1) {
         return n;
     }
-    
+
     let a = 0, b = 1, temp;
     for (let i = 2; i <= n; i++) {
         temp = a + b;
         a = b;
         b = temp;
     }
-    
+
     return b;
 }
 """,
@@ -218,7 +218,7 @@ def create_user():
                 "language": "python"
             }
         ]
-    
+
     def evaluate_method(
         self,
         explainer: CodeExplainer,
@@ -227,23 +227,23 @@ def create_user():
         **kwargs
     ) -> EvaluationResult:
         """Evaluate a specific explanation method."""
-        
+
         start_time = time.time()
         success = False
         output_length = 0
         error_message = None
         metadata = {}
-        
+
         try:
             # Get the method from the explainer
             method = getattr(explainer, method_name)
-            
+
             # Call the method with the test code
             if method_name in ["explain_code_intelligent", "explain_code_intelligent_detailed"]:
                 result = method(test_case["code"], **kwargs)
             else:
                 result = method(test_case["code"])
-            
+
             if result is not None:
                 success = True
                 if isinstance(result, str):
@@ -256,20 +256,20 @@ def create_user():
                 else:
                     output_length = len(str(result))
                     metadata["output_type"] = type(result).__name__
-                
+
                 # Check for expected keywords
                 output_str = str(result).lower()
-                found_keywords = [kw for kw in test_case.get("expected_keywords", []) 
+                found_keywords = [kw for kw in test_case.get("expected_keywords", [])
                                 if kw.lower() in output_str]
                 metadata["found_keywords"] = found_keywords
                 metadata["keyword_coverage"] = len(found_keywords) / max(1, len(test_case.get("expected_keywords", [])))
-        
+
         except Exception as e:
             error_message = str(e)
             metadata["exception_type"] = type(e).__name__
-        
+
         duration = time.time() - start_time
-        
+
         return EvaluationResult(
             test_name=test_case["name"],
             method=method_name,
@@ -279,24 +279,24 @@ def create_user():
             error_message=error_message,
             metadata=metadata
         )
-    
+
     def run_device_compatibility_test(self) -> Dict[str, Any]:
         """Test device compatibility across available devices."""
-        
+
         device_results = {}
         available_devices = self.device_manager.get_available_devices()
-        
+
         for device_name, device_info in available_devices.items():
             print(f"\n🔧 Testing device: {device_name}")
-            
+
             try:
                 # Test device selection
                 self.device_manager.set_device(device_name)
                 current_device = self.device_manager.get_current_device()
-                
+
                 # Test basic device operations
                 test_tensor = self.device_manager.move_to_device([1, 2, 3, 4, 5])
-                
+
                 device_results[device_name] = {
                     "available": True,
                     "device_info": device_info,
@@ -304,28 +304,28 @@ def create_user():
                     "tensor_test": "passed",
                     "memory_info": self.device_manager.get_device_memory_info()
                 }
-                
+
             except Exception as e:
                 device_results[device_name] = {
                     "available": False,
                     "error": str(e),
                     "device_info": device_info
                 }
-        
+
         return device_results
-    
+
     def benchmark_explanation_methods(self, max_workers: int = 2) -> BenchmarkSuite:
         """Benchmark all available explanation methods."""
-        
+
         print("🚀 Starting comprehensive benchmark suite...")
-        
+
         # Get device info
         device_info = {
             "current_device": str(self.device_manager.get_current_device()),
             "available_devices": list(self.device_manager.get_available_devices().keys()),
             "memory_info": self.device_manager.get_device_memory_info()
         }
-        
+
         # Define methods to test
         methods_to_test = [
             ("explain_code", {}),
@@ -333,24 +333,24 @@ def create_user():
             ("explain_code_intelligent", {"audience": "expert", "style": "concise"}),
             ("explain_code_intelligent_detailed", {}),
         ]
-        
+
         # Only test intelligent methods if available
         if not INTELLIGENT_EXPLAINER_AVAILABLE:
             methods_to_test = [("explain_code", {})]
-        
+
         all_results = []
         start_time = time.time()
-        
+
         try:
             # Initialize explainer (this might take time for model loading)
             print("📦 Initializing CodeExplainer...")
             config = init_config(self.config_path)
             explainer = CodeExplainer(config)
-            
+
             # Run evaluations
             with ThreadPoolExecutor(max_workers=max_workers) as executor:
                 futures = []
-                
+
                 for test_case in self.test_cases:
                     for method_name, kwargs in methods_to_test:
                         if hasattr(explainer, method_name):
@@ -359,7 +359,7 @@ def create_user():
                                 explainer, method_name, test_case, **kwargs
                             )
                             futures.append(future)
-                
+
                 # Collect results with progress bar
                 for future in tqdm(as_completed(futures), total=len(futures), desc="Running tests"):
                     try:
@@ -367,7 +367,7 @@ def create_user():
                         all_results.append(result)
                     except Exception as e:
                         print(f"❌ Test failed with exception: {e}")
-        
+
         except Exception as e:
             print(f"❌ Failed to initialize explainer: {e}")
             # Create a minimal failure result
@@ -379,14 +379,14 @@ def create_user():
                 output_length=0,
                 error_message=str(e)
             ))
-        
+
         total_duration = time.time() - start_time
-        
+
         # Calculate metrics
         successful_results = [r for r in all_results if r.success]
         success_rate = len(successful_results) / max(1, len(all_results))
         avg_response_time = statistics.mean([r.duration for r in all_results]) if all_results else 0.0
-        
+
         return BenchmarkSuite(
             test_suite="comprehensive",
             results=all_results,
@@ -395,22 +395,22 @@ def create_user():
             avg_response_time=avg_response_time,
             device_info=device_info
         )
-    
+
     def evaluate_intelligent_features(self) -> Dict[str, Any]:
         """Evaluate intelligent explanation features specifically."""
-        
+
         if not INTELLIGENT_EXPLAINER_AVAILABLE:
             return {
                 "available": False,
                 "message": "Intelligent explanation features not available"
             }
-        
+
         print("🧠 Evaluating intelligent features...")
-        
+
         try:
             # Test language processor
             processor = EnhancedLanguageProcessor()
-            
+
             processor_results = {}
             for test_case in self.test_cases[:3]:  # Test first 3 cases
                 try:
@@ -424,25 +424,25 @@ def create_user():
                     }
                 except Exception as e:
                     processor_results[test_case["name"]] = {"error": str(e)}
-            
+
             # Test explanation generator
             generator = IntelligentExplanationGenerator()
-            
+
             generator_results = {}
             test_audiences = [ExplanationAudience.BEGINNER, ExplanationAudience.EXPERT]
             test_styles = [ExplanationStyle.CONCISE, ExplanationStyle.DETAILED]
-            
+
             for i, test_case in enumerate(self.test_cases[:2]):  # Test first 2 cases
                 try:
                     audience = test_audiences[i % len(test_audiences)]
                     style = test_styles[i % len(test_styles)]
-                    
+
                     explanation = generator.explain_code(
                         test_case["code"],
                         audience=audience,
                         style=style
                     )
-                    
+
                     generator_results[test_case["name"]] = {
                         "primary_explanation_length": len(explanation.primary_explanation),
                         "has_language_info": bool(explanation.language_info),
@@ -453,19 +453,19 @@ def create_user():
                     }
                 except Exception as e:
                     generator_results[test_case["name"]] = {"error": str(e)}
-            
+
             return {
                 "available": True,
                 "language_processor": processor_results,
                 "explanation_generator": generator_results
             }
-            
+
         except Exception as e:
             return {
                 "available": True,
                 "error": str(e)
             }
-    
+
     def generate_report(
         self,
         benchmark_results: BenchmarkSuite,
@@ -473,7 +473,7 @@ def create_user():
         intelligent_results: Dict[str, Any]
     ) -> Dict[str, Any]:
         """Generate comprehensive evaluation report."""
-        
+
         report = {
             "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
             "summary": {
@@ -492,18 +492,18 @@ def create_user():
             "performance_metrics": self._calculate_performance_metrics(benchmark_results.results),
             "quality_metrics": self._calculate_quality_metrics(benchmark_results.results)
         }
-        
+
         return report
-    
+
     def _calculate_performance_metrics(self, results: List[EvaluationResult]) -> Dict[str, float]:
         """Calculate performance metrics from results."""
-        
+
         if not results:
             return {}
-        
+
         durations = [r.duration for r in results if r.success]
         output_lengths = [r.output_length for r in results if r.success]
-        
+
         return {
             "min_duration": min(durations) if durations else 0.0,
             "max_duration": max(durations) if durations else 0.0,
@@ -511,21 +511,21 @@ def create_user():
             "avg_output_length": statistics.mean(output_lengths) if output_lengths else 0.0,
             "throughput_tests_per_second": len(durations) / sum(durations) if durations and sum(durations) > 0 else 0.0
         }
-    
+
     def _calculate_quality_metrics(self, results: List[EvaluationResult]) -> Dict[str, float]:
         """Calculate quality metrics from results."""
-        
+
         successful_results = [r for r in results if r.success and r.metadata]
-        
+
         if not successful_results:
             return {}
-        
+
         keyword_coverages = [
             r.metadata.get("keyword_coverage", 0.0)
             for r in successful_results
             if r.metadata and "keyword_coverage" in r.metadata
         ]
-        
+
         return {
             "avg_keyword_coverage": statistics.mean(keyword_coverages) if keyword_coverages else 0.0,
             "quality_score": statistics.mean(keyword_coverages) if keyword_coverages else 0.0,
@@ -535,36 +535,36 @@ def create_user():
 
 def main():
     """Run comprehensive evaluation suite."""
-    
+
     print("🔍 Code Explainer Comprehensive Evaluation Suite")
     print("=" * 60)
-    
+
     # Initialize evaluator
     evaluator = CodeExplainerEvaluator()
-    
+
     # Run device compatibility tests
     print("\n1. Device Compatibility Testing")
     device_results = evaluator.run_device_compatibility_test()
-    
+
     # Run main benchmark
     print("\n2. Performance Benchmarking")
     benchmark_results = evaluator.benchmark_explanation_methods()
-    
+
     # Run intelligent features evaluation
     print("\n3. Intelligent Features Evaluation")
     intelligent_results = evaluator.evaluate_intelligent_features()
-    
+
     # Generate report
     print("\n4. Generating Report")
     report = evaluator.generate_report(benchmark_results, device_results, intelligent_results)
-    
+
     # Save report
     report_path = Path("results") / f"evaluation_report_{int(time.time())}.json"
     report_path.parent.mkdir(exist_ok=True)
-    
+
     with open(report_path, 'w') as f:
         json.dump(report, f, indent=2, default=str)
-    
+
     # Print summary
     print("\n" + "=" * 60)
     print("📊 EVALUATION SUMMARY")
@@ -574,13 +574,13 @@ def main():
     print(f"⏱️  Average Response Time: {report['summary']['avg_response_time']:.2f}s")
     print(f"🧠 Intelligent Features: {'✅ Available' if report['summary']['intelligent_features_available'] else '❌ Not Available'}")
     print(f"💾 Report saved to: {report_path}")
-    
+
     # Print device compatibility
     print(f"\n🔧 Device Compatibility:")
     for device, info in device_results.items():
         status = "✅" if info.get("available", False) else "❌"
         print(f"  {status} {device}: {info.get('current_device', 'N/A')}")
-    
+
     return report
 
 

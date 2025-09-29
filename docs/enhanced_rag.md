@@ -177,7 +177,7 @@ ERROR: FAISS index loading failed: Out of memory
 ```
 Retrieved examples seem irrelevant
 ```
-**Solution**: 
+**Solution**:
 - Increase `similarity_threshold`
 - Use a more appropriate embedding model
 - Improve the quality of your code corpus

@@ -5,14 +5,14 @@ We have successfully implemented 10 major improvements to the Code Explainer pro
 ## PR #1: Async Processing and Performance Optimization
 **Commit:** 6952fe78
 **Branch:** feature/async-processing
-**Description:** 
+**Description:**
 - Added async utilities for concurrent code explanation
 - Implemented batch processing with ThreadPoolExecutor
 - Added streaming explanations for real-time feedback
 - Performance optimizations with memoization and caching
 
 ## PR #2: Container-based Security Sandboxing
-**Commit:** f6e01ff0  
+**Commit:** f6e01ff0
 **Branch:** feature/container-security
 **Description:**
 - Implemented Docker-based code execution sandboxing

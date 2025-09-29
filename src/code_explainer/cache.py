@@ -241,7 +241,7 @@ class ExplanationCache:
         to_remove = entries_with_scores[:len(self._index) - self.max_size + 1]
         for _, key in to_remove:
             self._remove_entry(key)
-    
+
     def clear(self) -> None:
         """Clear all cached explanations."""
         try:
@@ -251,16 +251,16 @@ class ExplanationCache:
             self._save_index()
         except Exception as e:
             logger.warning(f"Failed to clear cache: {e}")
-    
+
     def size(self) -> int:
         """Get the number of cached explanations."""
         return len(self._index)
-    
+
     def stats(self) -> Dict[str, Any]:
         """Get cache statistics."""
         if not self._index:
             return {"size": 0, "total_access_count": 0}
-        
+
         total_access = sum(entry["access_count"] for entry in self._index.values())
         return {
             "size": len(self._index),
@@ -276,44 +276,44 @@ class EmbeddingCache:
 
     def __init__(self, cache_dir: str = ".cache/embeddings"):
         """Initialize the embedding cache.
-        
+
         Args:
             cache_dir: Directory to store cache files
         """
         self.cache_dir = Path(cache_dir)
         self.cache_dir.mkdir(parents=True, exist_ok=True)
-    
+
     def _get_cache_key(self, code: str, model_name: str) -> str:
         """Generate a cache key for the given code and model."""
         content = f"{code}|{model_name}"
         return hashlib.sha256(content.encode()).hexdigest()
-    
+
     def get(self, code: str, model_name: str) -> Optional[Any]:
         """Get cached embedding if available.
-        
+
         Args:
             code: The code to get embedding for
             model_name: The embedding model name
-            
+
         Returns:
             Cached embedding if available, None otherwise
         """
         cache_key = self._get_cache_key(code, model_name)
         cache_file = self.cache_dir / f"{cache_key}.pkl"
-        
+
         if not cache_file.exists():
             return None
-        
+
         try:
             with open(cache_file, "rb") as f:
                 return pickle.load(f)
         except Exception as e:
             logger.warning(f"Failed to load cached embedding: {e}")
             return None
-    
+
     def put(self, code: str, model_name: str, embedding: Any) -> None:
         """Cache an embedding.
-        
+
         Args:
             code: The code that was embedded
             model_name: The embedding model name
@@ -321,13 +321,13 @@ class EmbeddingCache:
         """
         cache_key = self._get_cache_key(code, model_name)
         cache_file = self.cache_dir / f"{cache_key}.pkl"
-        
+
         try:
             with open(cache_file, "wb") as f:
                 pickle.dump(embedding, f)
         except Exception as e:
             logger.warning(f"Failed to cache embedding: {e}")
-    
+
     def clear(self) -> None:
         """Clear all cached embeddings."""
         try:

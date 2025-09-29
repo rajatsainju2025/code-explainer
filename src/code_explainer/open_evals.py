@@ -93,9 +93,9 @@ def generate_addsub_demo() -> List[Dict[str, Any]]:
             answer = a + b
             question = f"What is {a} + {b}?"
         else:
-            answer = a - b  
+            answer = a - b
             question = f"What is {a} - {b}?"
-        
+
         problems.append({
             "id": f"addsub_{i+1}",
             "question": question,
@@ -117,10 +117,10 @@ def generate_fizzbuzz_demo() -> List[Dict[str, Any]]:
             expected.append("Buzz")
         if not expected:
             expected = [str(num)]
-        
+
         answer = "".join(expected)
         question = f"What should be printed for the number {num} in FizzBuzz?"
-        
+
         problems.append({
             "id": f"fizzbuzz_{i+1}",
             "question": question,
@@ -133,7 +133,7 @@ def generate_fizzbuzz_demo() -> List[Dict[str, Any]]:
 def generate_code_understanding_basic() -> List[Dict[str, Any]]:
     """Generate basic code understanding problems."""
     problems = []
-    
+
     code_snippets = [
         {
             "code": "def factorial(n):\n    if n <= 1:\n        return 1\n    return n * factorial(n-1)",
@@ -151,7 +151,7 @@ def generate_code_understanding_basic() -> List[Dict[str, Any]]:
             "answer": "Fibonacci sequence"
         }
     ]
-    
+
     for i, snippet in enumerate(code_snippets * 17):  # Repeat to get ~50
         if i >= 50:
             break
@@ -167,7 +167,7 @@ def generate_code_understanding_basic() -> List[Dict[str, Any]]:
 def generate_debugging_common() -> List[Dict[str, Any]]:
     """Generate common debugging problems."""
     problems = []
-    
+
     bugs = [
         {
             "buggy_code": "def divide(a, b):\n    return a / b",
@@ -185,7 +185,7 @@ def generate_debugging_common() -> List[Dict[str, Any]]:
             "answer": "IndexError if list is empty"
         }
     ]
-    
+
     for i, bug in enumerate(bugs * 10):  # Repeat to get 30
         if i >= 30:
             break
@@ -201,7 +201,7 @@ def generate_debugging_common() -> List[Dict[str, Any]]:
 def generate_complexity_analysis() -> List[Dict[str, Any]]:
     """Generate algorithm complexity analysis problems."""
     problems = []
-    
+
     algorithms = [
         {
             "code": "def linear_search(arr, target):\n    for i in range(len(arr)):\n        if arr[i] == target:\n            return i\n    return -1",
@@ -219,7 +219,7 @@ def generate_complexity_analysis() -> List[Dict[str, Any]]:
             "space_complexity": "O(1)"
         }
     ]
-    
+
     for i, algo in enumerate(algorithms * 9):  # Repeat to get ~25
         if i >= 25:
             break
@@ -230,7 +230,7 @@ def generate_complexity_analysis() -> List[Dict[str, Any]]:
         else:
             question = f"What is the space complexity of this algorithm?\n```python\n{algo['code']}\n```"
             answer = algo['space_complexity']
-        
+
         problems.append({
             "id": f"complexity_{i+1}",
             "question": question,
@@ -243,7 +243,7 @@ def generate_complexity_analysis() -> List[Dict[str, Any]]:
 def generate_data_structures() -> List[Dict[str, Any]]:
     """Generate data structures usage problems."""
     problems = []
-    
+
     scenarios = [
         {
             "scenario": "You need to store items and retrieve them in Last-In-First-Out order",
@@ -251,7 +251,7 @@ def generate_data_structures() -> List[Dict[str, Any]]:
             "alternatives": ["Queue", "List", "Set"]
         },
         {
-            "scenario": "You need to store items and retrieve them in First-In-First-Out order", 
+            "scenario": "You need to store items and retrieve them in First-In-First-Out order",
             "answer": "Queue",
             "alternatives": ["Stack", "List", "Set"]
         },
@@ -266,7 +266,7 @@ def generate_data_structures() -> List[Dict[str, Any]]:
             "alternatives": ["List", "Set", "Array"]
         }
     ]
-    
+
     for i, scenario in enumerate(scenarios * 10):  # Repeat to get 40
         if i >= 40:
             break
@@ -279,7 +279,7 @@ def generate_data_structures() -> List[Dict[str, Any]]:
                 "alternatives": scenario['alternatives']
             }
         })
-    
+
     return problems
 
 
@@ -297,13 +297,13 @@ def generate_dataset(dataset_id: str) -> List[Dict[str, Any]]:
     """Generate a dataset by calling its generator function."""
     if dataset_id not in OPEN_EVAL_DATASETS:
         raise ValueError(f"Unknown dataset: {dataset_id}")
-    
+
     generator_name = OPEN_EVAL_DATASETS[dataset_id]["generator"]
     generator_func = globals().get(generator_name)
-    
+
     if generator_func is None:
         raise ValueError(f"Generator function not found: {generator_name}")
-    
+
     return generator_func()
 
 
@@ -316,24 +316,24 @@ def run_eval(
 ) -> Dict[str, Any]:
     """Run evaluation on a specific dataset."""
     logger.info(f"Running evaluation on dataset: {dataset_id}")
-    
+
     # Generate dataset
     dataset = generate_dataset(dataset_id)
     dataset_info = get_dataset_info(dataset_id)
-    
+
     # Run evaluation (simplified for now)
     results = []
     correct = 0
     total = len(dataset)
-    
+
     for sample in dataset:
         # Simulate model prediction (replace with actual model call)
         predicted = "mock_prediction"
         is_correct = predicted.lower().strip() == sample["answer"].lower().strip()
-        
+
         if is_correct:
             correct += 1
-        
+
         result = {
             "id": sample["id"],
             "question": sample["question"],
@@ -343,7 +343,7 @@ def run_eval(
             "metadata": sample.get("metadata", {})
         }
         results.append(result)
-    
+
     # Calculate metrics
     accuracy = correct / total if total > 0 else 0.0
     metrics = {
@@ -353,13 +353,13 @@ def run_eval(
         "accuracy": accuracy,
         "timestamp": time.time()
     }
-    
+
     # Save outputs if requested
     if out_csv:
         save_results_csv(results, out_csv)
     if out_json:
         save_results_json({"metrics": metrics, "results": results}, out_json)
-    
+
     logger.info(f"Evaluation completed: {correct}/{total} correct ({accuracy:.2%})")
     return metrics
 
@@ -368,16 +368,16 @@ def save_results_csv(results: List[Dict[str, Any]], filepath: str) -> None:
     """Save evaluation results to CSV."""
     if not results:
         return
-    
+
     fieldnames = ["id", "question", "expected", "predicted", "correct"]
-    
+
     with open(filepath, 'w', newline='', encoding='utf-8') as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
         for result in results:
             row = {k: result.get(k, '') for k in fieldnames}
             writer.writerow(row)
-    
+
     logger.info(f"Results saved to CSV: {filepath}")
 
 
@@ -385,7 +385,7 @@ def save_results_json(data: Dict[str, Any], filepath: str) -> None:
     """Save evaluation data to JSON."""
     with open(filepath, 'w', encoding='utf-8') as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
-    
+
     logger.info(f"Results saved to JSON: {filepath}")
 
 

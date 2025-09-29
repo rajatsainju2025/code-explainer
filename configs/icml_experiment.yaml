@@ -7,12 +7,12 @@ evaluation:
   random_seed: 42
   cv_folds: 5
   our_method_name: "CodeExplainGPT"
-  
+
   # Human evaluation settings
   human_eval_dataset: "codeexplain_python"
   human_eval_sample_size: 100
   evaluator_ids: ["expert_1", "expert_2", "expert_3"]
-  
+
   # Error analysis settings
   error_analysis_dataset: "codeexplain_python"
   error_categories:
@@ -23,7 +23,7 @@ evaluation:
     - "semantic_errors"
     - "incomplete_explanation"
     - "incorrect_logic"
-  
+
   # Cross-validation dataset
   cv_dataset: "codeexplain_multi"
 
@@ -38,17 +38,17 @@ baselines:
     type: "code_explainer"
     model_path: "./results/codet5_base"
     config_path: "configs/codet5-base.yaml"
-    
+
   CodeBERT_Explain:
-    type: "code_explainer"  
+    type: "code_explainer"
     model_path: "./results/codebert_explain"
     config_path: "configs/codebert-base.yaml"
-    
+
   GPT35_Turbo:
     type: "openai"
     model_name: "gpt-3.5-turbo"
     api_key_env: "OPENAI_API_KEY"
-    
+
   Neural_RAG:
     type: "code_explainer"
     model_path: "./results/neural_rag"
@@ -62,14 +62,14 @@ datasets:
     description: "50K Python functions with human explanations"
     languages: ["python"]
     size: 50000
-    
+
   codeexplain_multi:
     name: "CodeExplain-Multi"
-    path: "data/codeexplain_multi.json"  
+    path: "data/codeexplain_multi.json"
     description: "30K functions across 5 languages"
     languages: ["python", "java", "javascript", "cpp", "go"]
     size: 30000
-    
+
   stackoverflow_code:
     name: "StackOverflow-Code"
     path: "data/stackoverflow_code.json"
@@ -82,7 +82,7 @@ statistical_analysis:
   significance_level: 0.05
   bootstrap_samples: 1000
   effect_size_threshold: 0.2
-  
+
   # Metrics to compare
   comparison_metrics:
     - "bleu"
@@ -106,22 +106,22 @@ human_evaluation:
     overall:
       description: "Overall quality of explanation"
       guidelines: "Rate the overall quality considering all factors"
-  
+
   # Inter-annotator agreement requirements
   min_kappa: 0.6
   min_annotators: 2
 
-# Error analysis configuration  
+# Error analysis configuration
 error_analysis:
   quality_threshold: 0.2  # BLEU score threshold for identifying errors
   sample_size: 50
   manual_categorization: true
-  
+
 # Cross-validation settings
 cross_validation:
   stratify_by: "language"  # Stratify splits by programming language
   preserve_distribution: true
-  
+
 # Reproducibility settings
 reproducibility:
   save_predictions: true

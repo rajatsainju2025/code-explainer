@@ -261,7 +261,7 @@ class AsyncCodeExplainer:
 
 class BatchProcessor:
     """Batch processing utilities for code explanation tasks."""
-    
+
     @staticmethod
     async def process_dataset(
         explainer: AsyncCodeExplainer,
@@ -270,43 +270,43 @@ class BatchProcessor:
         progress_callback: Optional[Callable[[int, int], None]] = None
     ) -> List[Dict[str, Any]]:
         """Process an entire dataset of code explanations.
-        
+
         Args:
             explainer: Async code explainer instance
             dataset: Dataset with 'code' field
             output_file: Optional file to save results
             progress_callback: Optional progress callback
-            
+
         Returns:
             Dataset with added 'explanation' field
         """
         start_time = time.time()
         results = []
-        
+
         codes = [item.get('code', '') for item in dataset]
         explanations = await explainer.batch_explain(codes)
-        
+
         for i, (item, explanation) in enumerate(zip(dataset, explanations)):
             result = item.copy()
             result['explanation'] = explanation
             result['processing_time'] = time.time() - start_time
             results.append(result)
-            
+
             if progress_callback:
                 progress_callback(i + 1, len(dataset))
-        
+
         if output_file:
             import json
             with open(output_file, 'w') as f:
                 json.dump(results, f, indent=2)
             logger.info(f"Saved {len(results)} explanations to {output_file}")
-        
+
         total_time = time.time() - start_time
         logger.info(f"Processed {len(dataset)} codes in {total_time:.2f}s "
                    f"({len(dataset) / total_time:.2f} codes/sec)")
-        
+
         return results
-    
+
     @staticmethod
     def create_progress_callback() -> Callable[[int, int], None]:
         """Create a simple progress callback."""
@@ -319,24 +319,24 @@ class BatchProcessor:
 async def main():
     """Example usage of async code explainer."""
     from code_explainer import CodeExplainer
-    
+
     # Initialize explainers
     base_explainer = CodeExplainer()
     async_explainer = AsyncCodeExplainer(base_explainer, max_workers=4)
-    
+
     # Example codes
     codes = [
         "def fibonacci(n): return n if n <= 1 else fibonacci(n-1) + fibonacci(n-2)",
         "class Stack: def __init__(self): self.items = []",
         "import numpy as np; arr = np.array([1, 2, 3])",
     ]
-    
+
     # Batch processing
     print("Batch processing...")
     explanations = await async_explainer.batch_explain(codes)
     for i, explanation in enumerate(explanations):
         print(f"Code {i + 1}: {explanation[:100]}...")
-    
+
     # Streaming processing
     print("\nStreaming processing...")
     await async_explainer.stream_explanations(codes)

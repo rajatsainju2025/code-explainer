@@ -1,7 +1,7 @@
 """Type definitions and annotations for code explainer components."""
 
 from typing import (
-    Any, Dict, List, Optional, Union, Tuple, Callable, Protocol, 
+    Any, Dict, List, Optional, Union, Tuple, Callable, Protocol,
     TypeVar, Generic, Literal, TypedDict, NamedTuple, runtime_checkable
 )
 from typing_extensions import NotRequired
@@ -150,13 +150,13 @@ class ExplanationResult:
     metadata: Optional[ExplanationMetadata] = None
     security_validation: Optional[SecurityValidationResult] = None
     code_analysis: Optional[CodeAnalysisResult] = None
-    
+
     def __post_init__(self):
         """Validate result after initialization."""
         if self.confidence_score is not None:
             if not 0.0 <= self.confidence_score <= 1.0:
                 raise ValueError(f"Confidence score must be between 0 and 1, got {self.confidence_score}")
-        
+
         if self.execution_time_ms < 0:
             raise ValueError(f"Execution time cannot be negative, got {self.execution_time_ms}")
 
@@ -169,15 +169,15 @@ class BatchExplanationRequest:
     batch_size: int = 10
     include_security_check: bool = True
     parallel_processing: bool = True
-    
+
     def __post_init__(self):
         """Validate request after initialization."""
         if not self.codes:
             raise ValueError("Codes list cannot be empty")
-        
+
         if self.batch_size < 1:
             raise ValueError(f"Batch size must be positive, got {self.batch_size}")
-        
+
         if len(self.codes) > 1000:
             raise ValueError(f"Too many codes, maximum 1000 allowed, got {len(self.codes)}")
 
@@ -190,12 +190,12 @@ class CacheConfig:
     ttl_seconds: int
     eviction_policy: Literal["lru", "fifo", "random"] = "lru"
     compression_enabled: bool = False
-    
+
     def __post_init__(self):
         """Validate configuration."""
         if self.max_size <= 0:
             raise ValueError(f"Cache size must be positive, got {self.max_size}")
-        
+
         if self.ttl_seconds <= 0:
             raise ValueError(f"TTL must be positive, got {self.ttl_seconds}")
 
@@ -204,11 +204,11 @@ class CacheConfig:
 @runtime_checkable
 class ExplainerProtocol(Protocol):
     """Protocol for code explainers."""
-    
+
     def explain(self, code: str, strategy: ExplanationStrategy) -> str:
         """Explain the given code."""
         ...
-    
+
     def batch_explain(self, codes: List[str], strategy: ExplanationStrategy) -> List[str]:
         """Explain multiple code snippets."""
         ...
@@ -217,11 +217,11 @@ class ExplainerProtocol(Protocol):
 @runtime_checkable
 class SecurityValidatorProtocol(Protocol):
     """Protocol for security validators."""
-    
+
     def validate_code(self, code: str) -> SecurityValidationResult:
         """Validate code security."""
         ...
-    
+
     def is_safe(self, code: str) -> bool:
         """Quick safety check."""
         ...
@@ -230,19 +230,19 @@ class SecurityValidatorProtocol(Protocol):
 @runtime_checkable
 class CacheProtocol(Protocol[T]):
     """Protocol for cache implementations."""
-    
+
     def get(self, key: str) -> Optional[T]:
         """Get item from cache."""
         ...
-    
+
     def put(self, key: str, value: T, ttl: Optional[int] = None) -> None:
         """Put item in cache."""
         ...
-    
+
     def delete(self, key: str) -> bool:
         """Delete item from cache."""
         ...
-    
+
     def clear(self) -> None:
         """Clear all items from cache."""
         ...
@@ -251,15 +251,15 @@ class CacheProtocol(Protocol[T]):
 @runtime_checkable
 class MetricsCollectorProtocol(Protocol):
     """Protocol for metrics collection."""
-    
+
     def record_event(self, name: str, value: float, tags: Optional[Dict[str, str]] = None) -> None:
         """Record a metric event."""
         ...
-    
+
     def increment_counter(self, name: str, value: float = 1.0) -> None:
         """Increment a counter."""
         ...
-    
+
     def set_gauge(self, name: str, value: float) -> None:
         """Set a gauge value."""
         ...
@@ -268,12 +268,12 @@ class MetricsCollectorProtocol(Protocol):
 # Abstract base classes
 class BaseExplainer(ABC):
     """Abstract base class for code explainers."""
-    
+
     @abstractmethod
     def explain(self, code: str, strategy: ExplanationStrategy) -> ExplanationResult:
         """Explain the given code."""
         pass
-    
+
     @abstractmethod
     def get_supported_strategies(self) -> List[ExplanationStrategy]:
         """Get list of supported strategies."""
@@ -282,27 +282,27 @@ class BaseExplainer(ABC):
 
 class BaseCache(ABC, Generic[T]):
     """Abstract base class for cache implementations."""
-    
+
     @abstractmethod
     def get(self, key: str) -> Optional[T]:
         """Get item from cache."""
         pass
-    
+
     @abstractmethod
     def put(self, key: str, value: T, ttl: Optional[int] = None) -> None:
         """Put item in cache."""
         pass
-    
+
     @abstractmethod
     def delete(self, key: str) -> bool:
         """Delete item from cache."""
         pass
-    
+
     @abstractmethod
     def clear(self) -> None:
         """Clear all items."""
         pass
-    
+
     @abstractmethod
     def size(self) -> int:
         """Get cache size."""
@@ -311,12 +311,12 @@ class BaseCache(ABC, Generic[T]):
 
 class BaseSecurityValidator(ABC):
     """Abstract base class for security validators."""
-    
+
     @abstractmethod
     def validate_code(self, code: str) -> SecurityValidationResult:
         """Validate code security."""
         pass
-    
+
     @abstractmethod
     def get_risk_patterns(self) -> Dict[str, List[str]]:
         """Get risk patterns by category."""
@@ -348,14 +348,14 @@ StrategyConfig = Dict[ExplanationStrategy, Dict[str, Any]]
 # Generic types for extensibility
 class Configurable(Generic[T]):
     """Base class for configurable components."""
-    
+
     def __init__(self, config: T):
         self.config = config
-    
+
     def get_config(self) -> T:
         """Get current configuration."""
         return self.config
-    
+
     def update_config(self, config: T) -> None:
         """Update configuration."""
         self.config = config
@@ -363,19 +363,19 @@ class Configurable(Generic[T]):
 
 class Observable(Generic[T]):
     """Base class for observable components."""
-    
+
     def __init__(self):
         self._observers: List[Callable[[T], None]] = []
-    
+
     def add_observer(self, observer: Callable[[T], None]) -> None:
         """Add an observer."""
         self._observers.append(observer)
-    
+
     def remove_observer(self, observer: Callable[[T], None]) -> None:
         """Remove an observer."""
         if observer in self._observers:
             self._observers.remove(observer)
-    
+
     def notify_observers(self, event: T) -> None:
         """Notify all observers."""
         for observer in self._observers:
@@ -493,44 +493,44 @@ class SystemConfig(TypedDict):
 __all__ = [
     # Enums
     'ExplanationStrategy', 'SecurityRiskLevel', 'ModelArchitecture', 'CacheType',
-    
+
     # TypedDict
     'SecurityValidationResult', 'CodeAnalysisResult', 'ExplanationMetadata',
     'MetricEvent', 'PerformanceMetrics', 'LoggingConfig', 'APIConfig', 'SystemConfig',
-    
+
     # NamedTuple
     'CodeLocation', 'ExplanationSpan', 'ModelConfig',
-    
+
     # Dataclasses
     'ExplanationResult', 'BatchExplanationRequest', 'CacheConfig',
-    
+
     # Protocols
     'ExplainerProtocol', 'SecurityValidatorProtocol', 'CacheProtocol', 'MetricsCollectorProtocol',
-    
+
     # Abstract classes
     'BaseExplainer', 'BaseCache', 'BaseSecurityValidator',
-    
+
     # Generic classes
     'Configurable', 'Observable',
-    
+
     # Union types
     'CodeInput', 'ExplanationOutput', 'CacheKey', 'MetricValue', 'ConfigValue',
-    
+
     # Callback types
     'ExplanationCallback', 'SecurityCallback', 'MetricCallback', 'ErrorCallback',
-    
+
     # Type aliases
     'ModelParameters', 'TrainingConfig', 'EvaluationMetrics', 'StrategyConfig',
-    
+
     # Factory types
     'ExplainerFactory', 'CacheFactory', 'ValidatorFactory',
-    
+
     # Error types
     'CodeExplainerError', 'ValidationError', 'SecurityError', 'CacheError', 'ModelError',
-    
+
     # Type guards
     'is_explanation_result', 'is_security_result', 'is_valid_strategy',
-    
+
     # Converters
     'ensure_strategy', 'ensure_risk_level',
 ]

@@ -53,7 +53,7 @@ class MultiAgentCodeExplainer:
         self.semantic_agent = SemanticAnalysisAgent()     # Logic, algorithms
         self.context_agent = ContextRetrievalAgent()      # External docs, similar code
         self.verification_agent = VerificationAgent()    # Test generation, validation
-        
+
     def explain_code(self, code: str) -> ExplanationResult:
         # Collaborative explanation generation
         pass
@@ -78,7 +78,7 @@ class EnhancedRAG:
         self.code_embedding_db = CodeEmbeddingDatabase()
         self.api_documentation_db = APIDocumentationDB()
         self.similar_code_retriever = SimilarCodeRetriever()
-        
+
     def retrieve_context(self, code: str) -> RetrievalContext:
         # Real-time retrieval from multiple sources
         pass

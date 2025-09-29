@@ -10,7 +10,7 @@ long_description = readme_file.read_text(encoding="utf-8") if readme_file.exists
 # Read requirements from pyproject.toml is preferred, but provide fallback
 requirements = [
     "torch>=2.0.0,<3.0.0",
-    "transformers>=4.30.0,<5.0.0", 
+    "transformers>=4.30.0,<5.0.0",
     "datasets>=2.12.0,<3.0.0",
     "accelerate>=0.20.0,<1.0.0",
     "tokenizers>=0.13.0,<1.0.0",

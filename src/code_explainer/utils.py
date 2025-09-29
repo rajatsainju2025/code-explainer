@@ -51,7 +51,7 @@ def setup_logging(level: str = "INFO", log_file: Optional[str] = None) -> None:
 
 def get_device() -> str:
     """Get the best available device for training/inference.
-    
+
     This function is maintained for backwards compatibility.
     For new code, consider using DeviceManager directly.
     """

@@ -13,7 +13,7 @@ def validate_age(age):
     """Validate user age for system access."""
     assert age >= 0, "Age cannot be negative"
     assert age <= 150, "Age cannot exceed 150"
-    
+
     if age < 18:
         return "minor"
     elif age < 65:
@@ -70,19 +70,19 @@ def find_prime_factors(n):
     """Find all prime factors of a number."""
     if n <= 1:
         return []
-    
+
     factors = []
     d = 2
-    
+
     while d * d <= n:
         while n % d == 0:
             factors.append(d)
             n //= d
         d += 1
-    
+
     if n > 1:
         factors.append(n)
-    
+
     return factors
 ```
 
@@ -105,7 +105,7 @@ python -m code_explainer.cli explain --multi-agent 'def find_prime_factors(n):
 
 **Multi-Agent Analysis:**
 
-1. **Structural Agent**: 
+1. **Structural Agent**:
    - Function structure analysis
    - Nested loops detected
    - Time complexity estimation
@@ -207,7 +207,7 @@ python -m code_explainer.cli explain --prompt-strategy execution_trace --multi-a
 - Number of Loops: 2
 
 **Semantic Analysis:**
-This implements the bubble sort algorithm, which repeatedly steps through the list, 
+This implements the bubble sort algorithm, which repeatedly steps through the list,
 compares adjacent elements and swaps them if they are in wrong order...
 
 **Symbolic Analysis:**

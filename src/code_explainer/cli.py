@@ -1072,14 +1072,14 @@ def eval_judge_reliability(judgments_file, n_bootstrap, ab_randomize, out):
 def eval_contamination(train_data, test_data, output, methods, fields, include_semantic):
     """Run contamination detection between train and test data."""
     from .evaluation.contamination import run_contamination_detection
-    
+
     console.print(Panel.fit("🔍 Running Contamination Detection", style="bold blue"))
-    
+
     try:
         detection_methods = list(methods)
         if include_semantic:
             detection_methods.append("semantic")
-        
+
         report = run_contamination_detection(
             train_file=train_data,
             test_file=test_data,
@@ -1087,15 +1087,15 @@ def eval_contamination(train_data, test_data, output, methods, fields, include_s
             methods=detection_methods,
             fields=list(fields)
         )
-        
+
         console.print(f"[bold green]✅ Contamination detection completed![/bold green]")
         console.print(f"Total Test Examples: {report.total_test_examples}")
         console.print(f"Contaminated Examples: {len(report.contaminated_examples)}")
         console.print(f"Contamination Rate: {report.contamination_rate:.3%}")
-        
+
         if report.contaminated_examples:
             console.print("[bold yellow]⚠️ Contamination detected![/bold yellow]")
-            
+
             # Show contamination by method
             contamination_by_method = report.summary_stats.get("contamination_by_method", {})
             if contamination_by_method:
@@ -1104,9 +1104,9 @@ def eval_contamination(train_data, test_data, output, methods, fields, include_s
                     console.print(f"  {method}: {count}")
         else:
             console.print("[bold green]✅ No contamination detected[/bold green]")
-        
+
         console.print(f"Report saved to: {output}")
-        
+
     except Exception as e:
         console.print(Panel.fit(f"❌ Contamination detection failed: {e}", style="bold red"))
         raise
@@ -1126,9 +1126,9 @@ def eval_robustness(test_data, model_path, config, output, test_types, severity_
     from .evaluation.robustness import run_robustness_tests
     from .model import CodeExplainer
     import json
-    
+
     console.print(Panel.fit("🛡️ Running Robustness Testing", style="bold blue"))
-    
+
     try:
         # Load test data
         with open(test_data, 'r') as f:
@@ -1136,13 +1136,13 @@ def eval_robustness(test_data, model_path, config, output, test_types, severity_
                 examples = [json.loads(line) for line in f]
             else:
                 examples = json.load(f)
-        
+
         # Create prediction function
         explainer = CodeExplainer(model_path=model_path, config_path=config)
-        
+
         def predict_func(example):
             return explainer.explain_code(example.get('code', ''))
-        
+
         # Run robustness tests
         report = run_robustness_tests(
             examples=examples,
@@ -1153,17 +1153,17 @@ def eval_robustness(test_data, model_path, config, output, test_types, severity_
             max_examples=max_examples,
             random_seed=random_seed
         )
-        
+
         console.print(f"[bold green]✅ Robustness testing completed![/bold green]")
         console.print(f"Total Tests: {report.total_tests}")
         console.print(f"Overall Robustness Score: {report.overall_robustness_score:.3f}")
-        
+
         # Show results by test type
         for test_name, summary in report.test_summaries.items():
             console.print(f"{test_name}: {summary['mean_score']:.3f} ± {summary['std_score']:.3f}")
-        
+
         console.print(f"Report saved to: {output}")
-        
+
     except Exception as e:
         console.print(Panel.fit(f"❌ Robustness testing failed: {e}", style="bold red"))
         raise

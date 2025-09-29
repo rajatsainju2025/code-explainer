@@ -41,22 +41,22 @@ class CodeRetriever:
 
     def __init__(self, model_name: str = "sentence-transformers/all-MiniLM-L6-v2", model: Optional[Any] = None):
         """Initialize the code retriever.
-        
+
         Args:
             model_name: Name of the sentence transformer model to use
         """
         self.model_name = model_name
         self.model = model if model is not None else SentenceTransformer(model_name)
-        
+
         # Core data structures
         self.code_corpus: List[str] = []
         self.index: Optional[Any] = None  # FAISS index
         self._bm25: Optional[Any] = None  # BM25 index
-        
+
         # Advanced features
         self.reranker = create_reranker()  # Cross-encoder reranker
         self.mmr = create_mmr(lambda_param=0.5)  # MMR for diversity
-        
+
         # Statistics
         self.retrieval_stats = {
             "total_queries": 0,
@@ -120,7 +120,7 @@ class CodeRetriever:
     def load_index(self, path: str) -> None:
         if not HAS_FAISS or faiss is None:
             raise ImportError("FAISS is not available")
-            
+
         p = Path(path)
         if not p.exists():
             raise FileNotFoundError(f"Index file not found: {path}")
@@ -232,7 +232,7 @@ class CodeRetriever:
         mmr_lambda: float = 0.5
     ) -> List[Dict[str, Any]]:
         """Enhanced retrieval with reranking and MMR for diversity.
-        
+
         Args:
             query_code: Code query
             k: Number of results to return
@@ -242,16 +242,16 @@ class CodeRetriever:
             use_mmr: Whether to use MMR for diversity
             rerank_top_k: Number of candidates to rerank
             mmr_lambda: MMR trade-off parameter
-            
+
         Returns:
             List of enhanced result dictionaries with scores and metadata
         """
         start_time = time.time()
-        
+
         # Update statistics
         self.retrieval_stats["total_queries"] += 1
         self.retrieval_stats["method_usage"][method] += 1
-        
+
         if not self.code_corpus:
             raise ValueError("Index/corpus is not loaded or built.")
 
@@ -261,7 +261,7 @@ class CodeRetriever:
 
         # Get initial candidates (more than k if we're reranking)
         initial_k = max(k, rerank_top_k if use_reranker else k)
-        
+
         faiss_scores: Dict[int, float] = {}
         bm25_scores: Dict[int, float] = {}
 
@@ -271,7 +271,7 @@ class CodeRetriever:
                 raise ValueError("FAISS index is not loaded.")
             query_embedding = self.model.encode([query_code])
             distances, indices = self.index.search(
-                np.array(query_embedding, dtype=np.float32), 
+                np.array(query_embedding, dtype=np.float32),
                 min(initial_k, len(self.code_corpus))
             )
             for d, i in zip(distances[0], indices[0]):
@@ -324,8 +324,8 @@ class CodeRetriever:
         if use_reranker and self.reranker is not None and candidates:
             try:
                 candidates = self.reranker.rerank(
-                    query_code, 
-                    candidates, 
+                    query_code,
+                    candidates,
                     top_k=k if not use_mmr else min(k * 2, len(candidates))
                 )
                 self.retrieval_stats["rerank_usage"] += 1
@@ -339,14 +339,14 @@ class CodeRetriever:
                 query_embedding = self.model.encode([query_code])[0]
                 candidate_contents = [c["content"] for c in candidates]
                 candidate_embeddings = self.model.encode(candidate_contents)
-                
+
                 # Convert to list of arrays for MMR
                 candidate_embedding_list = [candidate_embeddings[i] for i in range(len(candidate_embeddings))]
-                
+
                 # Update MMR lambda if provided
                 if mmr_lambda != 0.5:
                     self.mmr.lambda_param = mmr_lambda
-                
+
                 candidates = self.mmr.select(
                     query_embedding,
                     candidate_embedding_list,

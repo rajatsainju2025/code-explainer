@@ -12,9 +12,9 @@ import statistics
 import numpy as np
 
 from src.code_explainer.open_evals import (
-    get_dataset_list, 
-    get_dataset_info, 
-    run_eval, 
+    get_dataset_list,
+    get_dataset_info,
+    run_eval,
     generate_dataset
 )
 
@@ -25,10 +25,10 @@ def calculate_performance_metrics(response_times: List[float]) -> Dict[str, floa
     """Calculate performance metrics including P95/P99."""
     if not response_times:
         return {}
-    
+
     sorted_times = sorted(response_times)
     n = len(sorted_times)
-    
+
     return {
         "min": min(sorted_times),
         "max": max(sorted_times),
@@ -48,16 +48,16 @@ def run_comprehensive_eval(
     include_perf_metrics: bool = True
 ) -> Dict[str, Any]:
     """Run comprehensive evaluation across multiple datasets."""
-    
+
     if datasets is None:
         datasets = get_dataset_list()
-    
+
     logger.info(f"Running evaluation on {len(datasets)} datasets")
-    
+
     # Create output directory
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
-    
+
     overall_results = {
         "evaluation_time": time.time(),
         "model_path": model_path,
@@ -66,29 +66,29 @@ def run_comprehensive_eval(
         "dataset_results": {},
         "summary": {}
     }
-    
+
     total_samples = 0
     total_correct = 0
     all_response_times = []
-    
+
     for dataset_id in datasets:
         logger.info(f"Evaluating dataset: {dataset_id}")
-        
+
         try:
             # Get dataset info
             dataset_info = get_dataset_info(dataset_id)
             if not dataset_info:
                 logger.warning(f"Dataset info not found for: {dataset_id}")
                 continue
-            
+
             # Run evaluation with timing
             start_time = time.time()
-            
+
             if include_perf_metrics:
                 # Generate dataset to get individual timings
                 dataset = generate_dataset(dataset_id)
                 response_times = []
-                
+
                 # Simulate individual query timings (replace with actual model calls)
                 for sample in dataset:
                     query_start = time.time()
@@ -96,13 +96,13 @@ def run_comprehensive_eval(
                     time.sleep(0.01)  # Simulate processing time
                     query_time = time.time() - query_start
                     response_times.append(query_time)
-                
+
                 all_response_times.extend(response_times)
                 perf_metrics = calculate_performance_metrics(response_times)
             else:
                 perf_metrics = {}
                 response_times = []
-            
+
             # Run standard evaluation
             metrics = run_eval(
                 dataset_id=dataset_id,
@@ -111,9 +111,9 @@ def run_comprehensive_eval(
                 out_csv=str(output_path / f"{dataset_id}_results.csv"),
                 out_json=str(output_path / f"{dataset_id}_results.json")
             )
-            
+
             eval_time = time.time() - start_time
-            
+
             # Combine metrics
             dataset_result = {
                 "dataset_info": dataset_info,
@@ -122,26 +122,26 @@ def run_comprehensive_eval(
                 "evaluation_time": eval_time,
                 "samples_per_second": metrics["total_samples"] / eval_time if eval_time > 0 else 0
             }
-            
+
             overall_results["dataset_results"][dataset_id] = dataset_result
-            
+
             # Update totals
             total_samples += metrics["total_samples"]
             total_correct += metrics["correct"]
-            
+
             logger.info(f"Dataset {dataset_id}: {metrics['accuracy']:.2%} accuracy, {eval_time:.2f}s")
-            
+
         except Exception as e:
             logger.error(f"Failed to evaluate dataset {dataset_id}: {e}")
             overall_results["dataset_results"][dataset_id] = {
                 "error": str(e),
                 "dataset_info": get_dataset_info(dataset_id)
             }
-    
+
     # Calculate overall summary
     overall_accuracy = total_correct / total_samples if total_samples > 0 else 0.0
     overall_perf = calculate_performance_metrics(all_response_times) if include_perf_metrics else {}
-    
+
     overall_results["summary"] = {
         "total_samples": total_samples,
         "total_correct": total_correct,
@@ -150,18 +150,18 @@ def run_comprehensive_eval(
         "failed_datasets": len([r for r in overall_results["dataset_results"].values() if "error" in r]),
         "overall_performance": overall_perf
     }
-    
+
     # Save comprehensive results
     with open(output_path / "comprehensive_results.json", "w") as f:
         json.dump(overall_results, f, indent=2, default=str)
-    
+
     logger.info(f"Comprehensive evaluation complete: {overall_accuracy:.2%} overall accuracy")
     return overall_results
 
 
 def generate_eval_report(results: Dict[str, Any], output_path: str = "./eval_results/report.md") -> None:
     """Generate a markdown evaluation report."""
-    
+
     report_lines = [
         "# Evaluation Report",
         "",
@@ -178,7 +178,7 @@ def generate_eval_report(results: Dict[str, Any], output_path: str = "./eval_res
         f"- **Overall Accuracy:** {results['summary']['overall_accuracy']:.2%}",
         ""
     ]
-    
+
     # Performance metrics
     if "overall_performance" in results["summary"] and results["summary"]["overall_performance"]:
         perf = results["summary"]["overall_performance"]
@@ -193,7 +193,7 @@ def generate_eval_report(results: Dict[str, Any], output_path: str = "./eval_res
             f"- **Max Response Time:** {perf.get('max', 0):.3f}s",
             ""
         ])
-    
+
     # Dataset results
     report_lines.extend([
         "## Dataset Results",
@@ -201,7 +201,7 @@ def generate_eval_report(results: Dict[str, Any], output_path: str = "./eval_res
         "| Dataset | Accuracy | Samples | Time (s) | Samples/s | Status |",
         "|---------|----------|---------|----------|-----------|--------|"
     ])
-    
+
     for dataset_id, result in results["dataset_results"].items():
         if "error" in result:
             report_lines.append(f"| {dataset_id} | - | - | - | - | ❌ Error |")
@@ -212,13 +212,13 @@ def generate_eval_report(results: Dict[str, Any], output_path: str = "./eval_res
             eval_time = f"{result['evaluation_time']:.2f}"
             samples_per_sec = f"{result['samples_per_second']:.1f}"
             report_lines.append(f"| {dataset_id} | {accuracy} | {samples} | {eval_time} | {samples_per_sec} | ✅ Success |")
-    
+
     report_lines.extend([
         "",
         "## Dataset Details",
         ""
     ])
-    
+
     for dataset_id, result in results["dataset_results"].items():
         if "error" in result:
             report_lines.extend([
@@ -239,14 +239,14 @@ def generate_eval_report(results: Dict[str, Any], output_path: str = "./eval_res
                 f"**Correct:** {metrics['correct']}/{metrics['total_samples']}",
                 ""
             ])
-    
+
     # Write report
     report_path = Path(output_path)
     report_path.parent.mkdir(parents=True, exist_ok=True)
-    
+
     with open(report_path, "w") as f:
         f.write("\n".join(report_lines))
-    
+
     logger.info(f"Evaluation report saved to: {report_path}")
 
 
@@ -261,13 +261,13 @@ def main():
     parser.add_argument("--report", action="store_true", help="Generate markdown report")
     parser.add_argument("--list-datasets", action="store_true", help="List available datasets")
     parser.add_argument("--verbose", "-v", action="store_true", help="Verbose logging")
-    
+
     args = parser.parse_args()
-    
+
     # Setup logging
     log_level = logging.DEBUG if args.verbose else logging.INFO
     logging.basicConfig(level=log_level, format="%(asctime)s - %(levelname)s - %(message)s")
-    
+
     # List datasets if requested
     if args.list_datasets:
         print("Available datasets:")
@@ -278,7 +278,7 @@ def main():
             else:
                 print(f"  {dataset_id}: (no info available)")
         return
-    
+
     # Run evaluation
     results = run_comprehensive_eval(
         datasets=args.datasets,
@@ -287,11 +287,11 @@ def main():
         output_dir=args.output_dir,
         include_perf_metrics=not args.no_perf
     )
-    
+
     # Generate report if requested
     if args.report:
         generate_eval_report(results, f"{args.output_dir}/report.md")
-    
+
     print(f"\nEvaluation complete! Results saved to: {args.output_dir}")
     print(f"Overall accuracy: {results['summary']['overall_accuracy']:.2%}")
 

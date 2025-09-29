@@ -143,7 +143,7 @@ logging:
 ```
 src/code_explainer/
 ├── cache.py                 # ✨ NEW: Caching system
-├── security.py             # ✨ NEW: Security framework  
+├── security.py             # ✨ NEW: Security framework
 ├── logging_utils.py         # ✨ NEW: Enhanced logging
 ├── cli.py                   # 🔄 ENHANCED: New commands
 ├── model.py                 # 🔄 ENHANCED: Cache integration

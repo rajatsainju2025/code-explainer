@@ -53,7 +53,7 @@ def test_model_load_8bit(test_model_config):
     """Test 8-bit model loading configuration."""
     test_model_config.load_in_8bit = True
     loader = ModelLoader(test_model_config)
-    
+
     # 8-bit loading should be disabled on CPU
     if loader.device.type == "cpu":
         resources = loader.load()

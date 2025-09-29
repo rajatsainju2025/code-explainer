@@ -113,7 +113,7 @@ class StructuralAgent(BaseAgent):
             structure_description = f"""
 **Code Structure Analysis:**
 - Functions: {', '.join(functions) if functions else 'None'}
-- Classes: {', '.join(classes) if classes else 'None'}  
+- Classes: {', '.join(classes) if classes else 'None'}
 - Imports: {', '.join(imports[:5]) if imports else 'None'}
 - Cyclomatic Complexity: {complexity.get('cyclomatic_complexity', 'Unknown')}
 - Estimated Time Complexity: {complexity.get('estimated_time_complexity', 'Unknown')}

@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 class ContainerSandbox:
     """Container-based sandbox for secure code execution."""
-    
+
     def __init__(
         self,
         image: str = "python:3.11-slim",
@@ -25,7 +25,7 @@ class ContainerSandbox:
         network_disabled: bool = True
     ):
         """Initialize container sandbox.
-        
+
         Args:
             image: Docker image to use
             timeout: Execution timeout in seconds
@@ -39,7 +39,7 @@ class ContainerSandbox:
         self.cpu_limit = cpu_limit
         self.network_disabled = network_disabled
         self._check_docker()
-    
+
     def _check_docker(self) -> None:
         """Check if Docker is available."""
         try:
@@ -51,7 +51,7 @@ class ContainerSandbox:
             )
         except (subprocess.CalledProcessError, subprocess.TimeoutExpired, FileNotFoundError):
             raise RuntimeError("Docker is not available. Please install Docker to use container sandboxing.")
-    
+
     def execute_code(
         self,
         code: str,
@@ -60,13 +60,13 @@ class ContainerSandbox:
         capture_output: bool = True
     ) -> Dict[str, Any]:
         """Execute code in a secure container.
-        
+
         Args:
             code: Python code to execute
             input_data: Input data for the code
             allowed_imports: List of allowed import modules
             capture_output: Whether to capture stdout/stderr
-            
+
         Returns:
             Execution result with output, error, and metadata
         """
@@ -81,23 +81,23 @@ class ContainerSandbox:
                     "execution_time": 0,
                     "memory_usage": 0
                 }
-        
+
         # Create temporary directory for code execution
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)
-            
+
             # Write code to file
             code_file = temp_path / "code.py"
             code_file.write_text(code)
-            
+
             # Write input data if provided
             input_file = temp_path / "input.txt"
             if input_data:
                 input_file.write_text(input_data)
-            
+
             # Build Docker command
             docker_cmd = self._build_docker_command(temp_path, capture_output)
-            
+
             # Execute in container
             start_time = time.time()
             try:
@@ -108,7 +108,7 @@ class ContainerSandbox:
                     timeout=self.timeout
                 )
                 execution_time = time.time() - start_time
-                
+
                 return {
                     "success": result.returncode == 0,
                     "output": result.stdout if capture_output else "",
@@ -116,7 +116,7 @@ class ContainerSandbox:
                     "execution_time": execution_time,
                     "return_code": result.returncode
                 }
-                
+
             except subprocess.TimeoutExpired:
                 return {
                     "success": False,
@@ -133,7 +133,7 @@ class ContainerSandbox:
                     "execution_time": time.time() - start_time,
                     "return_code": -1
                 }
-    
+
     def _build_docker_command(self, temp_path: Path, capture_output: bool) -> List[str]:
         """Build Docker command for code execution."""
         cmd = [
@@ -149,10 +149,10 @@ class ContainerSandbox:
             "-v", f"{temp_path}:/workspace:ro",  # Mount code directory read-only
             "-w", "/workspace",  # Set working directory
         ]
-        
+
         if self.network_disabled:
             cmd.extend(["--network", "none"])
-        
+
         # Add image and command
         cmd.extend([
             self.image,
@@ -176,31 +176,31 @@ except Exception:
 try:
     with open('code.py', 'r') as f:
         code = f.read()
-    
+
     # Set up input if available
     if os.path.exists('input.txt'):
         with open('input.txt', 'r') as f:
             input_data = f.read()
         sys.stdin = __import__('io').StringIO(input_data)
-    
+
     exec(code)
 except Exception as e:
     print(f"Execution error: {e}", file=sys.stderr)
     sys.exit(1)
 """
         ])
-        
+
         return cmd
-    
+
     def _check_imports(self, code: str, allowed_imports: List[str]) -> List[str]:
         """Check for forbidden imports in code."""
         import ast
-        
+
         violations = []
-        
+
         try:
             tree = ast.parse(code)
-            
+
             for node in ast.walk(tree):
                 if isinstance(node, ast.Import):
                     for alias in node.names:
@@ -212,9 +212,9 @@ except Exception as e:
         except SyntaxError:
             # If code has syntax errors, let the container handle it
             pass
-        
+
         return violations
-    
+
     def test_security(self) -> Dict[str, Any]:
         """Test sandbox security with various attack vectors."""
         test_cases = [
@@ -249,19 +249,19 @@ except Exception as e:
                 "should_fail": False
             }
         ]
-        
+
         results = {}
-        
+
         for test in test_cases:
             logger.info(f"Testing: {test['name']}")
             result = self.execute_code(test["code"])
-            
+
             # Check if result matches expectation
             if test["should_fail"]:
                 passed = not result["success"] or "error" in result["error"].lower()
             else:
                 passed = result["success"]
-            
+
             results[test["name"]] = {
                 "passed": passed,
                 "success": result["success"],
@@ -269,16 +269,16 @@ except Exception as e:
                 "error": result["error"],
                 "execution_time": result["execution_time"]
             }
-        
+
         return results
 
 
 class EnhancedSecurityValidator:
     """Enhanced security validation with container support."""
-    
+
     def __init__(self, use_container: bool = True):
         """Initialize security validator.
-        
+
         Args:
             use_container: Whether to use container sandboxing
         """
@@ -292,7 +292,7 @@ class EnhancedSecurityValidator:
                 self.sandbox = None
         else:
             self.sandbox = None
-    
+
     def validate_and_execute(
         self,
         code: str,
@@ -300,18 +300,18 @@ class EnhancedSecurityValidator:
         safe_builtins_only: bool = True
     ) -> Dict[str, Any]:
         """Validate and execute code with enhanced security.
-        
+
         Args:
             code: Code to validate and execute
             allowed_imports: List of allowed imports
             safe_builtins_only: Whether to restrict to safe builtins
-            
+
         Returns:
             Validation and execution results
         """
         # First, run static analysis
         static_result = self._static_security_check(code)
-        
+
         if not static_result["safe"]:
             return {
                 "validation_passed": False,
@@ -319,28 +319,28 @@ class EnhancedSecurityValidator:
                 "security_issues": static_result["issues"],
                 "recommendation": "Code failed static security analysis"
             }
-        
+
         # If container sandboxing is available, use it
         if self.use_container and self.sandbox:
             execution_result = self.sandbox.execute_code(
                 code,
                 allowed_imports=allowed_imports
             )
-            
+
             return {
                 "validation_passed": True,
                 "execution_result": execution_result,
                 "security_issues": [],
                 "recommendation": "Code executed in secure container"
             }
-        
+
         # Fallback to restricted execution
         return self._restricted_execution(code, safe_builtins_only)
-    
+
     def _static_security_check(self, code: str) -> Dict[str, Any]:
         """Perform static security analysis."""
         issues = []
-        
+
         # Check for dangerous patterns
         dangerous_patterns = [
             "eval(",
@@ -356,16 +356,16 @@ class EnhancedSecurityValidator:
             "os.popen",
             "commands.",
         ]
-        
+
         for pattern in dangerous_patterns:
             if pattern in code:
                 issues.append(f"Potentially dangerous pattern: {pattern}")
-        
+
         # AST-based analysis
         try:
             import ast
             tree = ast.parse(code)
-            
+
             for node in ast.walk(tree):
                 if isinstance(node, ast.Import):
                     for alias in node.names:
@@ -376,18 +376,18 @@ class EnhancedSecurityValidator:
                         issues.append(f"Potentially dangerous import: {node.module}")
         except SyntaxError:
             issues.append("Code contains syntax errors")
-        
+
         return {
             "safe": len(issues) == 0,
             "issues": issues
         }
-    
+
     def _restricted_execution(self, code: str, safe_builtins_only: bool) -> Dict[str, Any]:
         """Execute code with restricted environment."""
         # Import at function level to ensure availability
         import io
         import sys
-        
+
         # This is a simplified version - for production use container sandboxing
         safe_builtins = {
             'abs', 'all', 'any', 'bin', 'bool', 'chr', 'dict', 'dir',
@@ -398,31 +398,31 @@ class EnhancedSecurityValidator:
             'reversed', 'round', 'set', 'slice', 'sorted', 'str', 'sum',
             'tuple', 'type', 'zip'
         }
-        
+
         restricted_globals = {}
         if safe_builtins_only:
             restricted_globals['__builtins__'] = {
                 name: getattr(__builtins__, name) for name in safe_builtins
                 if hasattr(__builtins__, name)
             }
-        
+
         # Save original stdout/stderr
         old_stdout = sys.stdout
         old_stderr = sys.stderr
         stdout_capture = io.StringIO()
         stderr_capture = io.StringIO()
-        
+
         # Initialize timing
         start_time = time.time()
-        
+
         try:
             # Capture output
             sys.stdout = stdout_capture
             sys.stderr = stderr_capture
-            
+
             exec(code, restricted_globals)
             execution_time = time.time() - start_time
-            
+
             return {
                 "validation_passed": True,
                 "execution_result": {
@@ -434,7 +434,7 @@ class EnhancedSecurityValidator:
                 "security_issues": [],
                 "recommendation": "Code executed with restricted builtins"
             }
-            
+
         except Exception as e:
             execution_time = time.time() - start_time
             return {
@@ -458,18 +458,18 @@ def main():
     """Test container sandboxing."""
     try:
         sandbox = ContainerSandbox()
-        
+
         # Test basic execution
         result = sandbox.execute_code("print('Hello, secure world!')")
         print("Basic execution:", result)
-        
+
         # Test security
         security_results = sandbox.test_security()
         print("\nSecurity test results:")
         for test_name, result in security_results.items():
             status = "PASS" if result["passed"] else "FAIL"
             print(f"  {test_name}: {status}")
-        
+
     except RuntimeError as e:
         print(f"Container sandboxing not available: {e}")
         print("Install Docker to enable container-based sandboxing.")

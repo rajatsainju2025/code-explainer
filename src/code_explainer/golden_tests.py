@@ -21,20 +21,20 @@ class GoldenTestCase:
     strategy: Optional[str] = None
     metadata: Optional[Dict[str, Any]] = None
     created_at: float = 0.0
-    
+
     def __post_init__(self):
         if self.created_at == 0.0:
             self.created_at = time.time()
-    
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for serialization."""
         return asdict(self)
-    
+
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'GoldenTestCase':
         """Create from dictionary."""
         return cls(**data)
-    
+
     def get_input_hash(self) -> str:
         """Get hash of input for change detection."""
         content = f"{self.input_code}_{self.strategy or 'default'}"
@@ -43,10 +43,10 @@ class GoldenTestCase:
 
 class GoldenTestDatasets:
     """Collection of golden test datasets organized by category."""
-    
+
     def __init__(self, data_dir: str = "./golden_tests"):
         """Initialize golden test datasets.
-        
+
         Args:
             data_dir: Directory to store golden test data
         """
@@ -54,7 +54,7 @@ class GoldenTestDatasets:
         self.data_dir.mkdir(parents=True, exist_ok=True)
         self.datasets: Dict[str, List[GoldenTestCase]] = {}
         self._load_datasets()
-    
+
     def _load_datasets(self) -> None:
         """Load existing datasets from disk."""
         for category_file in self.data_dir.glob("*.json"):
@@ -67,7 +67,7 @@ class GoldenTestDatasets:
                     logger.info(f"Loaded {len(test_cases)} golden tests for category: {category}")
             except Exception as e:
                 logger.error(f"Failed to load golden tests for {category}: {e}")
-    
+
     def save_datasets(self) -> None:
         """Save all datasets to disk."""
         for category, test_cases in self.datasets.items():
@@ -79,30 +79,30 @@ class GoldenTestDatasets:
                 logger.info(f"Saved {len(test_cases)} golden tests for category: {category}")
             except Exception as e:
                 logger.error(f"Failed to save golden tests for {category}: {e}")
-    
+
     def add_test_case(self, test_case: GoldenTestCase) -> None:
         """Add a new test case to the appropriate category."""
         category = test_case.category
         if category not in self.datasets:
             self.datasets[category] = []
-        
+
         # Check for duplicates
         existing_ids = {case.id for case in self.datasets[category]}
         if test_case.id in existing_ids:
             logger.warning(f"Test case {test_case.id} already exists in category {category}")
             return
-        
+
         self.datasets[category].append(test_case)
         logger.info(f"Added golden test case {test_case.id} to category {category}")
-    
+
     def get_category_tests(self, category: str) -> List[GoldenTestCase]:
         """Get all test cases for a specific category."""
         return self.datasets.get(category, [])
-    
+
     def get_all_categories(self) -> List[str]:
         """Get list of all categories."""
         return list(self.datasets.keys())
-    
+
     def get_total_test_count(self) -> int:
         """Get total number of test cases across all categories."""
         return sum(len(tests) for tests in self.datasets.values())
@@ -110,9 +110,9 @@ class GoldenTestDatasets:
 
 def create_core_golden_tests() -> GoldenTestDatasets:
     """Create core golden test datasets for fundamental functionality."""
-    
+
     datasets = GoldenTestDatasets()
-    
+
     # Basic function explanations
     basic_tests = [
         GoldenTestCase(
@@ -137,10 +137,10 @@ def create_core_golden_tests() -> GoldenTestDatasets:
             strategy="vanilla"
         )
     ]
-    
+
     for test in basic_tests:
         datasets.add_test_case(test)
-    
+
     # Data structure operations
     data_structure_tests = [
         GoldenTestCase(
@@ -165,10 +165,10 @@ def create_core_golden_tests() -> GoldenTestDatasets:
             strategy="vanilla"
         )
     ]
-    
+
     for test in data_structure_tests:
         datasets.add_test_case(test)
-    
+
     # Algorithm patterns
     algorithm_tests = [
         GoldenTestCase(
@@ -202,10 +202,10 @@ def create_core_golden_tests() -> GoldenTestDatasets:
             strategy="vanilla"
         )
     ]
-    
+
     for test in algorithm_tests:
         datasets.add_test_case(test)
-    
+
     # Error handling patterns
     error_handling_tests = [
         GoldenTestCase(
@@ -223,10 +223,10 @@ def create_core_golden_tests() -> GoldenTestDatasets:
             strategy="vanilla"
         )
     ]
-    
+
     for test in error_handling_tests:
         datasets.add_test_case(test)
-    
+
     # Object-oriented programming
     oop_tests = [
         GoldenTestCase(
@@ -236,54 +236,54 @@ def create_core_golden_tests() -> GoldenTestDatasets:
     def __init__(self, name, age):
         self.name = name
         self.age = age
-    
+
     def greet(self):
         return f"Hello, my name is {self.name}"
-    
+
     def birthday(self):
         self.age += 1""",
             expected_explanation="This defines a Person class with attributes 'name' and 'age'. The __init__ method is the constructor that initializes these attributes when a new Person object is created. The greet() method returns a greeting message with the person's name. The birthday() method increments the person's age by 1, simulating a birthday.",
             strategy="vanilla"
         )
     ]
-    
+
     for test in oop_tests:
         datasets.add_test_case(test)
-    
+
     return datasets
 
 
 class GoldenTestRunner:
     """Runs golden tests and checks for regressions."""
-    
+
     def __init__(self, datasets: GoldenTestDatasets):
         """Initialize the test runner.
-        
+
         Args:
             datasets: Golden test datasets to run
         """
         self.datasets = datasets
         self.results: Dict[str, Any] = {}
-    
+
     def run_tests(
-        self, 
+        self,
         model_explainer,
         categories: Optional[List[str]] = None,
         tolerance: float = 0.8
     ) -> Dict[str, Any]:
         """Run golden tests against a model.
-        
+
         Args:
             model_explainer: The code explainer model to test
             categories: Specific categories to test (None for all)
             tolerance: Similarity tolerance for pass/fail (0-1)
-            
+
         Returns:
             Dictionary with test results
         """
         if categories is None:
             categories = self.datasets.get_all_categories()
-        
+
         results = {
             "timestamp": time.time(),
             "total_tests": 0,
@@ -292,7 +292,7 @@ class GoldenTestRunner:
             "categories": {},
             "failures": []
         }
-        
+
         for category in categories:
             test_cases = self.datasets.get_category_tests(category)
             category_results = {
@@ -301,7 +301,7 @@ class GoldenTestRunner:
                 "failed": 0,
                 "tests": []
             }
-            
+
             for test_case in test_cases:
                 try:
                     # Get explanation from model
@@ -309,15 +309,15 @@ class GoldenTestRunner:
                         test_case.input_code,
                         strategy=test_case.strategy
                     )
-                    
+
                     # Check similarity (simplified - could use more sophisticated metrics)
                     similarity = self._calculate_similarity(
                         test_case.expected_explanation,
                         actual_explanation
                     )
-                    
+
                     passed = similarity >= tolerance
-                    
+
                     test_result = {
                         "id": test_case.id,
                         "passed": passed,
@@ -326,9 +326,9 @@ class GoldenTestRunner:
                         "actual": actual_explanation,
                         "input_hash": test_case.get_input_hash()
                     }
-                    
+
                     category_results["tests"].append(test_result)
-                    
+
                     if passed:
                         category_results["passed"] += 1
                         results["passed"] += 1
@@ -341,9 +341,9 @@ class GoldenTestRunner:
                             "similarity": similarity,
                             "reason": f"Similarity {similarity:.2f} below tolerance {tolerance}"
                         })
-                    
+
                     results["total_tests"] += 1
-                    
+
                 except Exception as e:
                     logger.error(f"Error running test {test_case.id}: {e}")
                     category_results["failed"] += 1
@@ -354,36 +354,36 @@ class GoldenTestRunner:
                         "test_id": test_case.id,
                         "error": str(e)
                     })
-            
+
             results["categories"][category] = category_results
-        
+
         self.results = results
         return results
-    
+
     def _calculate_similarity(self, expected: str, actual: str) -> float:
         """Calculate similarity between expected and actual explanations.
-        
+
         This is a simplified implementation. In practice, you might want to use
         more sophisticated metrics like BLEU, ROUGE, or semantic similarity.
         """
         # Simple word overlap similarity
         expected_words = set(expected.lower().split())
         actual_words = set(actual.lower().split())
-        
+
         if not expected_words:
             return 1.0 if not actual_words else 0.0
-        
+
         intersection = expected_words.intersection(actual_words)
         union = expected_words.union(actual_words)
-        
+
         return len(intersection) / len(union) if union else 0.0
-    
+
     def generate_report(self, output_path: str = "./golden_test_report.md") -> None:
         """Generate a markdown report of test results."""
         if not self.results:
             logger.warning("No test results available for report generation")
             return
-        
+
         results = self.results
         report_lines = [
             "# Golden Test Results",
@@ -398,7 +398,7 @@ class GoldenTestRunner:
             "| Category | Total | Passed | Failed | Pass Rate |",
             "|----------|--------|--------|--------|-----------|"
         ]
-        
+
         for category, cat_results in results["categories"].items():
             total = cat_results["total"]
             passed = cat_results["passed"]
@@ -406,21 +406,21 @@ class GoldenTestRunner:
             report_lines.append(
                 f"| {category} | {total} | {passed} | {cat_results['failed']} | {pass_rate:.1f}% |"
             )
-        
+
         if results["failures"]:
             report_lines.extend([
                 "",
                 "## Failures",
                 ""
             ])
-            
+
             for failure in results["failures"]:
                 report_lines.append(f"- **{failure['category']}/{failure['test_id']}:** {failure.get('reason', failure.get('error', 'Unknown error'))}")
-        
+
         # Write report
         with open(output_path, 'w') as f:
             f.write("\n".join(report_lines))
-        
+
         logger.info(f"Golden test report saved to: {output_path}")
 
 
@@ -429,9 +429,9 @@ def main():
     # Create golden test datasets
     datasets = create_core_golden_tests()
     datasets.save_datasets()
-    
+
     print(f"Created {datasets.get_total_test_count()} golden tests across {len(datasets.get_all_categories())} categories")
-    
+
     for category in datasets.get_all_categories():
         tests = datasets.get_category_tests(category)
         print(f"  {category}: {len(tests)} tests")

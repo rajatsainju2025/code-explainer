@@ -40,7 +40,7 @@ datasets:
       languages: ["python", "java", "javascript", "php", "go", "ruby"]
       split_ratio: [0.8, 0.1, 0.1]
       max_samples: 100000
-  
+
   validation:
     - name: "code_docstring_corpus"
       path: "data/code_docstring_corpus"
@@ -57,7 +57,7 @@ models:
     name: "codeexplaingpt"
     architecture: "multi_agent_rag"
     pretrained_base: "microsoft/codebert-base"
-    
+
   baselines:
     - name: "codebert"
       architecture: "encoder_decoder"
@@ -65,21 +65,21 @@ models:
       config:
         max_length: 512
         num_beams: 4
-        
+
     - name: "codet5"
       architecture: "encoder_decoder"
       pretrained_base: "Salesforce/codet5-base"
       config:
         max_length: 512
         num_beams: 4
-        
+
     - name: "graphcodebert"
       architecture: "graph_encoder_decoder"
       pretrained_base: "microsoft/graphcodebert-base"
       config:
         max_length: 512
         num_beams: 4
-        
+
     - name: "gpt35_turbo"
       architecture: "api"
       provider: "openai"
@@ -87,7 +87,7 @@ models:
       config:
         temperature: 0.1
         max_tokens: 512
-        
+
     - name: "gpt4"
       architecture: "api"
       provider: "openai"
@@ -105,14 +105,14 @@ training:
   max_epochs: 10
   early_stopping_patience: 3
   gradient_clipping: 1.0
-  
+
   batch_size:
     train: 16
     eval: 32
-    
+
   mixed_precision: true
   gradient_checkpointing: true
-  
+
   # Multi-agent specific
   agent_coordination:
     method: "hierarchical"
@@ -125,7 +125,7 @@ retrieval:
   embedding_model: "sentence-transformers/all-MiniLM-L6-v2"
   similarity_metric: "cosine"
   top_k: 5
-  
+
   knowledge_base:
     code_snippets: "data/knowledge_base/code_snippets.jsonl"
     documentation: "data/knowledge_base/documentation.jsonl"
@@ -143,20 +143,20 @@ evaluation:
       - "code_similarity"
       - "explanation_coherence"
       - "technical_accuracy"
-      
+
     human_eval:
       - "clarity"
-      - "accuracy" 
+      - "accuracy"
       - "completeness"
       - "helpfulness"
       - "readability"
-      
+
   human_evaluation:
     num_evaluators: 3
     num_samples: 1000
     inter_annotator_agreement_threshold: 0.7
     evaluation_platform: "amazon_mturk"
-    
+
   error_analysis:
     categories:
       - "syntax_errors"
@@ -164,20 +164,20 @@ evaluation:
       - "incomplete_explanations"
       - "hallucinations"
       - "language_confusion"
-      
+
   ablation_studies:
     - name: "no_retrieval"
       description: "Remove retrieval component"
       changes: {"retrieval_enabled": false}
-      
+
     - name: "single_agent"
       description: "Use single agent instead of multi-agent"
       changes: {"num_agents": 1}
-      
+
     - name: "no_language_adaptation"
       description: "Remove language-specific processing"
       changes: {"language_adaptive": false}
-      
+
     - name: "no_symbolic_analysis"
       description: "Remove symbolic code analysis"
       changes: {"symbolic_analysis": false}
@@ -196,23 +196,23 @@ output:
   save_predictions: true
   save_model_checkpoints: true
   save_intermediate_results: true
-  
+
   plots:
     - "learning_curves"
     - "error_distribution"
     - "language_performance"
     - "ablation_results"
     - "human_eval_correlation"
-    
+
   tables:
     - "main_results"
     - "ablation_results"
     - "human_evaluation"
     - "error_analysis"
     - "statistical_significance"
-    
+
   latex_output: true
-  
+
 # Hyperparameter search (optional)
 hyperparameter_search:
   enabled: false
@@ -230,7 +230,7 @@ compute:
   num_gpus: 1
   mixed_precision: true
   compile_model: true
-  
+
 # Logging and monitoring
 logging:
   level: "INFO"
@@ -238,11 +238,11 @@ logging:
     enabled: true
     project: "codeexplaingpt_icml"
     tags: ["icml2025", "code_explanation", "multi_agent"]
-    
+
   tensorboard:
     enabled: true
     log_dir: "logs/tensorboard"
-    
+
   file_logging:
     enabled: true
     log_file: "logs/experiment.log"
@@ -251,16 +251,16 @@ logging:
 quality_checks:
   code_quality:
     - "black"
-    - "isort" 
+    - "isort"
     - "flake8"
     - "mypy"
-    
+
   data_quality:
     - "duplicate_detection"
     - "format_validation"
     - "language_detection"
     - "quality_filtering"
-    
+
   model_quality:
     - "gradient_checking"
     - "loss_validation"
@@ -273,7 +273,7 @@ publication:
   supplementary_material: true
   code_release: true
   data_release: true  # Subject to licensing
-  
+
   reproducibility_checklist:
     - "algorithm_description"
     - "hyperparameter_specification"

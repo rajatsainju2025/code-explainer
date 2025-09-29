@@ -51,7 +51,7 @@ install-poetry: ## Install using Poetry with all dependencies
 	@echo "✅ Poetry installation complete!"
 	@$(MAKE) validate-env
 
-install-pip: ## Install using pip with basic dependencies  
+install-pip: ## Install using pip with basic dependencies
 	@echo "🔧 Installing with pip..."
 	python -m pip install --upgrade pip
 	pip install -e .
@@ -99,7 +99,7 @@ lint: ## Run linting
 		flake8 src/ tests/; \
 	fi
 
-type: ## Run type checking  
+type: ## Run type checking
 	@if command -v poetry >/dev/null 2>&1; then \
 		poetry run mypy src/; \
 	else \

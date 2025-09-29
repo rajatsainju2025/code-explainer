@@ -5,7 +5,7 @@
 ### Device Handling Patterns Found:
 1. **utils.get_device()** - Returns string ("cuda", "mps", "cpu") but underutilized
 2. **ModelLoader._setup_device()** - Duplicates logic, creates torch.device objects directly
-3. **CodeExplainer** - Mixes device string/torch.device usage: `torch.device(self.device)` 
+3. **CodeExplainer** - Mixes device string/torch.device usage: `torch.device(self.device)`
 4. **Trainer** - Uses get_device() but still has hardcoded device logic
 
 ### Problems Identified:
@@ -29,7 +29,7 @@ class DeviceCapabilities:
     supports_bf16: bool
     memory_gb: Optional[float]
     compute_capability: Optional[str]  # For CUDA
-    
+
 class DeviceManager:
     def get_optimal_device(self, prefer_device: Optional[str] = None) -> DeviceCapabilities
     def get_recommended_dtype(self, device_caps: DeviceCapabilities) -> torch.dtype

@@ -27,7 +27,7 @@ def setup_logging(
     backup_count: int = 5
 ) -> None:
     """Setup advanced logging configuration.
-    
+
     Args:
         level: Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
         log_file: Optional log file path
@@ -38,21 +38,21 @@ def setup_logging(
     # Clear existing handlers
     logger = logging.getLogger()
     logger.handlers.clear()
-    
+
     # Set logging level
     numeric_level = getattr(logging, level.upper(), logging.INFO)
     logger.setLevel(numeric_level)
-    
+
     # Create formatters
     detailed_formatter = logging.Formatter(
         "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S"
     )
-    
+
     simple_formatter = logging.Formatter(
         "%(levelname)s - %(message)s"
     )
-    
+
     # Console handler
     if rich_console:
         console = Console()
@@ -66,14 +66,14 @@ def setup_logging(
     else:
         console_handler = logging.StreamHandler(sys.stdout)
         console_handler.setFormatter(simple_formatter)
-    
+
     logger.addHandler(console_handler)
-    
+
     # File handler with rotation
     if log_file:
         log_path = Path(log_file)
         log_path.parent.mkdir(parents=True, exist_ok=True)
-        
+
         file_handler = logging.handlers.RotatingFileHandler(
             log_file,
             maxBytes=max_bytes,
@@ -81,7 +81,7 @@ def setup_logging(
         )
         file_handler.setFormatter(detailed_formatter)
         logger.addHandler(file_handler)
-    
+
     # Suppress noisy third-party loggers
     logging.getLogger("transformers").setLevel(logging.WARNING)
     logging.getLogger("torch").setLevel(logging.WARNING)
@@ -104,37 +104,37 @@ class PerformanceLogger:
         self._memory_cache: Optional[float] = None
         self._memory_cache_time: float = 0.0
         self._cache_ttl: float = 1.0  # Cache memory readings for 1 second
-    
+
     def start_timer(self, operation: str) -> None:
         """Start timing an operation.
-        
+
         Args:
             operation: Name of the operation being timed
         """
         self._timers[operation] = time.time()
-    
+
     def end_timer(self, operation: str, extra_info: Optional[str] = None) -> float:
         """End timing an operation and log the duration.
-        
+
         Args:
             operation: Name of the operation that was timed
             extra_info: Additional information to log
-            
+
         Returns:
             Duration in seconds
         """
         if operation not in self._timers:
             self.logger.warning(f"Timer for '{operation}' was not started")
             return 0.0
-        
+
         duration = time.time() - self._timers[operation]
         del self._timers[operation]
-        
+
         info_str = f" - {extra_info}" if extra_info else ""
         self.logger.info(f"{operation}: {duration:.3f}s{info_str}")
-        
+
         return duration
-    
+
     def log_memory_usage(self, operation: str) -> None:
         """Log current memory usage with caching for performance.
 
@@ -160,10 +160,10 @@ class PerformanceLogger:
             self.logger.info(f"Memory usage after {operation}: {memory_mb:.1f} MB")
         except Exception as e:
             self.logger.debug(f"Failed to get memory usage: {e}")
-    
+
     def log_model_info(self, model_name: str, num_parameters: Optional[int] = None) -> None:
         """Log model information.
-        
+
         Args:
             model_name: Name of the model
             num_parameters: Number of parameters in the model

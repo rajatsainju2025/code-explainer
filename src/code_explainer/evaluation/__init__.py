@@ -18,7 +18,7 @@ from .contamination import run_contamination_detection
 from .robustness import run_robustness_tests
 
 __all__ = [
-    "run_contamination_detection", 
+    "run_contamination_detection",
     "run_robustness_tests"
 ]
 

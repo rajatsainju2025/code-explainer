@@ -43,7 +43,7 @@ class PluginMetadata:
     entry_point: str = ""
     config_schema: Dict[str, Any] = field(default_factory=dict)
     enabled: bool = True
-    
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary."""
         return {
@@ -58,7 +58,7 @@ class PluginMetadata:
             "config_schema": self.config_schema,
             "enabled": self.enabled
         }
-    
+
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'PluginMetadata':
         """Create from dictionary."""
@@ -78,15 +78,15 @@ class PluginMetadata:
 
 class PluginInterface(Protocol):
     """Base plugin interface."""
-    
+
     def initialize(self, config: Dict[str, Any]) -> None:
         """Initialize plugin with configuration."""
         ...
-    
+
     def get_name(self) -> str:
         """Get plugin name."""
         ...
-    
+
     def get_version(self) -> str:
         """Get plugin version."""
         ...
@@ -94,48 +94,48 @@ class PluginInterface(Protocol):
 
 class BasePlugin(ABC):
     """Base plugin class."""
-    
+
     def __init__(self):
         """Initialize base plugin."""
         self.config: Dict[str, Any] = {}
         self.metadata: Optional[PluginMetadata] = None
         self._initialized = False
-    
+
     @abstractmethod
     def get_name(self) -> str:
         """Get plugin name."""
         pass
-    
+
     @abstractmethod
     def get_version(self) -> str:
         """Get plugin version."""
         pass
-    
+
     @abstractmethod
     def get_description(self) -> str:
         """Get plugin description."""
         pass
-    
+
     def initialize(self, config: Dict[str, Any]) -> None:
         """Initialize plugin with configuration.
-        
+
         Args:
             config: Plugin configuration
         """
         self.config = config
         self._initialized = True
         logger.info(f"Plugin {self.get_name()} initialized")
-    
+
     def is_initialized(self) -> bool:
         """Check if plugin is initialized."""
         return self._initialized
-    
+
     def validate_config(self, config: Dict[str, Any]) -> bool:
         """Validate plugin configuration.
-        
+
         Args:
             config: Configuration to validate
-            
+
         Returns:
             True if valid
         """
@@ -145,24 +145,24 @@ class BasePlugin(ABC):
 
 class ExplanationStrategyPlugin(BasePlugin):
     """Base class for explanation strategy plugins."""
-    
+
     @abstractmethod
     def explain(self, code: str, context: Dict[str, Any]) -> str:
         """Explain code using this strategy.
-        
+
         Args:
             code: Code to explain
             context: Additional context
-            
+
         Returns:
             Explanation text
         """
         pass
-    
+
     @abstractmethod
     def get_supported_languages(self) -> List[str]:
         """Get list of supported programming languages.
-        
+
         Returns:
             List of language names
         """
@@ -171,25 +171,25 @@ class ExplanationStrategyPlugin(BasePlugin):
 
 class OutputFormatterPlugin(BasePlugin):
     """Base class for output formatter plugins."""
-    
+
     @abstractmethod
     def format(self, content: str, format_type: str, options: Dict[str, Any]) -> str:
         """Format content.
-        
+
         Args:
             content: Content to format
             format_type: Format type (html, markdown, plain, etc.)
             options: Formatting options
-            
+
         Returns:
             Formatted content
         """
         pass
-    
+
     @abstractmethod
     def get_supported_formats(self) -> List[str]:
         """Get supported format types.
-        
+
         Returns:
             List of format names
         """
@@ -198,14 +198,14 @@ class OutputFormatterPlugin(BasePlugin):
 
 class SecurityValidatorPlugin(BasePlugin):
     """Base class for security validator plugins."""
-    
+
     @abstractmethod
     def validate(self, code: str) -> Dict[str, Any]:
         """Validate code security.
-        
+
         Args:
             code: Code to validate
-            
+
         Returns:
             Validation result
         """
@@ -214,10 +214,10 @@ class SecurityValidatorPlugin(BasePlugin):
 
 class PluginManager:
     """Plugin management system."""
-    
+
     def __init__(self, plugin_dirs: Optional[List[str]] = None):
         """Initialize plugin manager.
-        
+
         Args:
             plugin_dirs: List of plugin directories
         """
@@ -226,52 +226,52 @@ class PluginManager:
         self.plugin_metadata: Dict[str, PluginMetadata] = {}
         self.hooks: Dict[str, List[Callable]] = {}
         self._lock = threading.Lock()
-        
+
     def discover_plugins(self) -> List[PluginMetadata]:
         """Discover available plugins.
-        
+
         Returns:
             List of discovered plugin metadata
         """
         discovered = []
-        
+
         for plugin_dir in self.plugin_dirs:
             plugin_path = Path(plugin_dir).expanduser()
-            
+
             if not plugin_path.exists():
                 continue
-            
+
             logger.info(f"Discovering plugins in {plugin_path}")
-            
+
             # Look for plugin.json files
             for plugin_json in plugin_path.rglob("plugin.json"):
                 try:
                     with open(plugin_json) as f:
                         plugin_data = json.load(f)
-                    
+
                     metadata = PluginMetadata.from_dict(plugin_data)
                     discovered.append(metadata)
-                    
+
                     logger.info(f"Discovered plugin: {metadata.name} v{metadata.version}")
-                    
+
                 except Exception as e:
                     logger.error(f"Failed to load plugin metadata from {plugin_json}: {e}")
-        
+
         return discovered
-    
+
     def load_plugin(self, metadata: PluginMetadata) -> bool:
         """Load a plugin.
-        
+
         Args:
             metadata: Plugin metadata
-            
+
         Returns:
             True if loaded successfully
         """
         if not metadata.enabled:
             logger.info(f"Plugin {metadata.name} is disabled, skipping")
             return False
-        
+
         try:
             with self._lock:
                 # Check dependencies
@@ -279,46 +279,46 @@ class PluginManager:
                     if dep not in self.plugins:
                         logger.error(f"Plugin {metadata.name} requires {dep} which is not loaded")
                         return False
-                
+
                 # Import plugin module
                 if metadata.entry_point:
                     module_path, class_name = metadata.entry_point.rsplit(".", 1)
                     module = importlib.import_module(module_path)
                     plugin_class = getattr(module, class_name)
-                    
+
                     # Create plugin instance
                     plugin = plugin_class()
-                    
+
                     # Validate plugin interface
                     if not isinstance(plugin, BasePlugin):
                         logger.error(f"Plugin {metadata.name} does not inherit from BasePlugin")
                         return False
-                    
+
                     # Initialize plugin
                     config = self._get_plugin_config(metadata.name)
                     plugin.metadata = metadata
                     plugin.initialize(config)
-                    
+
                     # Register plugin
                     self.plugins[metadata.name] = plugin
                     self.plugin_metadata[metadata.name] = metadata
-                    
+
                     logger.info(f"Successfully loaded plugin: {metadata.name}")
                     return True
                 else:
                     logger.error(f"Plugin {metadata.name} has no entry point")
                     return False
-                    
+
         except Exception as e:
             logger.error(f"Failed to load plugin {metadata.name}: {e}")
             return False
-    
+
     def unload_plugin(self, plugin_name: str) -> bool:
         """Unload a plugin.
-        
+
         Args:
             plugin_name: Name of plugin to unload
-            
+
         Returns:
             True if unloaded successfully
         """
@@ -326,64 +326,64 @@ class PluginManager:
             with self._lock:
                 if plugin_name in self.plugins:
                     plugin = self.plugins[plugin_name]
-                    
+
                     # Call cleanup if available
                     if hasattr(plugin, 'cleanup') and callable(getattr(plugin, 'cleanup')):
                         try:
                             plugin.cleanup()  # type: ignore
                         except Exception as e:
                             logger.error(f"Plugin cleanup failed for {plugin_name}: {e}")
-                    
+
                     # Remove from registry
                     del self.plugins[plugin_name]
                     del self.plugin_metadata[plugin_name]
-                    
+
                     logger.info(f"Unloaded plugin: {plugin_name}")
                     return True
                 else:
                     logger.warning(f"Plugin {plugin_name} not found")
                     return False
-                    
+
         except Exception as e:
             logger.error(f"Failed to unload plugin {plugin_name}: {e}")
             return False
-    
+
     def reload_plugin(self, plugin_name: str) -> bool:
         """Reload a plugin.
-        
+
         Args:
             plugin_name: Name of plugin to reload
-            
+
         Returns:
             True if reloaded successfully
         """
         if plugin_name not in self.plugin_metadata:
             logger.error(f"Plugin {plugin_name} not found")
             return False
-        
+
         metadata = self.plugin_metadata[plugin_name]
-        
+
         # Unload and reload
         self.unload_plugin(plugin_name)
         return self.load_plugin(metadata)
-    
+
     def get_plugin(self, plugin_name: str) -> Optional[BasePlugin]:
         """Get a loaded plugin.
-        
+
         Args:
             plugin_name: Plugin name
-            
+
         Returns:
             Plugin instance or None
         """
         return self.plugins.get(plugin_name)
-    
+
     def get_plugins_by_type(self, plugin_type: PluginType) -> List[BasePlugin]:
         """Get plugins by type.
-        
+
         Args:
             plugin_type: Plugin type
-            
+
         Returns:
             List of plugins of the specified type
         """
@@ -393,15 +393,15 @@ class PluginManager:
             if metadata and metadata.plugin_type == plugin_type:
                 result.append(plugin)
         return result
-    
+
     def list_plugins(self) -> Dict[str, Dict[str, Any]]:
         """List all plugins with their status.
-        
+
         Returns:
             Dictionary of plugin information
         """
         result = {}
-        
+
         for plugin_name, metadata in self.plugin_metadata.items():
             is_loaded = plugin_name in self.plugins
             result[plugin_name] = {
@@ -409,12 +409,12 @@ class PluginManager:
                 "loaded": is_loaded,
                 "initialized": self.plugins[plugin_name].is_initialized() if is_loaded else False
             }
-        
+
         return result
-    
+
     def register_hook(self, hook_name: str, callback: Callable) -> None:
         """Register a hook callback.
-        
+
         Args:
             hook_name: Hook name
             callback: Callback function
@@ -422,20 +422,20 @@ class PluginManager:
         if hook_name not in self.hooks:
             self.hooks[hook_name] = []
         self.hooks[hook_name].append(callback)
-    
+
     def call_hook(self, hook_name: str, *args, **kwargs) -> List[Any]:
         """Call hook callbacks.
-        
+
         Args:
             hook_name: Hook name
             *args: Positional arguments
             **kwargs: Keyword arguments
-            
+
         Returns:
             List of callback results
         """
         results = []
-        
+
         if hook_name in self.hooks:
             for callback in self.hooks[hook_name]:
                 try:
@@ -443,50 +443,50 @@ class PluginManager:
                     results.append(result)
                 except Exception as e:
                     logger.error(f"Hook {hook_name} callback failed: {e}")
-        
+
         return results
-    
+
     def _get_plugin_config(self, plugin_name: str) -> Dict[str, Any]:
         """Get plugin configuration.
-        
+
         Args:
             plugin_name: Plugin name
-            
+
         Returns:
             Plugin configuration
         """
         config_file = Path(f"config/plugins/{plugin_name}.json")
-        
+
         if config_file.exists():
             try:
                 with open(config_file) as f:
                     return json.load(f)
             except Exception as e:
                 logger.error(f"Failed to load config for plugin {plugin_name}: {e}")
-        
+
         return {}
-    
+
     def auto_load_plugins(self) -> None:
         """Automatically discover and load all available plugins."""
         discovered = self.discover_plugins()
-        
+
         # Sort by dependencies (simple topological sort)
         loaded = set()
         remaining = discovered.copy()
-        
+
         while remaining:
             progress = False
-            
+
             for metadata in remaining.copy():
                 # Check if all dependencies are loaded
                 deps_satisfied = all(dep in loaded for dep in metadata.dependencies)
-                
+
                 if deps_satisfied:
                     if self.load_plugin(metadata):
                         loaded.add(metadata.name)
                     remaining.remove(metadata)
                     progress = True
-            
+
             if not progress:
                 # Circular dependency or missing dependency
                 for metadata in remaining:
@@ -497,7 +497,7 @@ class PluginManager:
 # Decorator for plugin hooks
 def plugin_hook(hook_name: str):
     """Decorator to register a function as a plugin hook.
-    
+
     Args:
         hook_name: Hook name
     """
@@ -509,43 +509,43 @@ def plugin_hook(hook_name: str):
             if plugin_manager:
                 # Call pre-hooks
                 plugin_manager.call_hook(f"before_{hook_name}", *args, **kwargs)
-                
+
                 # Call original function
                 result = func(*args, **kwargs)
-                
+
                 # Call post-hooks
                 plugin_manager.call_hook(f"after_{hook_name}", result, *args, **kwargs)
-                
+
                 return result
             else:
                 return func(*args, **kwargs)
-        
+
         # Store hook name as attribute (type ignore for dynamic attribute)
         setattr(wrapper, 'hook_name', hook_name)
         return wrapper
-    
+
     return decorator
 
 
 # Example plugin implementations
 class MarkdownFormatterPlugin(OutputFormatterPlugin):
     """Example markdown formatter plugin."""
-    
+
     def get_name(self) -> str:
         return "markdown_formatter"
-    
+
     def get_version(self) -> str:
         return "1.0.0"
-    
+
     def get_description(self) -> str:
         return "Formats output as Markdown"
-    
+
     def format(self, content: str, format_type: str, options: Dict[str, Any]) -> str:
         if format_type == "markdown":
             # Add markdown formatting
             lines = content.split('\n')
             formatted_lines = []
-            
+
             for line in lines:
                 if line.startswith('# '):
                     formatted_lines.append(f"## {line[2:]}")  # Convert to h2
@@ -553,30 +553,30 @@ class MarkdownFormatterPlugin(OutputFormatterPlugin):
                     formatted_lines.append(f"**{line}**")  # Bold headers
                 else:
                     formatted_lines.append(line)
-            
+
             return '\n'.join(formatted_lines)
-        
+
         return content
-    
+
     def get_supported_formats(self) -> List[str]:
         return ["markdown", "md"]
 
 
 class BasicSecurityPlugin(SecurityValidatorPlugin):
     """Example basic security validator plugin."""
-    
+
     def get_name(self) -> str:
         return "basic_security"
-    
+
     def get_version(self) -> str:
         return "1.0.0"
-    
+
     def get_description(self) -> str:
         return "Basic security validation for common patterns"
-    
+
     def validate(self, code: str) -> Dict[str, Any]:
         issues = []
-        
+
         # Check for dangerous patterns
         dangerous_patterns = [
             ("eval(", "Use of eval() can be dangerous"),
@@ -585,7 +585,7 @@ class BasicSecurityPlugin(SecurityValidatorPlugin):
             ("subprocess", "Subprocess usage detected"),
             ("os.system", "System command execution")
         ]
-        
+
         for pattern, message in dangerous_patterns:
             if pattern in code:
                 issues.append({
@@ -593,7 +593,7 @@ class BasicSecurityPlugin(SecurityValidatorPlugin):
                     "pattern": pattern,
                     "message": message
                 })
-        
+
         return {
             "is_safe": len(issues) == 0,
             "issues": issues,
@@ -603,13 +603,13 @@ class BasicSecurityPlugin(SecurityValidatorPlugin):
 
 def create_plugin_manager() -> PluginManager:
     """Create and configure plugin manager.
-    
+
     Returns:
         Configured plugin manager
     """
     manager = PluginManager()
-    
+
     # Auto-discover and load plugins
     manager.auto_load_plugins()
-    
+
     return manager
