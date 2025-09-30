@@ -92,7 +92,7 @@ class CodeExplainer:
         if getattr(self, "_injected_model", None) is not None:
             return self._injected_model  # type: ignore
         if self._resources is None:
-            raise RuntimeError("Model resources not initialized")
+            raise RuntimeError("Model resources not initialized")  # Backward-compat: tests expect RuntimeError here
         return self._resources.model
 
     @model.setter
@@ -106,7 +106,7 @@ class CodeExplainer:
         if getattr(self, "_injected_tokenizer", None) is not None:
             return self._injected_tokenizer  # type: ignore
         if self._resources is None:
-            raise ModelError("Model resources not initialized")
+            raise RuntimeError("Model resources not initialized")  # Backward-compat: tests expect RuntimeError here
         return self._resources.tokenizer
 
     @tokenizer.setter
@@ -118,14 +118,14 @@ class CodeExplainer:
     def device(self) -> torch.device:
         """Get the compute device; default to CPU if not initialized."""
         if self._resources is None:
-            raise ModelError("Model resources not initialized")
+            raise RuntimeError("Model resources not initialized")  # Backward-compat: tests expect RuntimeError here
         return self._resources.device
 
     @property
     def arch(self) -> str:
         """Get the model architecture type; default to 'causal' if unknown."""
         if self._resources is None:
-            raise ModelError("Model resources not initialized")
+            raise RuntimeError("Model resources not initialized")  # Backward-compat: tests expect RuntimeError here
         return self._resources.model_type
 
     def __init__(
@@ -167,6 +167,8 @@ class CodeExplainer:
             ConfigurationError: If configuration is invalid
         """
         try:
+            # Use a safe logger before self.logger is available during early init
+            _logger = getattr(self, "logger", logging.getLogger(__name__))
             cfg_dict = self._config_to_dict(config)
             if not cfg_dict:
                 raise ConfigurationError("Configuration is empty or could not be converted to dict")
@@ -175,7 +177,7 @@ class CodeExplainer:
             required_sections = ["model", "prompt"]
             for section in required_sections:
                 if section not in cfg_dict:
-                    self.logger.warning(f"Configuration missing recommended section '{section}'")
+                    _logger.warning(f"Configuration missing recommended section '{section}'")
             
             # Validate model configuration if present
             if "model" in cfg_dict:
@@ -204,9 +206,9 @@ class CodeExplainer:
                     strategy = prompt_cfg["strategy"]
                     valid_strategies = ["vanilla", "ast_augmented", "multi_agent", "intelligent"]
                     if strategy not in valid_strategies:
-                        self.logger.warning(f"Prompt strategy '{strategy}' not in recommended strategies: {valid_strategies}")
+                        _logger.warning(f"Prompt strategy '{strategy}' not in recommended strategies: {valid_strategies}")
             
-            self.logger.debug("Configuration validation passed")
+            _logger.debug("Configuration validation passed")
             
         except Exception as e:
             if isinstance(e, ConfigurationError):
@@ -248,9 +250,10 @@ class CodeExplainer:
             
         except Exception as e:
             if isinstance(e, (ConfigurationError, FileNotFoundError)):
-                self.logger.error(f"Configuration error: {e}")
+                _logger = getattr(self, "logger", logging.getLogger(__name__))
+                _logger.error(f"Configuration error: {e}")
                 # Create a minimal fallback configuration
-                self.logger.warning("Using fallback configuration due to initialization error")
+                _logger.warning("Using fallback configuration due to initialization error")
                 config = self._create_fallback_config()
             else:
                 raise
