@@ -20,6 +20,7 @@ from .cache import ExplanationCache
 from .config import Config, init_config
 from .enhanced_error_handling import get_logger, setup_logging
 from .model_loader import ModelLoader, ModelResources, ModelError
+from .exceptions import ValidationError, ConfigurationError
 from .multi_agent import MultiAgentOrchestrator
 from .symbolic import SymbolicAnalyzer, format_symbolic_explanation
 from .utils import get_device, load_config, prompt_for_language
@@ -97,7 +98,7 @@ class CodeExplainer:
         if getattr(self, "_injected_tokenizer", None) is not None:
             return self._injected_tokenizer  # type: ignore
         if self._resources is None:
-            raise RuntimeError("Model resources not initialized")
+            raise ModelError("Model resources not initialized")
         return self._resources.tokenizer
 
     @tokenizer.setter
@@ -109,14 +110,14 @@ class CodeExplainer:
     def device(self) -> torch.device:
         """Get the compute device; default to CPU if not initialized."""
         if self._resources is None:
-            raise RuntimeError("Model resources not initialized")
+            raise ModelError("Model resources not initialized")
         return self._resources.device
 
     @property
     def arch(self) -> str:
         """Get the model architecture type; default to 'causal' if unknown."""
         if self._resources is None:
-            raise RuntimeError("Model resources not initialized")
+            raise ModelError("Model resources not initialized")
         return self._resources.model_type
 
     def __init__(
@@ -323,8 +324,8 @@ class CodeExplainer:
 
         Raises:
             ValidationError: If input validation fails
-            RuntimeError: If model or tokenizer is not initialized
-            ValueError: If invalid prompt strategy is provided
+            ModelError: If model or tokenizer is not initialized
+            ConfigurationError: If invalid prompt strategy is provided
         """
         # Validate inputs
         request = CodeExplanationRequest(code=code, max_length=max_length, strategy=strategy)
@@ -349,7 +350,7 @@ class CodeExplainer:
 
         # Ensure model and tokenizer are loaded
         if self.tokenizer is None or self.model is None:
-            raise RuntimeError("Model and tokenizer must be initialized before generating explanations")
+            raise ModelError("Model and tokenizer must be initialized before generating explanations")
 
         tok: PreTrainedTokenizerBase = self.tokenizer
         mdl: PreTrainedModel = self.model
@@ -376,7 +377,7 @@ class CodeExplainer:
             if hasattr(tokenized, "items"):
                 inputs = {k: v.to(device) for k, v in tokenized.items()}  # type: ignore[attr-defined]
             else:
-                raise TypeError("Tokenizer returned non-dict output")
+                raise ValidationError("Tokenizer returned non-dict output")
         except Exception:
             # Backward-compatible fallback for mocked tokenizers using encode
             ids: List[int]
