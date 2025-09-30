@@ -3,7 +3,7 @@
 import logging
 import concurrent.futures
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union, Tuple, cast
+from typing import Any, Dict, List, Optional, Union, Tuple, cast, TYPE_CHECKING
 from dataclasses import dataclass
 
 import torch
@@ -71,10 +71,18 @@ class CodeExplainer:
         symbolic_analyzer (SymbolicAnalyzer): Analyzer for symbolic code analysis
         multi_agent_orchestrator (MultiAgentOrchestrator): Orchestrator for multi-agent interactions
     """
-    # Class-level attributes to help type checkers
+    # Class-level attributes for better type checking
+    config: Any
+    logger: Any
     model_loader: Optional["ModelLoader"]
     _resources: Optional[Any]
+    _injected_model: Optional[PreTrainedModel]
+    _injected_tokenizer: Optional[PreTrainedTokenizerBase]
     explanation_cache: Optional["ExplanationCache"]
+    symbolic_analyzer: "SymbolicAnalyzer"
+    multi_agent_orchestrator: "MultiAgentOrchestrator"
+    cache_manager: Optional[Any]
+    advanced_cache: Optional[Any]
 
     @property
     def model(self) -> PreTrainedModel:
@@ -229,21 +237,21 @@ class CodeExplainer:
             eos_token = "</s>"
             pad_token_id = 0
             eos_token_id = 0
-            def __call__(self, text, **kwargs):
+            def __call__(self, text: str, **kwargs: Any) -> Dict[str, torch.Tensor]:
                 ids = torch.tensor([[1,2,3,0,0]])
                 mask = torch.tensor([[1,1,1,0,0]])
                 return {"input_ids": ids, "attention_mask": mask}
-            def decode(self, seq, skip_special_tokens=True):
+            def decode(self, seq: torch.Tensor, skip_special_tokens: bool = True) -> str:
                 return "DUMMY: " + (" ".join(map(str, seq.tolist())) if hasattr(seq, 'tolist') else str(seq))
         
         class _DummyModel:
-            def __init__(self):
+            def __init__(self) -> None:
                 self.config = type("Cfg", (), {"pad_token_id": 0})
-            def eval(self):
+            def eval(self) -> "_DummyModel":
                 return self
-            def to(self, device):
+            def to(self, device: Union[torch.device, str]) -> "_DummyModel":
                 return self
-            def generate(self, **kwargs):
+            def generate(self, **kwargs: Any) -> torch.Tensor:
                 return torch.tensor([[4,5,6,0,0]])
         
         dummy_tok = _DummyTok()
