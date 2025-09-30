@@ -130,88 +130,180 @@ class CodeExplainer:
             model_path: Path to trained model directory. If None, uses default from config.
             config_path: Path to configuration file. If None, uses default config.
         """
-        # Determine if first argument is a config object or a model path
-        user_provided_config = None
-        if model_path is not None and not isinstance(model_path, (str, Path)):
-            # Treat as config-like object
-            user_provided_config = model_path
-            model_path = None
+        # Initialize configuration and logging
+        self.config, resolved_model_path = self._initialize_config(
+            model_path, config_path
+        )
+        self.logger = self._setup_logging()
+        
+        # Initialize model resources
+        self._resources = self._initialize_model_resources(resolved_model_path)
+        
+        # Initialize additional components
+        self._initialize_components()
 
-        # Initialize configuration
-        if user_provided_config is not None:
-            self.config = user_provided_config  # type: ignore
-            # Setup basic logging with defaults, try reading from config if possible
-            cfg_dict = self._config_to_dict(self.config)
-            level, lf = self._get_logging_settings(cfg_dict)
-            setup_logging(log_level=level, log_file=lf)
-        else:
-            self.config = init_config(config_path)
-            cfg_dict = self._config_to_dict(self.config)
-            level, lf = self._get_logging_settings(cfg_dict)
-            setup_logging(log_level=level, log_file=lf)
-        self.logger = get_logger()
 
-        # Set up model loader and load model resources
-        self.model_loader = None
-        self._resources = None
-        try:
-            # Only initialize loader if config has 'model'
-            model_cfg = getattr(self.config, "model", None)
-            if model_cfg is not None:
-                self.model_loader = ModelLoader(model_cfg)
-                self._resources = self.model_loader.load(model_path)
-        except Exception as e:
-            # Don't fail hard in constructor; allow tests to inject mocks
-            self.logger.error(f"Failed to load model resources: {e}")
-            try:
-                if self.model_loader is not None:
-                    self.logger.info("Attempting to load base model...")
-                    self._resources = self.model_loader.load()  # Load from config name
-            except Exception:
-                # As a last resort for tests/offline, create a tiny dummy tokenizer/model
-                self.logger.info("Proceeding with dummy offline resources (test mode)")
-                class _DummyTok:
-                    pad_token = "[PAD]"
-                    eos_token = "</s>"
-                    pad_token_id = 0
-                    eos_token_id = 0
-                    def __call__(self, text, **kwargs):
-                        ids = torch.tensor([[1,2,3,0,0]])
-                        mask = torch.tensor([[1,1,1,0,0]])
-                        return {"input_ids": ids, "attention_mask": mask}
-                    def decode(self, seq, skip_special_tokens=True):
-                        return "DUMMY: " + (" ".join(map(str, seq.tolist())) if hasattr(seq, 'tolist') else str(seq))
-                class _DummyModel:
-                    def __init__(self):
-                        self.config = type("Cfg", (), {"pad_token_id": 0})
-                    def eval(self):
-                        return self
-                    def to(self, device):
-                        return self
-                    def generate(self, **kwargs):
-                        return torch.tensor([[4,5,6,0,0]])
-                dummy_tok = _DummyTok()
-                dummy_model = _DummyModel()
-                from .model_loader import ModelResources
-                self._resources = ModelResources(
-                    model=dummy_model,  # type: ignore[arg-type]
-                    tokenizer=dummy_tok,  # type: ignore[arg-type]
-                    device=torch.device("cpu"),
-                    model_type="causal"
-                )
-
-        # Initialize caching if enabled
-        cache_enabled = self._cfg_get("cache.enabled", False)
-        if cache_enabled:
-            cache_dir = self._cfg_get("cache.directory", ".cache")
-            cache_max = int(self._cfg_get("cache.max_size", 1000))
-            self.explanation_cache = ExplanationCache(cache_dir, cache_max)
-        else:
-            self.explanation_cache = None
 
         # Initialize additional components
         self.symbolic_analyzer = SymbolicAnalyzer()
         self.multi_agent_orchestrator = MultiAgentOrchestrator(self)
+
+    def _initialize_config(
+        self, 
+        model_path: Optional[Union[str, Path, Any]], 
+        config_path: Optional[str]
+    ) -> Tuple[Any, Optional[Union[str, Path]]]:
+        """Initialize configuration from various sources.
+        
+        Args:
+            model_path: Model path or config object
+            config_path: Path to config file
+            
+        Returns:
+            Tuple of (config, resolved_model_path)
+        """
+        # Determine if first argument is a config object or a model path
+        user_provided_config = None
+        resolved_model_path = model_path
+        
+        if model_path is not None and not isinstance(model_path, (str, Path)):
+            # Treat as config-like object
+            user_provided_config = model_path
+            resolved_model_path = None
+
+        # Initialize configuration
+        if user_provided_config is not None:
+            config = user_provided_config  # type: ignore
+        else:
+            config = init_config(config_path)
+            
+        return config, resolved_model_path
+
+    def _setup_logging(self) -> Any:
+        """Setup logging based on configuration."""
+        cfg_dict = self._config_to_dict(self.config)
+        level, lf = self._get_logging_settings(cfg_dict)
+        setup_logging(log_level=level, log_file=lf)
+        return get_logger()
+
+    def _initialize_model_resources(
+        self, 
+        model_path: Optional[Union[str, Path]]
+    ) -> Optional[Any]:
+        """Initialize model resources with proper error handling.
+        
+        Args:
+            model_path: Path to model directory
+            
+        Returns:
+            Model resources or None if initialization fails
+        """
+        try:
+            model_cfg = getattr(self.config, "model", None)
+            if model_cfg is not None:
+                self.model_loader = ModelLoader(model_cfg)
+                return self.model_loader.load(model_path)
+        except Exception as e:
+            self.logger.error(f"Failed to load model resources: {e}")
+            return self._create_fallback_resources()
+        
+        self.model_loader = None
+        return None
+
+    def _create_fallback_resources(self) -> Any:
+        """Create fallback resources for testing/offline mode."""
+        try:
+            if self.model_loader is not None:
+                self.logger.info("Attempting to load base model...")
+                return self.model_loader.load()  # Load from config name
+        except Exception:
+            # As a last resort for tests/offline, create a tiny dummy tokenizer/model
+            self.logger.info("Proceeding with dummy offline resources (test mode)")
+            return self._create_dummy_resources()
+    
+    def _create_dummy_resources(self) -> Any:
+        """Create dummy resources for testing."""
+        class _DummyTok:
+            pad_token = "[PAD]"
+            eos_token = "</s>"
+            pad_token_id = 0
+            eos_token_id = 0
+            def __call__(self, text, **kwargs):
+                ids = torch.tensor([[1,2,3,0,0]])
+                mask = torch.tensor([[1,1,1,0,0]])
+                return {"input_ids": ids, "attention_mask": mask}
+            def decode(self, seq, skip_special_tokens=True):
+                return "DUMMY: " + (" ".join(map(str, seq.tolist())) if hasattr(seq, 'tolist') else str(seq))
+        
+        class _DummyModel:
+            def __init__(self):
+                self.config = type("Cfg", (), {"pad_token_id": 0})
+            def eval(self):
+                return self
+            def to(self, device):
+                return self
+            def generate(self, **kwargs):
+                return torch.tensor([[4,5,6,0,0]])
+        
+        dummy_tok = _DummyTok()
+        dummy_model = _DummyModel()
+        from .model_loader import ModelResources
+        return ModelResources(
+            model=dummy_model,  # type: ignore[arg-type]
+            tokenizer=dummy_tok,  # type: ignore[arg-type]
+            device=torch.device("cpu"),
+            model_type="causal"
+        )
+
+    def _initialize_components(self) -> None:
+        """Initialize additional components like cache and analyzers."""
+        self._initialize_cache()
+        self.symbolic_analyzer = SymbolicAnalyzer()
+        self.multi_agent_orchestrator = MultiAgentOrchestrator(self)
+
+    def _initialize_cache(self) -> None:
+        """Initialize caching components based on configuration."""
+        cache_enabled = self._cfg_get("cache.enabled", False)
+        advanced_cache_enabled = self._cfg_get("cache.advanced_cache_enabled", False)
+
+        if advanced_cache_enabled:
+            self._setup_advanced_cache()
+        elif cache_enabled:
+            self._setup_basic_cache()
+        else:
+            self._setup_no_cache()
+    
+    def _setup_advanced_cache(self) -> None:
+        """Setup advanced caching system."""
+        try:
+            # Import here to avoid circular imports
+            from .advanced_cache import CacheManager, CacheStrategy
+
+            self.cache_manager = CacheManager()
+            self.explanation_cache = self.cache_manager.get_explanation_cache()
+
+            # Configure advanced cache
+            strategy_str = self._cfg_get("cache.cache_strategy", "lru")
+            strategy = CacheStrategy(strategy_str)
+
+            self.advanced_cache = self.cache_manager.get_advanced_cache()
+        except ImportError:
+            self.logger.warning("Advanced cache not available, falling back to basic cache")
+            self._setup_basic_cache()
+    
+    def _setup_basic_cache(self) -> None:
+        """Setup basic caching system."""
+        cache_dir = self._cfg_get("cache.directory", ".cache")
+        cache_max = int(self._cfg_get("cache.max_size", 1000))
+        self.explanation_cache = ExplanationCache(cache_dir, cache_max)
+        self.cache_manager = None
+        self.advanced_cache = None
+    
+    def _setup_no_cache(self) -> None:
+        """Setup no caching (disable all caches)."""
+        self.explanation_cache = None
+        self.cache_manager = None
+        self.advanced_cache = None
 
     def explain_code(
         self,

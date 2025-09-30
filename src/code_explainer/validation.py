@@ -81,3 +81,22 @@ class CacheConfigValidation(BaseModel):
     enabled: bool = Field(default=True, description="Whether caching is enabled")
     directory: str = Field(default=".cache/explanations", description="Cache directory path")
     max_size: int = Field(default=1000, ge=1, le=10000, description="Maximum cache size")
+
+    # Advanced cache settings
+    advanced_cache_enabled: bool = Field(default=False, description="Whether advanced caching is enabled")
+    advanced_cache_dir: str = Field(default=".cache/advanced", description="Advanced cache directory")
+    max_memory_entries: int = Field(default=1000, ge=100, le=10000, description="Maximum memory cache entries")
+    max_disk_entries: int = Field(default=10000, ge=1000, le=100000, description="Maximum disk cache entries")
+    default_ttl: int = Field(default=86400, ge=3600, le=604800, description="Default cache TTL in seconds")
+    cache_strategy: str = Field(default="lru", description="Cache eviction strategy")
+    compression_threshold: int = Field(default=1000, ge=100, le=10000, description="Compression threshold in bytes")
+    enable_monitoring: bool = Field(default=True, description="Enable cache performance monitoring")
+
+    @field_validator('cache_strategy')
+    @classmethod
+    def validate_cache_strategy(cls, v):
+        allowed = {"lru", "lfu", "fifo", "size_based", "adaptive"}
+        if v not in allowed:
+            allowed_str = ", ".join(sorted(allowed))
+            raise ValueError(f'Cache strategy must be one of: {allowed_str}')
+        return v

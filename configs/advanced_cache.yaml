@@ -1,0 +1,122 @@
+# Advanced Caching Configuration
+# This configuration enables advanced caching strategies and cache invalidation mechanisms
+
+model:
+  name: "Salesforce/codet5-base"
+  cache_dir: "./cache"
+  torch_dtype: "auto"
+  load_in_8bit: false
+  device_map: "auto"
+  max_length: 512
+
+# Advanced Cache Configuration
+cache:
+  enabled: true
+  directory: ".cache/explanations"
+  max_size: 2000
+
+  # Advanced caching features
+  advanced_cache_enabled: true
+  advanced_cache_dir: ".cache/advanced"
+  max_memory_entries: 2000
+  max_disk_entries: 15000
+  default_ttl: 604800  # 7 days
+  cache_strategy: "lru"  # lru, lfu, fifo, size_based, adaptive
+  compression_threshold: 2000  # bytes
+  enable_monitoring: true
+
+training:
+  output_dir: "./results"
+  num_train_epochs: 3
+  per_device_train_batch_size: 4
+  per_device_eval_batch_size: 8
+  gradient_accumulation_steps: 2
+  learning_rate: 5e-5
+  weight_decay: 0.01
+  logging_steps: 100
+  evaluation_strategy: "steps"
+  eval_steps: 500
+  save_steps: 1000
+  save_total_limit: 2
+  load_best_model_at_end: true
+  metric_for_best_model: "eval_loss"
+  greater_is_better: false
+  warmup_steps: 500
+  fp16: true
+  dataloader_num_workers: 4
+  remove_unused_columns: false
+
+data:
+  train_file: "data/train.json"
+  eval_file: "data/eval.json"
+  test_file: "data/test.json"
+  max_samples: null
+
+generation:
+  max_new_tokens: 256
+  num_beams: 1
+  do_sample: true
+  temperature: 0.7
+  top_p: 0.9
+  pad_token_id: 0
+
+prompting:
+  strategy: "enhanced_rag"
+  max_context_length: 2048
+  include_docstrings: true
+  include_imports: true
+
+# Enhanced RAG configuration
+rag:
+  enabled: true
+  index_path: "data/code_retrieval_index.faiss"
+  code_corpus_path: "data/code_corpus.json"
+  embedding_model: "sentence-transformers/all-MiniLM-L6-v2"
+  top_k: 5
+  similarity_threshold: 0.7
+  max_context_length: 2048
+  cache_embeddings: true
+  update_index_on_explain: false
+
+# Symbolic analysis configuration
+symbolic:
+  enabled: true
+  max_depth: 3
+  include_types: true
+  include_control_flow: true
+  max_execution_time: 5
+  include_complexity: true
+  include_dataflow: true
+  generate_tests: false
+
+# Evaluation configuration
+evaluation:
+  metrics: ["bleu", "rouge_l", "bert_score", "codebleu"]
+  batch_size: 8
+  max_samples: null
+
+# Logging configuration
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file: "logs/code_explainer.log"
+
+# Web interface configuration
+web:
+  gradio:
+    server_name: "127.0.0.1"
+    server_port: 7860
+    share: false
+  api:
+    host: "0.0.0.0"
+    port: 8000
+    reload: false
+    cors_origins: ["*"]
+
+# Performance monitoring
+performance:
+  enabled: true
+  metrics_dir: "metrics"
+  benchmark_on_startup: false
+  profile_memory: true
+  profile_cpu: true

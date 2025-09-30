@@ -5,6 +5,7 @@
 .PHONY: test test-all test-unit test-integration test-e2e test-cov
 .PHONY: benchmark benchmark-regression benchmark-baseline benchmark-compare benchmark-profile benchmark-ci benchmark-report benchmark-all
 .PHONY: security-scan security-vulnerabilities security-code security-semgrep security-all
+.PHONY: cache-stats cache-clear cache-invalidate cache-warmup cache-backup cache-restore cache-all cache-test
 .PHONY: lint type format precommit check quality setup
 .PHONY: clean validate-env
 .PHONY: requirements generate-requirements
@@ -32,6 +33,9 @@ help: ## Show this help message
 	@echo "  benchmark-all   Run complete benchmarking suite"
 	@echo "  security-scan   Run comprehensive security scan"
 	@echo "  security-all    Run complete security audit"
+	@echo "  cache-stats     Show cache statistics"
+	@echo "  cache-clear     Clear all cache entries"
+	@echo "  cache-all       Run all cache management operations"
 	@echo "  lint            Run linting"
 	@echo "  format          Format code"
 	@echo "  type            Run type checking"
@@ -274,6 +278,84 @@ security-all: ## Run all security checks
 	$(MAKE) security-code
 	$(MAKE) security-semgrep
 	$(MAKE) security-scan
+
+# Cache management targets
+cache-stats: ## Show cache statistics and performance metrics
+	@echo "📊 Getting cache statistics..."
+	@if command -v poetry >/dev/null 2>&1; then \
+		poetry run python -c "from src.code_explainer.advanced_cache import CacheManager; cm = CacheManager(); import json; print(json.dumps(cm.get_cache_stats(), indent=2))"; \
+	else \
+		python -c "from src.code_explainer.advanced_cache import CacheManager; cm = CacheManager(); import json; print(json.dumps(cm.get_cache_stats(), indent=2))" || echo "⚠️  Advanced caching not configured"; \
+	fi
+
+cache-clear: ## Clear all cache entries
+	@echo "🗑️  Clearing all cache entries..."
+	@if command -v poetry >/dev/null 2>&1; then \
+		poetry run python -c "from src.code_explainer.advanced_cache import CacheManager; cm = CacheManager(); cm.clear_all_caches(); print('All caches cleared')"; \
+	else \
+		python -c "from src.code_explainer.advanced_cache import CacheManager; cm = CacheManager(); cm.clear_all_caches(); print('All caches cleared')" || echo "⚠️  Advanced caching not configured"; \
+	fi
+
+cache-invalidate: ## Invalidate cache entries by pattern (usage: make cache-invalidate PATTERN="*old*")
+	@echo "🚫 Invalidating cache entries matching: $(PATTERN)"
+	@if [ -z "$(PATTERN)" ]; then \
+		echo "❌ Please specify PATTERN variable. Usage: make cache-invalidate PATTERN='*old*'"; \
+		exit 1; \
+	fi
+	@if command -v poetry >/dev/null 2>&1; then \
+		poetry run python -c "from src.code_explainer.advanced_cache import CacheManager; cm = CacheManager(); count = cm.advanced_cache.invalidate_by_pattern('$(PATTERN)'); print(f'Invalidated {count} entries')"; \
+	else \
+		python -c "from src.code_explainer.advanced_cache import CacheManager; cm = CacheManager(); count = cm.advanced_cache.invalidate_by_pattern('$(PATTERN)'); print(f'Invalidated {count} entries')" || echo "⚠️  Advanced caching not configured"; \
+	fi
+
+cache-warmup: ## Warm up cache with frequently used keys (usage: make cache-warmup KEYS="key1,key2,key3")
+	@echo "🔥 Warming up cache with keys: $(KEYS)"
+	@if [ -z "$(KEYS)" ]; then \
+		echo "❌ Please specify KEYS variable. Usage: make cache-warmup KEYS='key1,key2,key3'"; \
+		exit 1; \
+	fi
+	@if command -v poetry >/dev/null 2>&1; then \
+		poetry run python -c "from src.code_explainer.advanced_cache import CacheManager; cm = CacheManager(); keys = '$(KEYS)'.split(','); cm.advanced_cache.warmup(keys); print(f'Warming up {len(keys)} cache keys')"; \
+	else \
+		python -c "from src.code_explainer.advanced_cache import CacheManager; cm = CacheManager(); keys = '$(KEYS)'.split(','); cm.advanced_cache.warmup(keys); print(f'Warming up {len(keys)} cache keys')" || echo "⚠️  Advanced caching not configured"; \
+	fi
+
+cache-backup: ## Create cache backup (usage: make cache-backup PATH="/path/to/backup")
+	@echo "💾 Creating cache backup at: $(PATH)"
+	@if [ -z "$(PATH)" ]; then \
+		echo "❌ Please specify PATH variable. Usage: make cache-backup PATH='/tmp/cache-backup'"; \
+		exit 1; \
+	fi
+	@if command -v poetry >/dev/null 2>&1; then \
+		poetry run python -c "from src.code_explainer.advanced_cache import CacheManager; cm = CacheManager(); cm.advanced_cache.backup('$(PATH)'); print('Cache backup created')"; \
+	else \
+		python -c "from src.code_explainer.advanced_cache import CacheManager; cm = CacheManager(); cm.advanced_cache.backup('$(PATH)'); print('Cache backup created')" || echo "⚠️  Advanced caching not configured"; \
+	fi
+
+cache-restore: ## Restore cache from backup (usage: make cache-restore PATH="/path/to/backup")
+	@echo "📂 Restoring cache from: $(PATH)"
+	@if [ -z "$(PATH)" ]; then \
+		echo "❌ Please specify PATH variable. Usage: make cache-restore PATH='/tmp/cache-backup'"; \
+		exit 1; \
+	fi
+	@if command -v poetry >/dev/null 2>&1; then \
+		poetry run python -c "from src.code_explainer.advanced_cache import CacheManager; cm = CacheManager(); cm.advanced_cache.restore('$(PATH)'); print('Cache restored')"; \
+	else \
+		python -c "from src.code_explainer.advanced_cache import CacheManager; cm = CacheManager(); cm.advanced_cache.restore('$(PATH)'); print('Cache restored')" || echo "⚠️  Advanced caching not configured"; \
+	fi
+
+cache-all: ## Run all cache management operations
+	@echo "🔄 Running all cache management operations..."
+	$(MAKE) cache-stats
+	@echo "--- Cache operations completed ---"
+
+cache-test: ## Run advanced caching tests
+	@echo "🧪 Running advanced caching tests..."
+	@if command -v poetry >/dev/null 2>&1; then \
+		poetry run python scripts/test_advanced_cache.py; \
+	else \
+		python scripts/test_advanced_cache.py; \
+	fi
 
 # Quality assurance targets
 check: ## Run all quality checks (lint, type, format)

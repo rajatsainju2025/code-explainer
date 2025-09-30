@@ -733,6 +733,276 @@ async def retrieval_health():
         }
     }
 )
+@app.get(
+    "/cache/stats",
+    summary="Get cache statistics",
+    description="Retrieve comprehensive statistics for all cache types including hit rates, sizes, and performance metrics.",
+    response_model=Dict[str, Any],
+    responses={
+        200: {
+            "description": "Cache statistics retrieved successfully",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "explanation_cache": {
+                            "size": 150,
+                            "total_access_count": 1250,
+                            "avg_access_count": 8.33,
+                            "strategies": ["vanilla", "ast_augmented"],
+                            "models": ["codet5-base", "starcoderbase-1b"]
+                        },
+                        "advanced_cache": {
+                            "hit_rate": 0.85,
+                            "total_requests": 2000,
+                            "memory_entries": 500,
+                            "disk_entries": 2500,
+                            "evictions": 25,
+                            "avg_access_time": 0.002,
+                            "strategy": "lru"
+                        }
+                    }
+                }
+            }
+        }
+    }
+)
+async def cache_stats():
+    """Get comprehensive cache statistics."""
+    try:
+        if not hasattr(explainer, 'cache_manager') or not explainer.cache_manager:
+            return {
+                "error": "Advanced caching not enabled",
+                "basic_cache": {
+                    "enabled": explainer.explanation_cache is not None,
+                    "size": explainer.explanation_cache.size() if explainer.explanation_cache else 0
+                }
+            }
+
+        return explainer.cache_manager.get_cache_stats()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get cache stats: {str(e)}")
+
+
+@app.post(
+    "/cache/clear",
+    summary="Clear cache",
+    description="Clear all cache entries or specific cache types. Use with caution as this will remove all cached explanations.",
+    response_model=Dict[str, str],
+    responses={
+        200: {
+            "description": "Cache cleared successfully",
+            "content": {
+                "application/json": {
+                    "example": {"message": "All caches cleared successfully"}
+                }
+            }
+        }
+    }
+)
+async def clear_cache(cache_type: Optional[str] = None):
+    """Clear cache entries.
+
+    Args:
+        cache_type: Type of cache to clear ('explanation', 'embedding', 'advanced', or None for all)
+    """
+    try:
+        if not hasattr(explainer, 'cache_manager') or not explainer.cache_manager:
+            if explainer.explanation_cache:
+                explainer.explanation_cache.clear()
+                return {"message": "Basic explanation cache cleared successfully"}
+            else:
+                return {"message": "No cache enabled"}
+
+        if cache_type == "explanation":
+            explainer.cache_manager.explanation_cache.clear()
+            message = "Explanation cache cleared successfully"
+        elif cache_type == "embedding":
+            explainer.cache_manager.embedding_cache.clear()
+            message = "Embedding cache cleared successfully"
+        elif cache_type == "advanced":
+            explainer.cache_manager.advanced_cache.clear()
+            message = "Advanced cache cleared successfully"
+        else:
+            explainer.cache_manager.clear_all_caches()
+            message = "All caches cleared successfully"
+
+        return {"message": message}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to clear cache: {str(e)}")
+
+
+@app.post(
+    "/cache/invalidate",
+    summary="Invalidate cache entries",
+    description="Invalidate specific cache entries by key, tag, or pattern. Useful for forcing refresh of stale data.",
+    response_model=Dict[str, Any],
+    responses={
+        200: {
+            "description": "Cache entries invalidated successfully",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "invalidated_count": 5,
+                        "message": "Invalidated 5 entries matching pattern"
+                    }
+                }
+            }
+        }
+    }
+)
+async def invalidate_cache(
+    key: Optional[str] = None,
+    tag: Optional[str] = None,
+    pattern: Optional[str] = None
+):
+    """Invalidate cache entries by key, tag, or pattern.
+
+    Args:
+        key: Specific cache key to invalidate
+        tag: Tag to match for invalidation (invalidates all entries with this tag)
+        pattern: Pattern to match keys for invalidation
+    """
+    try:
+        if not hasattr(explainer, 'cache_manager') or not explainer.cache_manager:
+            raise HTTPException(status_code=400, detail="Advanced caching not enabled")
+
+        advanced_cache = explainer.cache_manager.advanced_cache
+
+        if key:
+            invalidated = advanced_cache.invalidate(key)
+            message = f"Invalidated cache key: {key}" if invalidated else f"Cache key not found: {key}"
+            return {"invalidated_count": 1 if invalidated else 0, "message": message}
+
+        elif tag:
+            invalidated_count = advanced_cache.invalidate_by_tag(tag)
+            return {
+                "invalidated_count": invalidated_count,
+                "message": f"Invalidated {invalidated_count} entries with tag: {tag}"
+            }
+
+        elif pattern:
+            invalidated_count = advanced_cache.invalidate_by_pattern(pattern)
+            return {
+                "invalidated_count": invalidated_count,
+                "message": f"Invalidated {invalidated_count} entries matching pattern: {pattern}"
+            }
+
+        else:
+            raise HTTPException(status_code=400, detail="Must specify key, tag, or pattern")
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to invalidate cache: {str(e)}")
+
+
+@app.post(
+    "/cache/warmup",
+    summary="Warm up cache",
+    description="Preload frequently accessed cache entries to improve performance. Specify keys to warm up from disk to memory.",
+    response_model=Dict[str, str],
+    responses={
+        200: {
+            "description": "Cache warmup initiated successfully",
+            "content": {
+                "application/json": {
+                    "example": {"message": "Cache warmup initiated for 10 keys"}
+                }
+            }
+        }
+    }
+)
+async def warmup_cache(keys: List[str]):
+    """Warm up cache by preloading specified keys.
+
+    Args:
+        keys: List of cache keys to warm up
+    """
+    try:
+        if not hasattr(explainer, 'cache_manager') or not explainer.cache_manager:
+            raise HTTPException(status_code=400, detail="Advanced caching not enabled")
+
+        advanced_cache = explainer.cache_manager.advanced_cache
+        advanced_cache.warmup(keys)
+
+        return {"message": f"Cache warmup initiated for {len(keys)} keys"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to warmup cache: {str(e)}")
+
+
+@app.post(
+    "/cache/backup",
+    summary="Backup cache",
+    description="Create a backup of the current cache state to the specified path.",
+    response_model=Dict[str, str],
+    responses={
+        200: {
+            "description": "Cache backup created successfully",
+            "content": {
+                "application/json": {
+                    "example": {"message": "Cache backup created at /path/to/backup"}
+                }
+            }
+        }
+    }
+)
+async def backup_cache(backup_path: str):
+    """Create a backup of the cache.
+
+    Args:
+        backup_path: Path where to store the backup
+    """
+    try:
+        if not hasattr(explainer, 'cache_manager') or not explainer.cache_manager:
+            raise HTTPException(status_code=400, detail="Advanced caching not enabled")
+
+        advanced_cache = explainer.cache_manager.advanced_cache
+        advanced_cache.backup(backup_path)
+
+        return {"message": f"Cache backup created at {backup_path}"}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to backup cache: {str(e)}")
+
+
+@app.post(
+    "/cache/restore",
+    summary="Restore cache",
+    description="Restore cache from a backup at the specified path.",
+    response_model=Dict[str, str],
+    responses={
+        200: {
+            "description": "Cache restored successfully",
+            "content": {
+                "application/json": {
+                    "example": {"message": "Cache restored from /path/to/backup"}
+                }
+            }
+        }
+    }
+)
+async def restore_cache(backup_path: str):
+    """Restore cache from backup.
+
+    Args:
+        backup_path: Path to the backup to restore from
+    """
+    try:
+        if not hasattr(explainer, 'cache_manager') or not explainer.cache_manager:
+            raise HTTPException(status_code=400, detail="Advanced caching not enabled")
+
+        advanced_cache = explainer.cache_manager.advanced_cache
+        advanced_cache.restore(backup_path)
+
+        return {"message": f"Cache restored from {backup_path}"}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to restore cache: {str(e)}")
+
+
 async def retrieval_stats():
     """Runtime stats of the loaded retriever (if any)."""
     info = {
