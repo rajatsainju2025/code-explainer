@@ -157,6 +157,62 @@ class CodeExplainer:
         self.symbolic_analyzer = SymbolicAnalyzer()
         self.multi_agent_orchestrator = MultiAgentOrchestrator(self)
 
+    def _validate_config(self, config: Any) -> None:
+        """Validate configuration structure and values.
+        
+        Args:
+            config: Configuration object to validate
+            
+        Raises:
+            ConfigurationError: If configuration is invalid
+        """
+        try:
+            cfg_dict = self._config_to_dict(config)
+            if not cfg_dict:
+                raise ConfigurationError("Configuration is empty or could not be converted to dict")
+            
+            # Validate critical configuration sections
+            required_sections = ["model", "prompt"]
+            for section in required_sections:
+                if section not in cfg_dict:
+                    self.logger.warning(f"Configuration missing recommended section '{section}'")
+            
+            # Validate model configuration if present
+            if "model" in cfg_dict:
+                model_cfg = cfg_dict["model"]
+                if not isinstance(model_cfg, dict):
+                    raise ConfigurationError(f"Model configuration must be a dict, got {type(model_cfg)}")
+                
+                # Check for reasonable model parameters
+                if "max_length" in model_cfg:
+                    max_len = model_cfg["max_length"]
+                    if not isinstance(max_len, int) or max_len <= 0 or max_len > 16384:
+                        raise ConfigurationError(f"model.max_length must be positive integer <= 16384, got {max_len}")
+                
+                if "temperature" in model_cfg:
+                    temp = model_cfg["temperature"]
+                    if not isinstance(temp, (int, float)) or temp < 0 or temp > 2.0:
+                        raise ConfigurationError(f"model.temperature must be float between 0 and 2.0, got {temp}")
+            
+            # Validate prompt configuration if present
+            if "prompt" in cfg_dict:
+                prompt_cfg = cfg_dict["prompt"]
+                if not isinstance(prompt_cfg, dict):
+                    raise ConfigurationError(f"Prompt configuration must be a dict, got {type(prompt_cfg)}")
+                
+                if "strategy" in prompt_cfg:
+                    strategy = prompt_cfg["strategy"]
+                    valid_strategies = ["vanilla", "ast_augmented", "multi_agent", "intelligent"]
+                    if strategy not in valid_strategies:
+                        self.logger.warning(f"Prompt strategy '{strategy}' not in recommended strategies: {valid_strategies}")
+            
+            self.logger.debug("Configuration validation passed")
+            
+        except Exception as e:
+            if isinstance(e, ConfigurationError):
+                raise
+            raise ConfigurationError(f"Configuration validation failed: {e}")
+
     def _initialize_config(
         self, 
         model_path: Optional[Union[str, Path, Any]], 
@@ -181,12 +237,54 @@ class CodeExplainer:
             resolved_model_path = None
 
         # Initialize configuration
-        if user_provided_config is not None:
-            config = user_provided_config  # type: ignore
-        else:
-            config = init_config(config_path)
+        try:
+            if user_provided_config is not None:
+                config = user_provided_config  # type: ignore
+            else:
+                config = init_config(config_path)
+            
+            # Validate the configuration
+            self._validate_config(config)
+            
+        except Exception as e:
+            if isinstance(e, (ConfigurationError, FileNotFoundError)):
+                self.logger.error(f"Configuration error: {e}")
+                # Create a minimal fallback configuration
+                self.logger.warning("Using fallback configuration due to initialization error")
+                config = self._create_fallback_config()
+            else:
+                raise
             
         return config, resolved_model_path
+
+    def _create_fallback_config(self) -> Dict[str, Any]:
+        """Create a minimal fallback configuration.
+        
+        Returns:
+            Basic configuration dict with safe defaults
+        """
+        fallback_config = {
+            "model": {
+                "name": "fallback",
+                "arch": "causal", 
+                "max_length": 512,
+                "temperature": 0.7,
+                "top_p": 0.9,
+                "top_k": 50
+            },
+            "prompt": {
+                "strategy": "vanilla"
+            },
+            "cache": {
+                "enabled": False
+            },
+            "logging": {
+                "level": "INFO"
+            }
+        }
+        
+        self.logger.info("Created fallback configuration with safe defaults")
+        return fallback_config
 
     def _setup_logging(self) -> Any:
         """Setup logging based on configuration."""
@@ -272,8 +370,8 @@ class CodeExplainer:
 
     def _initialize_cache(self) -> None:
         """Initialize caching components based on configuration."""
-        cache_enabled = self._cfg_get("cache.enabled", False)
-        advanced_cache_enabled = self._cfg_get("cache.advanced_cache_enabled", False)
+        cache_enabled = self._cfg_get_bool("cache.enabled", False)
+        advanced_cache_enabled = self._cfg_get_bool("cache.advanced_cache_enabled", False)
 
         if advanced_cache_enabled:
             self._setup_advanced_cache()
@@ -302,8 +400,8 @@ class CodeExplainer:
     
     def _setup_basic_cache(self) -> None:
         """Setup basic caching system."""
-        cache_dir = self._cfg_get("cache.directory", ".cache")
-        cache_max = int(self._cfg_get("cache.max_size", 1000))
+        cache_dir = self._cfg_get_str("cache.directory", ".cache")
+        cache_max = self._cfg_get_int("cache.max_size", 1000, min_val=10, max_val=100000)
         self.explanation_cache = ExplanationCache(cache_dir, cache_max)
         self.cache_manager = None
         self.advanced_cache = None
@@ -343,10 +441,11 @@ class CodeExplainer:
         max_length = request.max_length
         strategy = request.strategy
         if max_length is None:
-            max_length = int(self._cfg_get("model.max_length", 512))
+            max_length = self._cfg_get_int("model.max_length", 512, min_val=1, max_val=4096)
 
         # Get strategy for caching
-        used_strategy: str = strategy or str(self._cfg_get("prompt.strategy", "vanilla"))
+        used_strategy: str = strategy or self._cfg_get_str("prompt.strategy", "vanilla", 
+                                                          valid_values=["vanilla", "ast_augmented", "multi_agent", "intelligent"])
         model_name: str = getattr(self, 'model_name', 'unknown')
 
         # Check cache first
@@ -407,9 +506,9 @@ class CodeExplainer:
                 input_ids=inputs["input_ids"],
                 attention_mask=inputs.get("attention_mask"),
                 max_length=min(gen_max, inputs["input_ids"].shape[1] + 150),
-                temperature=float(self._cfg_get("model.temperature", 0.7)),
-                top_p=float(self._cfg_get("model.top_p", 0.9)),
-                top_k=int(self._cfg_get("model.top_k", 50)),
+                temperature=self._cfg_get_float("model.temperature", 0.7, min_val=0.0, max_val=2.0),
+                top_p=self._cfg_get_float("model.top_p", 0.9, min_val=0.0, max_val=1.0),
+                top_k=self._cfg_get_int("model.top_k", 50, min_val=1, max_val=500),
                 do_sample=True,
                 pad_token_id=getattr(tok, "eos_token_id", None),
                 no_repeat_ngram_size=2,
@@ -990,16 +1089,138 @@ provides formal conditions and properties that can be verified through testing."
         Falls back to default when config is not a dict-like OmegaConf. This avoids
         hard failures when tests pass MagicMock or partial configs.
         """
-        data = self._config_to_dict(self.config)
-        if not data:
-            return default
-        node: Any = data
-        for key in dotted_path.split("."):
-            if isinstance(node, dict) and key in node:
-                node = node[key]
-            else:
+        try:
+            data = self._config_to_dict(self.config)
+            if not data:
+                self.logger.debug(f"Config data empty for path '{dotted_path}', using default: {default}")
                 return default
-        return node
+            
+            node: Any = data
+            path_parts = dotted_path.split(".")
+            
+            for i, key in enumerate(path_parts):
+                if isinstance(node, dict) and key in node:
+                    node = node[key]
+                else:
+                    partial_path = ".".join(path_parts[:i+1])
+                    self.logger.debug(f"Config key '{partial_path}' not found in path '{dotted_path}', using default: {default}")
+                    return default
+            
+            self.logger.debug(f"Retrieved config value for '{dotted_path}': {node}")
+            return node
+        except Exception as e:
+            self.logger.warning(f"Error accessing config path '{dotted_path}': {e}, using default: {default}")
+            return default
+
+    def _cfg_get_typed(self, dotted_path: str, expected_type: Union[type, Tuple[type, ...]], default: Any = None) -> Any:
+        """Get configuration value with type validation.
+        
+        Args:
+            dotted_path: Dot-separated configuration path
+            expected_type: Expected type or tuple of types
+            default: Default value if not found or invalid type
+            
+        Returns:
+            Configuration value of expected type or default
+            
+        Raises:
+            ConfigurationError: If value exists but is wrong type and no default provided
+        """
+        value = self._cfg_get(dotted_path, default)
+        
+        if value is default:
+            return default
+            
+        if not isinstance(value, expected_type):
+            type_names = expected_type.__name__ if isinstance(expected_type, type) else "/".join(t.__name__ for t in expected_type)
+            error_msg = f"Configuration '{dotted_path}' expected {type_names}, got {type(value).__name__}: {value}"
+            if default is not None:
+                self.logger.warning(f"{error_msg}, using default: {default}")
+                return default
+            else:
+                raise ConfigurationError(error_msg)
+        
+        return value
+
+    def _cfg_get_int(self, dotted_path: str, default: int = 0, min_val: Optional[int] = None, max_val: Optional[int] = None) -> int:
+        """Get integer configuration value with validation.
+        
+        Args:
+            dotted_path: Configuration path
+            default: Default value
+            min_val: Minimum allowed value
+            max_val: Maximum allowed value
+            
+        Returns:
+            Validated integer value
+        """
+        value = self._cfg_get_typed(dotted_path, int, default)
+        
+        if min_val is not None and value < min_val:
+            self.logger.warning(f"Config '{dotted_path}' value {value} below minimum {min_val}, using minimum")
+            return min_val
+            
+        if max_val is not None and value > max_val:
+            self.logger.warning(f"Config '{dotted_path}' value {value} above maximum {max_val}, using maximum")
+            return max_val
+            
+        return value
+
+    def _cfg_get_float(self, dotted_path: str, default: float = 0.0, min_val: Optional[float] = None, max_val: Optional[float] = None) -> float:
+        """Get float configuration value with validation.
+        
+        Args:
+            dotted_path: Configuration path
+            default: Default value
+            min_val: Minimum allowed value
+            max_val: Maximum allowed value
+            
+        Returns:
+            Validated float value
+        """
+        value = self._cfg_get_typed(dotted_path, (int, float), default)
+        value = float(value)  # Convert int to float if needed
+        
+        if min_val is not None and value < min_val:
+            self.logger.warning(f"Config '{dotted_path}' value {value} below minimum {min_val}, using minimum")
+            return min_val
+            
+        if max_val is not None and value > max_val:
+            self.logger.warning(f"Config '{dotted_path}' value {value} above maximum {max_val}, using maximum")
+            return max_val
+            
+        return value
+
+    def _cfg_get_str(self, dotted_path: str, default: str = "", valid_values: Optional[List[str]] = None) -> str:
+        """Get string configuration value with validation.
+        
+        Args:
+            dotted_path: Configuration path
+            default: Default value
+            valid_values: List of valid string values
+            
+        Returns:
+            Validated string value
+        """
+        value = self._cfg_get_typed(dotted_path, str, default)
+        
+        if valid_values is not None and value not in valid_values:
+            self.logger.warning(f"Config '{dotted_path}' value '{value}' not in valid values {valid_values}, using default: {default}")
+            return default
+            
+        return value
+
+    def _cfg_get_bool(self, dotted_path: str, default: bool = False) -> bool:
+        """Get boolean configuration value with validation.
+        
+        Args:
+            dotted_path: Configuration path
+            default: Default value
+            
+        Returns:
+            Boolean value
+        """
+        return self._cfg_get_typed(dotted_path, bool, default)
 
     def _get_logging_settings(self, cfg_dict: Dict[str, Any]) -> Tuple[str, Optional[Union[str, Path]]]:
         """Extract safe logging settings from a config dict.
