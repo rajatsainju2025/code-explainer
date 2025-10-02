@@ -602,11 +602,41 @@ class CodeExplainer:
 
         return explanation
 
+    def _determine_optimal_batch_size(self, num_codes: int) -> int:
+        """Determine optimal batch size based on available memory and input size.
+
+        Args:
+            num_codes: Number of codes to process
+
+        Returns:
+            Optimal batch size
+        """
+        # Base batch size from config
+        base_batch_size = int(self._cfg_get("batch.size", 8))
+
+        # Adjust based on available memory (rough heuristic)
+        try:
+            import psutil
+            memory_gb = psutil.virtual_memory().available / (1024**3)
+            if memory_gb < 4:
+                base_batch_size = min(base_batch_size, 4)
+            elif memory_gb < 8:
+                base_batch_size = min(base_batch_size, 8)
+            else:
+                base_batch_size = min(base_batch_size, 16)
+        except ImportError:
+            # psutil not available, use conservative default
+            base_batch_size = min(base_batch_size, 4)
+
+        # Don't exceed number of codes
+        return min(base_batch_size, num_codes)
+
     def explain_code_batch(
         self,
         codes: List[str],
         max_length: Optional[int] = None,
-        strategy: Optional[str] = None
+        strategy: Optional[str] = None,
+        batch_size: Optional[int] = None
     ) -> List[str]:
         """Generate explanations for multiple code snippets efficiently using batch processing.
 
@@ -614,6 +644,7 @@ class CodeExplainer:
             codes: List of Python code snippets
             max_length: Optional max sequence length
             strategy: Optional prompt strategy override
+            batch_size: Optional batch size for processing (auto-determined if None)
 
         Returns:
             List of generated explanations
@@ -634,6 +665,12 @@ class CodeExplainer:
 
         if max_length is None:
             max_length = int(self._cfg_get("model.max_length", 512))
+
+        # Determine optimal batch size
+        if batch_size is None:
+            batch_size = self._determine_optimal_batch_size(len(codes))
+
+        self.logger.info(f"Processing {len(codes)} codes in batches of {batch_size}")
 
         # Get strategy for caching
         used_strategy = strategy or str(self._cfg_get("prompt.strategy", "vanilla"))
@@ -656,86 +693,111 @@ class CodeExplainer:
 
         # If all were cached, return early
         if not uncached_codes:
+            self.logger.info("All explanations retrieved from cache")
             return explanations
 
-        # Process uncached codes in batch
-        batch_explanations = self._explain_code_batch_internal(
-            uncached_codes,
-            int(max_length or self._cfg_get("model.max_length", 512)),
-            strategy
-        )
+        self.logger.info(f"Processing {len(uncached_codes)} uncached explanations in batches")
+
+        # Process uncached codes in optimized batches
+        try:
+            batch_explanations = self._explain_code_batch_internal(
+                uncached_codes,
+                int(max_length),
+                strategy,
+                batch_size
+            )
+        except Exception as e:
+            self.logger.error(f"Batch processing failed: {e}")
+            raise ModelError(f"Failed to process code batch: {e}") from e
 
         # Fill in the results
         for idx, explanation in zip(uncached_indices, batch_explanations):
             explanations[idx] = explanation
 
+        self.logger.info(f"Successfully processed {len(codes)} code explanations")
         return explanations
 
     def _explain_code_batch_internal(
         self,
         codes: List[str],
         max_length: int,
-        strategy: Optional[str] = None
+        strategy: Optional[str] = None,
+        batch_size: int = 8
     ) -> List[str]:
-        """Internal method for batch processing of explanations."""
+        """Internal method for batch processing of explanations with optimized batching."""
         assert self.tokenizer is not None and self.model is not None
         tok = self.tokenizer
         mdl = self.model
-
-        # Prepare prompts for all codes
-        prompts = []
-        for code in codes:
-            base_cfg = self._config_to_dict(self.config)
-            if strategy is not None:
-                cfg = dict(base_cfg)
-                prompt_cfg = dict(cfg.get("prompt", {}))
-                prompt_cfg["strategy"] = strategy
-                cfg["prompt"] = prompt_cfg
-                prompt = prompt_for_language(cfg, code)
-            else:
-                prompt = prompt_for_language(base_cfg, code)
-            prompts.append(prompt)
-
-        # Batch tokenize
-        inputs = tok(prompts, return_tensors="pt", padding=True, truncation=True)
-        inputs = {k: v.to(self.device) for k, v in inputs.items()}
 
         # Get strategy for caching
         used_strategy = strategy or str(self._cfg_get("prompt.strategy", "vanilla"))
         model_name = getattr(self, 'model_name', 'unknown')
 
-        with torch.no_grad():
-            gen_max = int(max_length) if max_length is not None else 512
-            # Adjust max_length based on input length
-            max_input_length = inputs["input_ids"].shape[1]
-            adjusted_max_length = min(gen_max, max_input_length + 150)
+        all_explanations = []
 
-            outputs = mdl.generate(
-                inputs["input_ids"],
-                attention_mask=inputs.get("attention_mask"),
-                max_length=adjusted_max_length,
-                temperature=float(self._cfg_get("model.temperature", 0.7)),
-                top_p=float(self._cfg_get("model.top_p", 0.9)),
-                top_k=int(self._cfg_get("model.top_k", 50)),
-                do_sample=True,
-                pad_token_id=getattr(tok, "eos_token_id", None),
-                no_repeat_ngram_size=2,
-                early_stopping=True,
-                num_return_sequences=1,  # One explanation per input
-            )
+        # Process in batches
+        for i in range(0, len(codes), batch_size):
+            batch_codes = codes[i:i + batch_size]
+            self.logger.debug(f"Processing batch {i//batch_size + 1}/{(len(codes) + batch_size - 1)//batch_size}")
 
-        # Decode all outputs
-        batch_explanations = []
-        for i, output in enumerate(outputs):
-            generated_text = tok.decode(output, skip_special_tokens=True)
-            explanation = generated_text[len(prompts[i]):].strip()
-            batch_explanations.append(explanation)
+            # Prepare prompts for this batch
+            prompts = []
+            for code in batch_codes:
+                base_cfg = self._config_to_dict(self.config)
+                if strategy is not None:
+                    cfg = dict(base_cfg)
+                    prompt_cfg = dict(cfg.get("prompt", {}))
+                    prompt_cfg["strategy"] = strategy
+                    cfg["prompt"] = prompt_cfg
+                    prompt = prompt_for_language(cfg, code)
+                else:
+                    prompt = prompt_for_language(base_cfg, code)
+                prompts.append(prompt)
 
-            # Cache the explanation
-            if self.explanation_cache is not None:
-                self.explanation_cache.put(codes[i], used_strategy, model_name, explanation)
+            # Batch tokenize
+            inputs = tok(prompts, return_tensors="pt", padding=True, truncation=True)
+            inputs = {k: v.to(self.device) for k, v in inputs.items()}
 
-        return batch_explanations
+            with torch.no_grad():
+                gen_max = int(max_length) if max_length is not None else 512
+                # Adjust max_length based on input length
+                max_input_length = inputs["input_ids"].shape[1]
+                adjusted_max_length = min(gen_max, max_input_length + 150)
+
+                outputs = mdl.generate(
+                    inputs["input_ids"],
+                    attention_mask=inputs.get("attention_mask"),
+                    max_length=adjusted_max_length,
+                    temperature=float(self._cfg_get("model.temperature", 0.7)),
+                    top_p=float(self._cfg_get("model.top_p", 0.9)),
+                    top_k=int(self._cfg_get("model.top_k", 50)),
+                    do_sample=True,
+                    pad_token_id=getattr(tok, "eos_token_id", None),
+                    no_repeat_ngram_size=2,
+                    early_stopping=True,
+                    num_return_sequences=1,  # One explanation per input
+                )
+
+            # Decode outputs for this batch
+            for j, output in enumerate(outputs):
+                generated_text = tok.decode(output, skip_special_tokens=True)
+                explanation = generated_text[len(prompts[j]):].strip()
+                if not explanation:
+                    explanation = generated_text
+
+                # Augment explanation with code facts
+                try:
+                    explanation = self._augment_explanation_with_code_facts(batch_codes[j], explanation)
+                except Exception:
+                    pass  # Best effort
+
+                all_explanations.append(explanation)
+
+                # Cache the explanation
+                if self.explanation_cache is not None:
+                    self.explanation_cache.put(batch_codes[j], used_strategy, model_name, explanation)
+
+        return all_explanations
 
     def analyze_code(self, code: str, strategy: Optional[str] = None) -> Dict[str, Any]:
         """Perform comprehensive code analysis.
