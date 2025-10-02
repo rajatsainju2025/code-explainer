@@ -140,6 +140,12 @@ class StructuredLogger:
         self._store_entry(entry)
         self.logger.warning(message, extra=extra_data)
 
+    def debug(self, message: str, extra_data: Optional[Dict[str, Any]] = None):
+        """Log debug message."""
+        entry = self._create_log_entry("DEBUG", message, extra_data)
+        self._store_entry(entry)
+        self.logger.debug(message, extra=extra_data)
+
     def error(self, message: str, exc_info: bool = True,
               extra_data: Optional[Dict[str, Any]] = None):
         """Log error message."""
