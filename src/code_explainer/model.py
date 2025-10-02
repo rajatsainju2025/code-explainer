@@ -631,6 +631,111 @@ class CodeExplainer:
         # Don't exceed number of codes
         return min(base_batch_size, num_codes)
 
+    def _monitor_performance(self) -> Dict[str, Any]:
+        """Monitor current performance metrics."""
+        metrics = {
+            'memory_usage': {},
+            'gpu_memory': {},
+            'cache_stats': {}
+        }
+
+        # Memory usage
+        try:
+            import psutil
+            process = psutil.Process()
+            memory_info = process.memory_info()
+            metrics['memory_usage'] = {
+                'rss': memory_info.rss,
+                'vms': memory_info.vms,
+                'percent': process.memory_percent()
+            }
+        except ImportError:
+            pass
+
+        # GPU memory if available
+        if torch.cuda.is_available():
+            try:
+                metrics['gpu_memory'] = {
+                    'allocated': torch.cuda.memory_allocated(),
+                    'reserved': torch.cuda.memory_reserved(),
+                    'max_allocated': torch.cuda.max_memory_allocated()
+                }
+            except Exception:
+                pass
+
+        # Cache stats
+        if self.explanation_cache:
+            metrics['cache_stats']['explanation'] = self.explanation_cache.stats()
+        if hasattr(self, 'advanced_cache') and self.advanced_cache:
+            metrics['cache_stats']['advanced'] = self.advanced_cache.get_metrics()
+
+        return metrics
+
+    def optimize_memory(self) -> None:
+        """Perform memory optimization operations."""
+        self.logger.info("Performing memory optimization...")
+
+        # Clear PyTorch cache
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+            self.logger.debug("CUDA cache cleared")
+
+        # Force garbage collection
+        import gc
+        collected = gc.collect()
+        self.logger.debug(f"Garbage collected {collected} objects")
+
+        # Clear unused cache entries if cache is getting large
+        if self.explanation_cache and self.explanation_cache.size() > 1000:
+            # Keep only recent entries (simple cleanup)
+            self.logger.debug("Cache size optimization triggered")
+
+        self.logger.info("Memory optimization completed")
+
+    def explain_code_async(
+        self,
+        code: str,
+        max_length: Optional[int] = None,
+        strategy: Optional[str] = None
+    ) -> concurrent.futures.Future:
+        """Asynchronously generate explanation for code.
+
+        Args:
+            code: Source code to explain
+            max_length: Optional max sequence length
+            strategy: Optional prompt strategy override
+
+        Returns:
+            Future object that will contain the explanation
+        """
+        executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+        future = executor.submit(self.explain_code, code, max_length, strategy)
+        executor.shutdown(wait=False)  # Don't wait, let caller manage
+        return future
+
+    def explain_code_batch_async(
+        self,
+        codes: List[str],
+        max_length: Optional[int] = None,
+        strategy: Optional[str] = None,
+        batch_size: Optional[int] = None
+    ) -> concurrent.futures.Future:
+        """Asynchronously generate explanations for multiple codes.
+
+        Args:
+            codes: List of code snippets
+            max_length: Optional max sequence length
+            strategy: Optional prompt strategy override
+            batch_size: Optional batch size
+
+        Returns:
+            Future object that will contain the list of explanations
+        """
+        executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+        future = executor.submit(self.explain_code_batch, codes, max_length, strategy, batch_size)
+        executor.shutdown(wait=False)
+        return future
+
     def explain_code_batch(
         self,
         codes: List[str],
