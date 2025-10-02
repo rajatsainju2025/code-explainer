@@ -736,6 +736,104 @@ class CodeExplainer:
         executor.shutdown(wait=False)
         return future
 
+    def validate_setup(self) -> Dict[str, Any]:
+        """Validate the current setup and provide diagnostic information.
+
+        Returns:
+            Dictionary with setup validation results
+        """
+        results = {
+            'model_loaded': False,
+            'tokenizer_loaded': False,
+            'cache_configured': False,
+            'gpu_available': torch.cuda.is_available(),
+            'device': str(self.device),
+            'warnings': [],
+            'errors': []
+        }
+
+        # Check model and tokenizer
+        try:
+            if self.model is not None:
+                results['model_loaded'] = True
+                results['model_type'] = type(self.model).__name__
+                results['model_size'] = sum(p.numel() for p in self.model.parameters())
+            else:
+                results['errors'].append("Model not loaded")
+        except Exception as e:
+            results['errors'].append(f"Model check failed: {e}")
+
+        try:
+            if self.tokenizer is not None:
+                results['tokenizer_loaded'] = True
+                results['vocab_size'] = len(self.tokenizer)
+            else:
+                results['errors'].append("Tokenizer not loaded")
+        except Exception as e:
+            results['errors'].append(f"Tokenizer check failed: {e}")
+
+        # Check cache
+        if self.explanation_cache or self.advanced_cache:
+            results['cache_configured'] = True
+            if self.explanation_cache:
+                results['cache_type'] = 'basic'
+                results['cache_size'] = self.explanation_cache.size()
+            if self.advanced_cache:
+                results['cache_type'] = 'advanced'
+                metrics = self.advanced_cache.get_metrics()
+                results['cache_memory_entries'] = metrics.get('memory_entries', 0)
+                results['cache_disk_entries'] = metrics.get('disk_entries', 0)
+
+        # Performance recommendations
+        if results['gpu_available'] and str(self.device) == 'cpu':
+            results['warnings'].append("GPU available but using CPU - consider enabling GPU")
+
+        if not results['cache_configured']:
+            results['warnings'].append("No caching configured - performance may be degraded")
+
+        if results.get('model_size', 0) > 1e9:  # > 1B parameters
+            results['warnings'].append("Large model detected - ensure sufficient memory")
+
+        return results
+
+    def get_setup_info(self) -> str:
+        """Get human-readable setup information."""
+        validation = self.validate_setup()
+
+        info_lines = [
+            "Code Explainer Setup Information",
+            "=" * 40,
+            f"Model Loaded: {validation['model_loaded']}",
+            f"Tokenizer Loaded: {validation['tokenizer_loaded']}",
+            f"Cache Configured: {validation['cache_configured']}",
+            f"GPU Available: {validation['gpu_available']}",
+            f"Device: {validation['device']}",
+        ]
+
+        if validation.get('model_type'):
+            info_lines.append(f"Model Type: {validation['model_type']}")
+
+        if validation.get('model_size'):
+            size_gb = validation['model_size'] * 4 / (1024**3)  # Rough estimate
+            info_lines.append(f"Model Size: ~{size_gb:.1f} GB")
+
+        if validation.get('cache_size'):
+            info_lines.append(f"Cache Entries: {validation['cache_size']}")
+
+        if validation['warnings']:
+            info_lines.append("")
+            info_lines.append("Warnings:")
+            for warning in validation['warnings']:
+                info_lines.append(f"  - {warning}")
+
+        if validation['errors']:
+            info_lines.append("")
+            info_lines.append("Errors:")
+            for error in validation['errors']:
+                info_lines.append(f"  - {error}")
+
+        return "\n".join(info_lines)
+
     def explain_code_batch(
         self,
         codes: List[str],
