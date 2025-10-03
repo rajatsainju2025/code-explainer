@@ -49,10 +49,48 @@ jobs:
       run: |
         mypy src/ --ignore-missing-imports
 
-    - name: Security scan
+    - name: Run Bandit security scan
       run: |
         bandit -r src/ -f json -o bandit-report.json || true
+        bandit -r src/ --severity-level high,critical
+
+    - name: Run Safety vulnerability scan
+      run: |
         safety check --json --output safety-report.json || true
+        safety check
+
+    - name: Run Trivy container scan
+      run: |
+        docker build -t code-explainer:test .
+        trivy image --format json --output trivy-report.json code-explainer:test || true
+        trivy image --severity HIGH,CRITICAL code-explainer:test
+
+    - name: Run Semgrep security scan
+      run: |
+        semgrep --config auto --json --output semgrep-report.json src/ || true
+        semgrep --config auto --severity ERROR src/
+
+    - name: Run performance benchmarks
+      run: |
+        python benchmark_performance.py --quick --json-output benchmark-results.json
+
+    - name: Upload security reports
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: security-reports-${{ github.run_id }}
+        path: |
+          bandit-report.json
+          safety-report.json
+          trivy-report.json
+          semgrep-report.json
+
+    - name: Upload benchmark results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: benchmark-results-${{ github.run_id }}
+        path: benchmark-results.json
 
     - name: Run tests with coverage
       run: |

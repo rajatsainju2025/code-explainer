@@ -62,7 +62,36 @@ jobs:
       - name: Run integration tests (Ubuntu only)
         if: matrix.os == 'ubuntu-latest'
         run: |
-          pytest tests/ -k "integration" --tb=short
+          pytest tests/ -k "integration or test_api_v2 or test_integration_new_features" --tb=short -x
+
+      - name: Run security tests
+        if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.10'
+        run: |
+          pytest tests/test_security.py -v --tb=short
+
+      - name: Run performance regression tests
+        if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.10'
+        run: |
+          pytest tests/test_performance_regression.py -v --tb=short --durations=10
+
+      - name: Run API smoke tests
+        if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.10'
+        run: |
+          # Start API server in background
+          python -m uvicorn code_explainer.api.server:app --host 0.0.0.0 --port 8000 &
+          API_PID=$!
+          sleep 15
+
+          # Test v2 endpoints
+          curl -f http://localhost:8000/api/v2/health || exit 1
+          curl -f http://localhost:8000/api/v2/performance || exit 1
+
+          # Test v1 compatibility
+          curl -f http://localhost:8000/health || exit 1
+          curl -f http://localhost:8000/version || exit 1
+
+          # Stop API server
+          kill $API_PID || true
 
       - name: Upload coverage reports
         uses: codecov/codecov-action@v4

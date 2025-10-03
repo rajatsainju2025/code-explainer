@@ -1,0 +1,212 @@
+name: Security Monitoring
+
+on:
+  schedule:
+    # Run weekly on Mondays at 3 AM UTC
+    - cron: '0 3 * * 1'
+  workflow_dispatch:
+    inputs:
+      scan_type:
+        description: 'Type of security scan to run'
+        required: false
+        default: 'full'
+        type: choice
+        options:
+        - full
+        - quick
+        - dependencies-only
+
+env:
+  PYTHON_VERSION: '3.10'
+
+jobs:
+  security-scan:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+      security-events: write
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -r requirements-dev.txt
+
+    - name: Install security tools
+      run: |
+        pip install bandit safety semgrep
+        # Install Trivy
+        curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
+
+    - name: Run Bandit security scan
+      run: |
+        bandit -r src/ -f json -o bandit-report.json --severity-level high,critical || true
+        bandit -r src/ --severity-level high,critical
+
+    - name: Run Safety dependency scan
+      run: |
+        safety check --json --output safety-report.json || true
+        safety check
+
+    - name: Run Semgrep security scan
+      run: |
+        semgrep --config auto --json --output semgrep-report.json src/ || true
+        semgrep --config auto --severity ERROR src/
+
+    - name: Run Trivy container scan
+      run: |
+        docker build -t code-explainer:security-scan .
+        trivy image --format json --output trivy-report.json code-explainer:security-scan || true
+        trivy image --severity HIGH,CRITICAL code-explainer:security-scan
+
+    - name: Run dependency vulnerability scan
+      if: github.event.inputs.scan_type != 'dependencies-only' || github.event_name == 'schedule'
+      run: |
+        pip install pip-audit
+        pip-audit --format json --output pip-audit-report.json || true
+        pip-audit
+
+    - name: Generate security report
+      run: |
+        python scripts/generate_security_report.py \
+          --bandit bandit-report.json \
+          --safety safety-report.json \
+          --semgrep semgrep-report.json \
+          --trivy trivy-report.json \
+          --pip-audit pip-audit-report.json \
+          --output security-report.md
+
+    - name: Upload security reports
+      uses: actions/upload-artifact@v4
+      with:
+        name: security-reports-${{ github.run_id }}
+        path: |
+          bandit-report.json
+          safety-report.json
+          semgrep-report.json
+          trivy-report.json
+          pip-audit-report.json
+          security-report.md
+
+    - name: Upload SARIF reports to GitHub Security tab
+      uses: github/codeql-action/upload-sarif@v2
+      if: always()
+      with:
+        sarif_file: security-report.sarif
+      continue-on-error: true
+
+    - name: Create security issue on high/critical findings
+      if: failure() && github.event_name == 'schedule'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          let report = '';
+          try {
+            report = fs.readFileSync('security-report.md', 'utf8');
+          } catch (e) {
+            report = 'Security scan completed with findings. See attached reports for details.';
+          }
+
+          await github.rest.issues.create({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            title: `🚨 Security Vulnerabilities Found - ${new Date().toISOString().split('T')[0]}`,
+            body: `## Security Scan Alert
+
+          Critical or high-severity security vulnerabilities have been detected in the codebase.
+
+          ### Security Report
+          ${report}
+
+          ### Actions Required
+          - Review and address all high/critical severity findings
+          - Update vulnerable dependencies
+          - Implement security fixes for code issues
+          - Re-run security scans after fixes
+
+          ### Scan Details
+          - Commit: ${context.sha}
+          - Run ID: ${context.runId}
+          - Timestamp: ${new Date().toISOString()}
+          - Scan Type: ${{ github.event.inputs.scan_type || 'full' }}
+
+          @github/security-team`,
+            labels: ['security', 'vulnerability', 'urgent']
+          });
+
+  secrets-detection:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule' || github.event.inputs.scan_type == 'full'
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Run TruffleHog secrets scan
+      uses: trufflesecurity/trufflehog@main
+      with:
+        path: ./
+        base: main
+        head: HEAD
+        extra_args: --debug --only-verified
+
+    - name: Run Gitleaks secrets scan
+      run: |
+        docker run --rm -v $(pwd):/repo zricethezav/gitleaks:latest detect --source /repo --verbose --redact
+
+  compliance-check:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule'
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+
+    - name: Install compliance tools
+      run: |
+        pip install pip-licenses
+
+    - name: Check license compliance
+      run: |
+        pip-licenses --format json --output license-report.json || true
+        pip-licenses --format markdown --output license-report.md
+
+    - name: Check for banned licenses
+      run: |
+        python scripts/check_licenses.py --report license-report.json --fail-on-banned
+
+    - name: Upload compliance reports
+      uses: actions/upload-artifact@v4
+      with:
+        name: compliance-reports-${{ github.run_id }}
+        path: |
+          license-report.json
+          license-report.md
