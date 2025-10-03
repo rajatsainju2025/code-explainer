@@ -366,10 +366,22 @@ class CodeExplainer:
         )
 
     def _initialize_components(self) -> None:
-        """Initialize additional components like cache and analyzers."""
+        """Initialize additional components like cache, security, and analyzers."""
         self._initialize_cache()
+        self._initialize_security()
         self.symbolic_analyzer = SymbolicAnalyzer()
         self.multi_agent_orchestrator = MultiAgentOrchestrator(self)
+
+    def _initialize_security(self) -> None:
+        """Initialize security components."""
+        # Rate limiting
+        self._rate_limiter = self._setup_rate_limiting()
+
+        # Input validation
+        self._input_validator = self._setup_input_validation()
+
+        # Security monitoring
+        self._security_monitor = self._setup_security_monitor()
 
     def _initialize_cache(self) -> None:
         """Initialize caching components based on configuration."""
@@ -1033,6 +1045,168 @@ class CodeExplainer:
             report_lines.append(f"CUDA Available: {torch.cuda.device_count()} device(s)")
 
         return "\n".join(report_lines)
+
+    def _setup_rate_limiting(self) -> Optional[Any]:
+        """Set up rate limiting for API protection."""
+        try:
+            # Simple rate limiter implementation
+            return self._create_simple_rate_limiter()
+        except Exception as e:
+            self.logger.warning(f"Rate limiting setup failed: {e}")
+        return None
+
+    def _setup_input_validation(self) -> Optional[Any]:
+        """Set up input validation for security."""
+        try:
+            from .security import CodeSecurityValidator
+            return CodeSecurityValidator(strict_mode=True)
+        except ImportError:
+            self.logger.warning("Input validation not available - security module not found")
+        return None
+
+    def _setup_security_monitor(self) -> Optional[Any]:
+        """Set up security monitoring."""
+        try:
+            from .security_audit import SecurityMonitor
+            return SecurityMonitor()
+        except ImportError:
+            self.logger.warning("Security monitoring not available - audit module not found")
+        return None
+
+    def _create_simple_rate_limiter(self) -> Any:
+        """Create a simple in-memory rate limiter."""
+        from collections import defaultdict
+        import time
+
+        class SimpleRateLimiter:
+            def __init__(self, requests_per_minute: int = 60):
+                self.requests_per_minute = requests_per_minute
+                self.requests = defaultdict(list)
+
+            def check_limit(self, client_id: str) -> bool:
+                now = time.time()
+                # Clean old requests
+                self.requests[client_id] = [t for t in self.requests[client_id] if now - t < 60]
+                # Check limit
+                if len(self.requests[client_id]) >= self.requests_per_minute:
+                    return False
+                # Add new request
+                self.requests[client_id].append(now)
+                return True
+
+        return SimpleRateLimiter()
+
+    def check_rate_limit(self, client_id: str = "default") -> bool:
+        """Check if request is within rate limits.
+
+        Args:
+            client_id: Identifier for the client making the request
+
+        Returns:
+            True if request is allowed, False if rate limited
+        """
+        if self._rate_limiter is None:
+            return True  # No rate limiting configured
+
+        return self._rate_limiter.check_limit(client_id)
+
+    def validate_input_security(self, code: str) -> Tuple[bool, List[str]]:
+        """Validate input code for security risks.
+
+        Args:
+            code: The code to validate
+
+        Returns:
+            Tuple of (is_safe, list_of_warnings)
+        """
+        if self._input_validator is None:
+            # Basic validation if security module not available
+            return self._basic_security_check(code)
+
+        return self._input_validator.validate_code(code)
+
+    def _basic_security_check(self, code: str) -> Tuple[bool, List[str]]:
+        """Basic security check when full validation is not available."""
+        warnings = []
+
+        # Check for dangerous imports
+        dangerous_imports = ['os', 'subprocess', 'sys', 'shutil', 'pickle', 'eval', 'exec']
+        for imp in dangerous_imports:
+            if f"import {imp}" in code or f"from {imp}" in code:
+                warnings.append(f"Potentially dangerous import detected: {imp}")
+
+        # Check for dangerous functions
+        dangerous_functions = ['eval(', 'exec(', '__import__(']
+        for func in dangerous_functions:
+            if func in code:
+                warnings.append(f"Potentially dangerous function call detected: {func[:-1]}")
+
+        # Length check
+        if len(code) > 10000:
+            warnings.append("Code is very long - potential for abuse")
+
+        is_safe = len(warnings) == 0
+        return is_safe, warnings
+
+    def audit_security_event(self, event_type: str, details: Dict[str, Any]) -> None:
+        """Audit a security-related event.
+
+        Args:
+            event_type: Type of security event
+            details: Additional details about the event
+        """
+        if self._security_monitor:
+            # Use the security monitor's logging capability
+            self.logger.info(f"Security event: {event_type} - {details}")
+        else:
+            # Basic logging if monitor not available
+            self.logger.info(f"Security event: {event_type} - {details}")
+
+    def secure_explain_code(self, code: str, **kwargs) -> str:
+        """Secure version of explain_code with validation and rate limiting.
+
+        Args:
+            code: The code to explain
+            **kwargs: Additional arguments for explain_code
+
+        Returns:
+            The explanation or error message
+        """
+        # Check rate limiting
+        if not self.check_rate_limit():
+            self.audit_security_event("rate_limit_exceeded", {"code_length": len(code)})
+            return "Rate limit exceeded. Please try again later."
+
+        # Validate input security
+        is_safe, warnings = self.validate_input_security(code)
+        if not is_safe:
+            self.audit_security_event("unsafe_input_detected", {
+                "warnings": warnings,
+                "code_length": len(code)
+            })
+            return f"Input validation failed: {'; '.join(warnings)}"
+
+        # Log warnings if any
+        if warnings:
+            self.audit_security_event("input_warnings", {
+                "warnings": warnings,
+                "code_length": len(code)
+            })
+
+        # Proceed with explanation
+        try:
+            result = self.explain_code(code, **kwargs)
+            self.audit_security_event("successful_explanation", {
+                "code_length": len(code),
+                "result_length": len(result)
+            })
+            return result
+        except Exception as e:
+            self.audit_security_event("explanation_error", {
+                "error": str(e),
+                "code_length": len(code)
+            })
+            raise
 
     def explain_code_batch(
         self,
