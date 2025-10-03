@@ -41,13 +41,12 @@ nav:
     - Evaluation: evaluation.md
     - Troubleshooting: troubleshooting.md
   - API Reference:
-    - REST API: api/rest.md
-    - Python SDK: api/python.md
-    - CLI: api/cli.md
+    - REST API: api.md
   - Advanced:
     - Security: security.md
-    - Monitoring: monitoring.md
     - Performance: performance.md
+    - Caching: caching.md
+    - Retrieval: retrieval.md
   - Development:
     - Contributing: contributing.md
     - Architecture: architecture.md
