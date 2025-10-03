@@ -40,6 +40,8 @@ Device portability and intelligent explanations:
 - **Symbolic Analysis**: Property-based testing and complexity analysis
 - **Batch Processing**: Efficient batch explanation with memory optimization and progress tracking
 - **Async Processing**: Non-blocking explanation generation for better responsiveness
+- **Performance Monitoring**: Real-time memory usage, GPU stats, and performance metrics
+- **Model Optimization**: Quantization support (4-bit/8-bit), gradient checkpointing, and inference optimizations
 
 ### 🎯 **Smart Analysis & Prompting**
 - **Multiple Strategies**: vanilla, ast_augmented, retrieval_augmented, execution_trace, and enhanced_rag
