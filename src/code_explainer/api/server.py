@@ -1015,3 +1015,182 @@ async def retrieval_stats():
         "top_k_max": TOP_K_MAX,
     }
     return info
+
+
+# Enhanced API endpoints for new features
+
+@app.get("/api/v2/health")
+async def health_check_v2():
+    """Enhanced health check with detailed system information."""
+    try:
+        # Get basic health info inline
+        health = {
+            "status": "ok",
+            "retrieval": {
+                "index_path": RETRIEVAL_INDEX_PATH,
+                "index_exists": os.path.exists(RETRIEVAL_INDEX_PATH),
+                "corpus_exists": os.path.exists(f"{RETRIEVAL_INDEX_PATH}.corpus.json")
+            },
+            "version": __version__
+        }
+
+        # Add performance metrics
+        if explainer:
+            try:
+                memory_stats = explainer.get_memory_usage()
+                health["performance"] = {
+                    "memory_mb": memory_stats,
+                    "device": str(getattr(explainer, 'device', 'unknown')),
+                    "model_loaded": explainer._resources is not None
+                }
+            except Exception:
+                health["performance"] = {"error": "Performance metrics unavailable"}
+
+        # Add security status
+        health["security"] = {
+            "rate_limiting_enabled": explainer and explainer._rate_limiter is not None,
+            "input_validation_enabled": explainer and explainer._input_validator is not None,
+            "security_monitoring_enabled": explainer and explainer._security_monitor is not None
+        }
+
+        return health
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Health check failed: {str(e)}")
+
+
+@app.get("/api/v2/performance")
+async def get_performance_metrics():
+    """Get comprehensive performance metrics."""
+    if not explainer:
+        raise HTTPException(status_code=503, detail="Code explainer not initialized")
+
+    try:
+        report = explainer.get_performance_report()
+        return {"performance_report": report, "timestamp": str(uuid.uuid4())}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get performance metrics: {str(e)}")
+
+
+@app.post("/api/v2/validate-security")
+async def validate_code_security(request: ExplainRequest):
+    """Validate code for security risks without explaining it."""
+    if not explainer:
+        raise HTTPException(status_code=503, detail="Code explainer not initialized")
+
+    try:
+        is_safe, warnings = explainer.validate_input_security(request.code)
+        return {
+            "safe": is_safe,
+            "warnings": warnings,
+            "code_length": len(request.code),
+            "validation_timestamp": str(uuid.uuid4())
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Security validation failed: {str(e)}")
+
+
+@app.post("/api/v2/secure-explain")
+async def secure_explain_endpoint(request: ExplainRequest):
+    """Secure explanation with rate limiting and input validation."""
+    if not explainer:
+        raise HTTPException(status_code=503, detail="Code explainer not initialized")
+
+    try:
+        # Use the secure explain method
+        explanation = explainer.secure_explain_code(
+            request.code,
+            strategy=getattr(request, 'strategy', None)
+        )
+
+        return {
+            "explanation": explanation,
+            "code_length": len(request.code),
+            "strategy": getattr(request, 'strategy', None) or "default",
+            "request_id": str(uuid.uuid4())
+        }
+
+    except Exception as e:
+        # Check if it's a security-related error
+        if "Rate limit exceeded" in str(e) or "Input validation failed" in str(e):
+            raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"Secure explanation failed: {str(e)}")
+
+
+@app.post("/api/v2/batch-explain")
+async def batch_explain_endpoint(request: BatchCodeRequest):
+    """Batch explanation with enhanced error handling."""
+    if not explainer:
+        raise HTTPException(status_code=503, detail="Code explainer not initialized")
+
+    try:
+        explanations = explainer.explain_code_batch(
+            request.codes,
+            max_length=request.max_length,
+            strategy=request.strategy
+        )
+
+        return {
+            "explanations": explanations,
+            "batch_size": len(request.codes),
+            "total_code_length": sum(len(code) for code in request.codes),
+            "strategy": request.strategy or "default",
+            "batch_id": str(uuid.uuid4())
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Batch explanation failed: {str(e)}")
+
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Batch explanation failed: {str(e)}")
+
+
+# Enhanced request/response models
+
+class ModelOptimizationRequest(BaseModel):
+    """Request model for model optimization."""
+    enable_quantization: bool = Field(default=False, description="Enable model quantization")
+    quantization_bits: int = Field(default=8, description="Quantization bits (4 or 8)")
+    enable_gradient_checkpointing: bool = Field(default=False, description="Enable gradient checkpointing")
+    optimize_for_inference: bool = Field(default=False, description="Apply inference optimizations")
+    optimize_tokenizer: bool = Field(default=False, description="Optimize tokenizer")
+
+
+class BatchCodeRequest(BaseModel):
+    """Request model for batch code explanation."""
+    codes: List[str] = Field(..., description="List of code snippets to explain")
+    max_length: Optional[int] = Field(default=None, description="Maximum explanation length")
+    strategy: Optional[str] = Field(default=None, description="Explanation strategy to use")
+
+
+@app.post("/api/v2/optimize-model")
+async def optimize_model_endpoint(request: ModelOptimizationRequest):
+    """Apply model optimizations."""
+    if not explainer:
+        raise HTTPException(status_code=503, detail="Code explainer not initialized")
+
+    try:
+        results = {}
+
+        if request.enable_quantization:
+            results["quantization"] = explainer.enable_quantization(request.quantization_bits)
+
+        if request.enable_gradient_checkpointing:
+            results["gradient_checkpointing"] = explainer.enable_gradient_checkpointing()
+
+        if request.optimize_for_inference:
+            explainer.optimize_for_inference()
+            results["inference_optimization"] = True
+
+        if request.optimize_tokenizer:
+            explainer.optimize_tokenizer()
+            results["tokenizer_optimization"] = True
+
+        return {
+            "optimizations_applied": results,
+            "optimization_id": str(uuid.uuid4())
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Model optimization failed: {str(e)}")
