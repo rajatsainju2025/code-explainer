@@ -1117,6 +1117,13 @@ async def secure_explain_endpoint(request: ExplainRequest):
         raise HTTPException(status_code=500, detail=f"Secure explanation failed: {str(e)}")
 
 
+class BatchCodeRequest(BaseModel):
+    """Request model for batch code explanation."""
+    codes: List[str] = Field(..., description="List of code snippets to explain")
+    max_length: Optional[int] = Field(default=None, description="Maximum explanation length")
+    strategy: Optional[str] = Field(default=None, description="Explanation strategy to use")
+
+
 @app.post("/api/v2/batch-explain")
 async def batch_explain_endpoint(request: BatchCodeRequest):
     """Batch explanation with enhanced error handling."""
@@ -1142,10 +1149,6 @@ async def batch_explain_endpoint(request: BatchCodeRequest):
         raise HTTPException(status_code=500, detail=f"Batch explanation failed: {str(e)}")
 
 
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Batch explanation failed: {str(e)}")
-
-
 # Enhanced request/response models
 
 class ModelOptimizationRequest(BaseModel):
@@ -1155,13 +1158,6 @@ class ModelOptimizationRequest(BaseModel):
     enable_gradient_checkpointing: bool = Field(default=False, description="Enable gradient checkpointing")
     optimize_for_inference: bool = Field(default=False, description="Apply inference optimizations")
     optimize_tokenizer: bool = Field(default=False, description="Optimize tokenizer")
-
-
-class BatchCodeRequest(BaseModel):
-    """Request model for batch code explanation."""
-    codes: List[str] = Field(..., description="List of code snippets to explain")
-    max_length: Optional[int] = Field(default=None, description="Maximum explanation length")
-    strategy: Optional[str] = Field(default=None, description="Explanation strategy to use")
 
 
 @app.post("/api/v2/optimize-model")

@@ -45,7 +45,7 @@ class ExplainRequest(BaseModel):
     strategy: Optional[str] = Field(
         "vanilla",
         description="Prompt strategy to use",
-        regex="^(vanilla|ast_augmented|retrieval_augmented|execution_trace|enhanced_rag)$",
+        pattern="^(vanilla|ast_augmented|retrieval_augmented|execution_trace|enhanced_rag)$",
     )
     include_symbolic: bool = Field(False, description="Include symbolic analysis")
     use_multi_agent: bool = Field(False, description="Use multi-agent analysis")
@@ -67,7 +67,7 @@ class AnalyzeRequest(BaseModel):
     strategy: Optional[str] = Field(
         "vanilla",
         description="Prompt strategy to use",
-        regex="^(vanilla|ast_augmented|retrieval_augmented|execution_trace|enhanced_rag)$",
+        pattern="^(vanilla|ast_augmented|retrieval_augmented|execution_trace|enhanced_rag)$",
     )
 
 
