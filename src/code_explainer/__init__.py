@@ -10,18 +10,31 @@ __author__ = "Rajat Sainju"
 __email__ = "your.email@example.com"
 
 from .model import CodeExplainer
-from .trainer import CodeExplainerTrainer
 from .utils import load_config, setup_logging
-from .research_evaluation_orchestrator import (
-    ResearchEvaluationOrchestrator,
-    ResearchEvaluationConfig,
-)
+
+# Optional imports
+try:
+    from .trainer import CodeExplainerTrainer
+except ImportError:
+    CodeExplainerTrainer = None
+
+try:
+    from .research_evaluation_orchestrator import (
+        ResearchEvaluationOrchestrator,
+        ResearchEvaluationConfig,
+    )
+except ImportError:
+    ResearchEvaluationOrchestrator = None
+    ResearchEvaluationConfig = None
 
 __all__ = [
     "CodeExplainer",
-    "CodeExplainerTrainer",
     "load_config",
     "setup_logging",
-    "ResearchEvaluationOrchestrator",
-    "ResearchEvaluationConfig",
 ]
+
+if CodeExplainerTrainer is not None:
+    __all__.append("CodeExplainerTrainer")
+
+if ResearchEvaluationOrchestrator is not None:
+    __all__.extend(["ResearchEvaluationOrchestrator", "ResearchEvaluationConfig"])
