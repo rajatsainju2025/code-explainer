@@ -2,7 +2,40 @@
 Human-AI collaboration utilities.
 """
 
+from enum import Enum
 from typing import Dict, Any, List
+
+
+class SatisfactionLevel(Enum):
+    VERY_DISSATISFIED = "very_dissatisfied"
+    DISSATISFIED = "dissatisfied"
+    NEUTRAL = "neutral"
+    SATISFIED = "satisfied"
+    VERY_SATISFIED = "very_satisfied"
+
+
+class InteractionType(Enum):
+    FEEDBACK = "feedback"
+    CORRECTION = "correction"
+    CLARIFICATION = "clarification"
+
+
+class CollaborationPhase(Enum):
+    INITIAL_EXPLANATION = "initial_explanation"
+    FEEDBACK_COLLECTION = "feedback_collection"
+    REFINEMENT = "refinement"
+    FINALIZATION = "finalization"
+
+
+class CollaborationTracker:
+    """Tracks human-AI collaboration."""
+
+    def __init__(self):
+        pass
+
+    def track_interaction(self, interaction: Dict[str, Any]) -> None:
+        """Track an interaction."""
+        pass
 
 
 class HumanAIEvaluator:

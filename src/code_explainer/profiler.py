@@ -6,7 +6,7 @@ from typing import Dict, Any
 import time
 
 
-class Profiler:
+class PerformanceProfiler:
     """Performance profiler for code explanation."""
 
     def __init__(self):

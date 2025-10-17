@@ -52,6 +52,10 @@ def create_app() -> FastAPI:
     return app
 
 
+# Create default app instance for testing
+app = create_app()
+
+
 def main():
     """Main entry point for running the server."""
     import argparse

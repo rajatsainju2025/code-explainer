@@ -18,7 +18,7 @@ def register_train_commands(main_group):
         console.print(Panel.fit("🚀 Starting Model Training", style="bold blue"))
 
         try:
-            from ..trainer import CodeExplainerTrainer
+            from ...trainer import CodeExplainerTrainer
 
             trainer = CodeExplainerTrainer(config_path=config)
             trainer.train(data_path=data)

@@ -22,7 +22,7 @@ def register_serve_commands(main_group):
             # Import here to avoid dependency issues
             import gradio as gr
 
-            from ..model import CodeExplainer
+            from ...model import CodeExplainer
 
             explainer = CodeExplainer(model_path=model_path)
 

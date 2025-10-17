@@ -5,7 +5,7 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.syntax import Syntax
 
-from ..model import CodeExplainer
+from ...model import CodeExplainer
 
 console = Console()
 
