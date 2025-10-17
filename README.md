@@ -106,13 +106,35 @@ Device portability and intelligent explanations:
 ### Installation
 
 ```bash
-# Install from PyPI (recommended)
-pip install code-explainer
+# Install Poetry (if not already installed)
+curl -sSL https://install.python-poetry.org | python3 -
 
-# Or install from source
+# Install from source with Poetry
 git clone https://github.com/rajatsainju2025/code-explainer.git
 cd code-explainer
-pip install -e .
+poetry install
+
+# For RAG features (optional)
+poetry install --with rag
+
+# For development
+poetry install --with dev
+
+# For all optional dependencies
+poetry install --with rag,metrics,monitoring,dev
+```
+
+#### Alternative: Install from PyPI
+
+```bash
+# Basic installation
+pip install code-explainer
+
+# With RAG features
+pip install code-explainer[rag]
+
+# With all optional features
+pip install code-explainer[all]
 ```
 
 ### Basic Usage
