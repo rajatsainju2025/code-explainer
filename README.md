@@ -4,7 +4,7 @@
 
 [![CI](https://github.com/rajatsainju2025/code-explainer/actions/workflows/quality-assurance.yml/badge.svg)](https://github.com/rajatsainju2025/code-explainer/actions/workflows/quality-assurance.yml)
 [![Codecov](https://codecov.io/gh/rajatsainju2025/code-explainer/branch/main/graph/badge.svg)](https://codecov.io/gh/rajatsainju2025/code-explainer)
-[![Python](https://img.shields.io/badge/Python-3.8%2B-blue.svg)](https://python.org)
+[![Python](https://img.shields.io/badge/Python-3.9%2B-blue.svg)](https://python.org)
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.0%2B-red.svg)](https://pytorch.org)
 [![Transformers](https://img.shields.io/badge/🤗-Transformers-yellow.svg)](https://huggingface.co/transformers)
 [![Security](https://img.shields.io/badge/Security-Bandit%20%7C%20Safety-green)](https://github.com/rajatsainju2025/code-explainer/security)
@@ -90,7 +90,7 @@ Device portability and intelligent explanations:
 - **Quality Assurance**: Automated testing with pytest, coverage, and type checking
 - **Release Automation**: Automated releases with changelogs and semantic versioning
 - **Pre-commit Hooks**: Code formatting, linting, and security checks
-- **Multi-environment Testing**: Testing across Python 3.8, 3.9, 3.10, 3.11, 3.12
+- **Multi-environment Testing**: Testing across Python 3.9, 3.10, 3.11, 3.12
 - **Setup Validation**: Automated configuration and environment validation
 
 ### 🎯 **Developer Experience**
@@ -98,7 +98,6 @@ Device portability and intelligent explanations:
 - **Development Containers**: VS Code devcontainer for instant setup
 - **Makefile Automation**: Common tasks simplified with make commands
 - **nbstripout**: Clean notebook commits without outputs
-- **Performance Tuning**: Memory optimization, async processing, and diagnostic tools
 
 ---
 
@@ -113,10 +112,7 @@ pip install code-explainer
 # Or install from source
 git clone https://github.com/rajatsainju2025/code-explainer.git
 cd code-explainer
-make install
-
-# Or use Docker
-docker run -p 8000:8000 rajatsainju/code-explainer:latest
+pip install -e .
 ```
 
 ### Basic Usage
@@ -125,7 +121,7 @@ docker run -p 8000:8000 rajatsainju/code-explainer:latest
 from code_explainer import CodeExplainer
 
 # Initialize the explainer
-explainer = CodeExplainer(strategy="enhanced_rag")
+explainer = CodeExplainer()
 
 # Explain some code
 code = """
@@ -135,7 +131,7 @@ def fibonacci(n):
     return fibonacci(n-1) + fibonacci(n-2)
 """
 
-explanation = explainer.explain(code)
+explanation = explainer.explain_code(code)
 print(explanation)
 ```
 
@@ -143,53 +139,47 @@ print(explanation)
 
 ```bash
 # Start the FastAPI server
-make serve
+python -m code_explainer.cli_commands.main serve
 
-# Or use Streamlit
-make streamlit
+# Or use Streamlit (if available)
+# streamlit run streamlit_app.py
 
-# Or use Gradio
-make gradio
+# Or use Gradio (if available)
+# python -c "import gradio as gr; gr.Interface(...)"
 ```
 
 ### CLI Usage
 
 ```bash
 # Explain a file
-code-explainer explain --file examples/fibonacci.py --strategy enhanced_rag
+python -m code_explainer.cli_commands.main explain --file examples/fibonacci.py
 
 # Use different strategies
-code-explainer explain --file mycode.py --strategy vanilla
-code-explainer explain --file mycode.py --strategy ast_augmented
-code-explainer explain --file mycode.py --strategy retrieval_augmented
-code-explainer explain --file mycode.py --strategy execution_trace
+python -m code_explainer.cli_commands.main explain --file mycode.py --prompt-strategy vanilla
+python -m code_explainer.cli_commands.main explain --file mycode.py --prompt-strategy ast_augmented
+python -m code_explainer.cli_commands.main explain --file mycode.py --prompt-strategy retrieval_augmented
 
 # Run evaluations
-code-explainer eval --dataset humaneval --model codet5-small
+python -m code_explainer.cli_commands.main eval --dataset humaneval --model codet5-small
 
-# Research-driven evaluation (new)
-# End-to-end research evaluation (contamination, dynamic, multi-agent, adversarial)
-python -m code_explainer.cli_evaluation \
-  --model-path ./results \
-  --model-id demo-model \
-  --dynamic-rounds 3 \
-  --adversarial-tests 10 \
-  --enable-multi-agent --parallel
-
-See docs/research_evaluation_system.md for details.
-# Evaluate on a local JSONL (supports provenance + self-consistency)
-code-explainer eval -c configs/default.yaml -t data/examples/tiny_eval.jsonl --self-consistency 3 -o out/preds.jsonl
-
-# Notes:
-# - JSONL supported: each line should have {"code", "explanation", optional "source_ids"}
-# - Provenance metrics appear when source_ids/sources present
-# - Self-consistency: pass --self-consistency N to sample N generations per item
+# Research-driven evaluation (contamination, dynamic, multi-agent, adversarial)
+python -c "
+from code_explainer.research_evaluation_orchestrator import ResearchEvaluationOrchestrator
+orchestrator = ResearchEvaluationOrchestrator()
+results = orchestrator.run_evaluation(model, dataset)
+print(results)
+"
 
 # Check security
-code-explainer security --file suspicious_code.py
+python -c "
+from code_explainer.security import CodeSecurityValidator
+validator = CodeSecurityValidator()
+is_safe, issues = validator.validate_code(user_code)
+print('Safe:', is_safe, 'Issues:', issues)
+"
 
 # Run golden tests
-code-explainer golden-test --dataset core
+python -m code_explainer.cli_commands.main test
 
 For a 15-minute walkthrough, see the Zero to Results tutorial: docs/tutorials/zero_to_results.md
 ```
