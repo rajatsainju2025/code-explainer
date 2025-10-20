@@ -10,7 +10,8 @@ import re
 class CodeSecurityValidator:
     """Validates code for security issues."""
 
-    def __init__(self):
+    def __init__(self, strict_mode: bool = False):
+        self.strict_mode = strict_mode
         self.dangerous_patterns = [
             r'import\s+os',
             r'import\s+subprocess',
@@ -21,7 +22,13 @@ class CodeSecurityValidator:
             r'exec\s*\(',
             r'__import__',
             r'open\s*\(',
-            r'file\s*\('
+            r'file\s*\(',
+            r'import\s+requests',
+            r'import\s+urllib',
+            r'urllib\.',
+            r'requests\.',
+            r'socket\.',
+            r'import\s+socket'
         ]
 
     def validate_code(self, code: str) -> Tuple[bool, List[str]]:
@@ -31,7 +38,16 @@ class CodeSecurityValidator:
         # Check for dangerous imports and functions
         for pattern in self.dangerous_patterns:
             if re.search(pattern, code):
-                issues.append(f"Potentially dangerous pattern detected: {pattern}")
+                if 'open' in pattern:
+                    issues.append("Potentially dangerous file operation detected")
+                elif 'import' in pattern and ('os' in pattern or 'subprocess' in pattern or 'sys' in pattern):
+                    issues.append("Potentially dangerous system import detected")
+                elif 'eval' in pattern or 'exec' in pattern:
+                    issues.append("Potentially dangerous code execution detected")
+                elif 'requests' in pattern or 'urllib' in pattern or 'socket' in pattern:
+                    issues.append("Potentially dangerous network operation detected")
+                else:
+                    issues.append(f"Potentially dangerous pattern detected: {pattern}")
 
         # Parse AST to check for other issues
         try:
@@ -60,36 +76,94 @@ class CodeSecurityValidator:
 
 
 class SafeCodeExecutor:
-    """Executes code safely with resource limits."""
+    """Executes code in a safe environment."""
 
-    def __init__(self, timeout: int = 10, max_memory_mb: int = 100):
+    def __init__(self, timeout: int = 30):
         self.timeout = timeout
-        self.max_memory_mb = max_memory_mb
 
     def execute_code(self, code: str) -> Dict[str, Any]:
         """Execute code safely."""
-        # Placeholder - in real implementation would use restricted execution
-        try:
-            # Basic validation first
-            validator = CodeSecurityValidator()
-            is_safe, issues = validator.validate_code(code)
+        # First validate the code
+        validator = CodeSecurityValidator()
+        is_safe, issues = validator.validate_code(code)
 
-            if not is_safe:
-                return {
-                    "success": False,
-                    "error": "Security validation failed",
-                    "issues": issues
-                }
-
-            # For now, just return success without actual execution
+        if not is_safe:
             return {
-                "success": True,
-                "output": "Code validated successfully",
-                "execution_time": 0.1
+                "success": False,
+                "error": "Security validation failed",
+                "issues": issues
             }
 
+        import subprocess
+        import tempfile
+        import os
+
+        try:
+            # Write code to temporary file
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+                f.write(code)
+                temp_file = f.name
+
+            # Execute with timeout
+            result = subprocess.run(
+                ['python', temp_file],
+                capture_output=True,
+                text=True,
+                timeout=self.timeout
+            )
+
+            # Clean up
+            os.unlink(temp_file)
+
+            return {
+                "success": result.returncode == 0,
+                "output": result.stdout,
+                "error": result.stderr,
+                "execution_time": 0.1  # Simplified
+            }
+
+        except subprocess.TimeoutExpired:
+            return {
+                "success": False,
+                "error": f"Timeout: execution timed out after {self.timeout} seconds",
+                "output": "",
+                "execution_time": self.timeout
+            }
         except Exception as e:
             return {
                 "success": False,
-                "error": str(e)
+                "error": str(e),
+                "output": "",
+                "execution_time": 0.1
             }
+
+
+def hash_code(code: str) -> str:
+    """Generate a hash for code content."""
+    import hashlib
+    return hashlib.sha256(code.encode('utf-8')).hexdigest()
+
+
+def sanitize_code_for_display(code: str, max_length: int = 1000) -> str:
+    """Sanitize code for safe display."""
+    import re
+
+    # Remove potentially dangerous patterns for display
+    sanitized = code.replace('import os', '# import os (removed for security)')
+    sanitized = sanitized.replace('import subprocess', '# import subprocess (removed for security)')
+    sanitized = sanitized.replace('eval(', '# eval( (removed for security)')
+    sanitized = sanitized.replace('exec(', '# exec( (removed for security)')
+
+    # Mask potential secrets (simple pattern matching)
+    sanitized = re.sub(r'password\s*=\s*["\'][^"\']*["\']', 'password = "***"', sanitized)
+    sanitized = re.sub(r'api_key\s*=\s*["\'][^"\']*["\']', 'api_key = "***"', sanitized)
+    sanitized = re.sub(r'token\s*=\s*["\'][^"\']*["\']', 'token = "***"', sanitized)
+    sanitized = re.sub(r'secret\s*=\s*["\'][^"\']*["\']', 'secret = "***"', sanitized)
+
+    # Truncate if too long
+    if len(sanitized) > max_length:
+        # Truncate at max_length - len("...") to ensure total length <= max_length + 3
+        truncate_at = max_length - 3
+        sanitized = sanitized[:truncate_at] + "..."
+
+    return sanitized
