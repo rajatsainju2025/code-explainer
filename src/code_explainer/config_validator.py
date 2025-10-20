@@ -13,32 +13,39 @@ class ConfigValidator:
     def __init__(self):
         self.required_fields = {
             'model': ['name'],
-            'cache': ['enabled'],
-            'logging': ['level']
+            'prompting': ['strategy']
         }
+        self.valid_strategies = ['vanilla', 'ast_augmented', 'retrieval_augmented', 'execution_trace', 'enhanced_rag']
+        self.errors = []
+        self.warnings = []
 
-    def validate_config(self, config: Dict[str, Any]) -> tuple[bool, List[str]]:
+    def validate_config(self, config: Dict[str, Any]) -> bool:
         """Validate configuration dictionary."""
-        errors = []
+        self.errors = []
+        self.warnings = []
 
         # Check required fields
         for section, fields in self.required_fields.items():
             if section not in config:
-                errors.append(f"Missing required section: {section}")
+                self.errors.append(f"Required section '{section}' is missing")
                 continue
             for field in fields:
                 if field not in config[section]:
-                    errors.append(f"Missing required field '{field}' in section '{section}'")
+                    self.errors.append(f"Missing required field '{field}' in section '{section}'")
 
         # Validate specific values
-        if 'model' in config:
-            model_config = config['model']
-            if 'torch_dtype' in model_config:
-                valid_dtypes = ['auto', 'float32', 'float16', 'bfloat16', 'int8']
-                if model_config['torch_dtype'] not in valid_dtypes:
-                    errors.append(f"Invalid torch_dtype: {model_config['torch_dtype']}")
+        if 'prompting' in config and 'strategy' in config['prompting']:
+            strategy = config['prompting']['strategy']
+            if strategy not in self.valid_strategies:
+                self.errors.append(f"Invalid prompting strategy: {strategy}")
 
-        return len(errors) == 0, errors
+        # Check for unknown sections (generate warnings)
+        known_sections = set(self.required_fields.keys()) | {'model', 'training', 'data', 'cache', 'logging'}
+        for section in config:
+            if section not in known_sections:
+                self.warnings.append(f"Unknown configuration section: '{section}'")
+
+        return len(self.errors) == 0
 
     def validate_config_file(self, config_path: str) -> tuple[bool, List[str]]:
         """Validate configuration file."""
