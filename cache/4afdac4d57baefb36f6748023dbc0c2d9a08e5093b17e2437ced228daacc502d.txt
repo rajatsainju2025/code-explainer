@@ -1,1 +1,1 @@
-This code initializes a dictionary 'hi' with one element. It then prints the value associated with that element, which is 'i'.
+This code initializes a list named 'hi' with three numbers. It then prints the first element of the list, which is 1.

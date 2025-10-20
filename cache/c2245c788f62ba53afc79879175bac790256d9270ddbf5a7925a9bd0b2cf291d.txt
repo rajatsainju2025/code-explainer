@@ -1,0 +1,1 @@
+This is a function __init__ this code adds two numbers and returns the result.
