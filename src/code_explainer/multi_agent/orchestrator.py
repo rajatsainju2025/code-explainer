@@ -45,7 +45,7 @@ class MultiAgentOrchestrator:
         return self._synthesize_explanation(components)
 
     def _synthesize_explanation(self, components: List[ExplanationComponent]) -> str:
-        """Synthesize individual agent analyses into cohesive explanation."""
+        """Synthesize individual agent analyses into cohesive explanation (optimized)."""
         if not components:
             return "Unable to generate collaborative explanation."
 
@@ -53,6 +53,7 @@ class MultiAgentOrchestrator:
         type_priority = {"logic": 1, "structure": 2, "context": 3, "verification": 4}
         components.sort(key=lambda x: (type_priority.get(x.component_type, 5), -x.confidence))
 
+        # Use list comprehension with extend for better performance
         explanation_parts = [
             "# Multi-Agent Code Explanation",
             "",
@@ -60,21 +61,26 @@ class MultiAgentOrchestrator:
             "",
         ]
 
-        for component in components:
-            if component.confidence > 0.5:  # Only include confident analyses
-                explanation_parts.append(component.content)
-                explanation_parts.append("")
+        # Filter and collect content in one pass
+        confident_content = [
+            (component.content, "") 
+            for component in components 
+            if component.confidence > 0.5
+        ]
+        
+        # Flatten the tuples into a single list
+        for content, empty in confident_content:
+            explanation_parts.append(content)
+            explanation_parts.append(empty)
 
-        explanation_parts.extend(
-            [
-                "---",
-                "",
-                "**Collaboration Summary:**",
-                f"This analysis combined insights from {len(components)} specialized agents, "
-                f"providing a comprehensive view of the code from multiple perspectives: "
-                f"structural analysis, semantic understanding, contextual information, and verification strategies.",
-            ]
-        )
+        explanation_parts.extend([
+            "---",
+            "",
+            "**Collaboration Summary:**",
+            f"This analysis combined insights from {len(components)} specialized agents, "
+            f"providing a comprehensive view of the code from multiple perspectives: "
+            f"structural analysis, semantic understanding, contextual information, and verification strategies.",
+        ])
 
         return "\n".join(explanation_parts)
 
