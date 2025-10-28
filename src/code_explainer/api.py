@@ -165,8 +165,9 @@ async def explain_code(request: ExplainRequest):
         else:
             explanation = explainer.explain_code(request.code, strategy=request.strategy)
 
+        # Use count() for line counting - more efficient than split()
         metadata = {
-            "line_count": len(request.code.split("\n")),
+            "line_count": request.code.count("\n") + 1,
             "character_count": len(request.code),
             "include_symbolic": request.include_symbolic,
             "use_multi_agent": request.use_multi_agent,

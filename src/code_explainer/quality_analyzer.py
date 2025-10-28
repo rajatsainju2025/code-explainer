@@ -193,9 +193,10 @@ class CodeQualityAnalyzer:
         penalty = len(issues) * 0.05
         score = base_score - penalty
 
-        # Bonus for comments
-        comment_lines = len([line for line in code.split('\n') if line.strip().startswith('#')])
-        total_lines = len(code.split('\n'))
+        # Bonus for comments - cache split result
+        lines = code.split('\n')
+        comment_lines = sum(1 for line in lines if line.strip().startswith('#'))
+        total_lines = len(lines)
         if total_lines > 0:
             comment_ratio = comment_lines / total_lines
             score += comment_ratio * 0.2

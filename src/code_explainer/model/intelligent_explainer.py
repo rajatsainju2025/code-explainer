@@ -99,8 +99,9 @@ class IntelligentExplanationGenerator:
 
     def _calculate_complexity(self, code: str) -> float:
         """Calculate code complexity score."""
-        lines = len(code.split('\n'))
-        return min(lines / 50.0, 1.0)  # Simple heuristic
+        # Use count() instead of split() for better performance
+        line_count = code.count('\n') + 1
+        return min(line_count / 50.0, 1.0)  # Simple heuristic
 
     def _extract_key_concepts(self, code: str) -> list[str]:
         """Extract key programming concepts from code."""

@@ -94,7 +94,10 @@ class ContextAgent(BaseAgent):
             suggestions.append("- Consider adding docstrings to functions")
         if "print(" in code:
             suggestions.append("- Consider using logging instead of print for production code")
-        if len(code.split("\n")) > 20:
+        
+        # Cache line count to avoid multiple splits
+        line_count = code.count("\n") + 1
+        if line_count > 20:
             suggestions.append("- Consider breaking long functions into smaller, focused functions")
 
         return "\n".join(suggestions) if suggestions else "Code follows good practices"
