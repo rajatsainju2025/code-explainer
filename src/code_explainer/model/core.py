@@ -1,5 +1,6 @@
 """Core model class for code explanation."""
 
+import gc
 import logging
 from pathlib import Path
 from typing import Any, Optional, Union, Tuple, TYPE_CHECKING
@@ -124,6 +125,29 @@ class CodeExplainer(
         # Lazy initialization for expensive components - only create when needed
         self._symbolic_analyzer: Optional["SymbolicAnalyzer"] = None
         self._multi_agent_orchestrator: Optional["MultiAgentOrchestrator"] = None
+    
+    def __enter__(self):
+        """Context manager entry - no special setup needed."""
+        return self
+    
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Context manager exit - cleanup resources."""
+        self.cleanup_memory()
+        return False  # Don't suppress exceptions
+    
+    def cleanup_memory(self) -> None:
+        """Explicitly cleanup memory and release resources."""
+        # Flush cache if present
+        if hasattr(self, 'explanation_cache') and self.explanation_cache is not None:
+            self.explanation_cache.flush()
+        
+        # Clear model cache
+        if hasattr(self, 'model') and self.model is not None:
+            if hasattr(torch.cuda, 'empty_cache'):
+                torch.cuda.empty_cache()
+        
+        # Trigger garbage collection
+        gc.collect()
     
     @property
     def symbolic_analyzer(self) -> "SymbolicAnalyzer":
