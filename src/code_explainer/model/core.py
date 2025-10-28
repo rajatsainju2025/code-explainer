@@ -121,6 +121,20 @@ class CodeExplainer(
         # Initialize additional components
         self._initialize_components()
 
-        # Initialize additional components
-        self.symbolic_analyzer = SymbolicAnalyzer()
-        self.multi_agent_orchestrator = MultiAgentOrchestrator(self)
+        # Lazy initialization for expensive components - only create when needed
+        self._symbolic_analyzer: Optional["SymbolicAnalyzer"] = None
+        self._multi_agent_orchestrator: Optional["MultiAgentOrchestrator"] = None
+    
+    @property
+    def symbolic_analyzer(self) -> "SymbolicAnalyzer":
+        """Lazy-loaded symbolic analyzer."""
+        if self._symbolic_analyzer is None:
+            self._symbolic_analyzer = SymbolicAnalyzer()
+        return self._symbolic_analyzer
+    
+    @property
+    def multi_agent_orchestrator(self) -> "MultiAgentOrchestrator":
+        """Lazy-loaded multi-agent orchestrator."""
+        if self._multi_agent_orchestrator is None:
+            self._multi_agent_orchestrator = MultiAgentOrchestrator(self)
+        return self._multi_agent_orchestrator
