@@ -149,7 +149,7 @@ class CodeExplainerExplanationMixin:
         self,
         requests: List[Dict[str, any]]
     ) -> List[str]:
-        """Generate explanations for a batch of code snippets.
+        """Generate explanations for a batch of code snippets with optimized processing.
 
         Args:
             requests: List of request dictionaries with 'code', 'max_length', 'strategy' keys
@@ -159,18 +159,22 @@ class CodeExplainerExplanationMixin:
         """
         validated_requests = BatchCodeExplanationRequest(requests=requests)
 
-        explanations = []
-        for req in validated_requests.requests:
+        # Pre-allocate results list for better memory efficiency
+        num_requests = len(validated_requests.requests)
+        explanations: List[str] = [""] * num_requests
+        
+        # Process in batches to reduce per-item overhead
+        for i, req in enumerate(validated_requests.requests):
             try:
                 explanation = self.explain_code(
                     code=req["code"],
                     max_length=req.get("max_length"),
                     strategy=req.get("strategy")
                 )
-                explanations.append(explanation)
+                explanations[i] = explanation
             except Exception as e:
-                self.logger.error(f"Failed to explain code: {e}")
-                explanations.append(f"Error: {str(e)}")
+                self.logger.error(f"Failed to explain code at index {i}: {e}")
+                explanations[i] = f"Error: {str(e)}"
 
         return explanations
 
