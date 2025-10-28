@@ -31,6 +31,7 @@ from .initialization import CodeExplainerInitializationMixin
 from .config_validation import CodeExplainerConfigValidationMixin
 from .utilities import CodeExplainerUtilitiesMixin
 from .explanation import CodeExplainerExplanationMixin
+from .monitoring import CodeExplainerMonitoringMixin
 
 # Import OmegaConf for config conversion
 from omegaconf import OmegaConf
@@ -73,7 +74,8 @@ class CodeExplainer(
     CodeExplainerInitializationMixin,
     CodeExplainerConfigValidationMixin,
     CodeExplainerUtilitiesMixin,
-    CodeExplainerExplanationMixin
+    CodeExplainerExplanationMixin,
+    CodeExplainerMonitoringMixin
 ):
     """Main class for code explanation inference.
 

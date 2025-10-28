@@ -105,8 +105,9 @@ class TestSecurityFeatures:
         explainer = CodeExplainer()
 
         info = explainer.get_setup_info()
-        assert isinstance(info, str)
-        assert len(info) > 0
+        assert isinstance(info, dict)
+        assert "model_loaded" in info
+        assert "device" in info
 
 
 class TestBatchProcessing:
@@ -118,11 +119,11 @@ class TestBatchProcessing:
 
         # Mock the actual batch processing since model isn't loaded
         with patch.object(explainer, 'explain_code_batch', return_value=["Explanation 1", "Explanation 2"]):
-            codes = ["code1", "code2"]
-            results = explainer.explain_code_batch(codes)
+            codes_requests = [{"code": "code1"}, {"code": "code2"}]
+            results = explainer.explain_code_batch(codes_requests)
 
             assert isinstance(results, list)
-            assert len(results) == len(codes)
+            assert len(results) == len(codes_requests)
             assert all(isinstance(exp, str) for exp in results)
 
 
