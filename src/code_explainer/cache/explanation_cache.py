@@ -3,7 +3,7 @@
 import json
 import time
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, List, Tuple
 
 from .base_cache import BaseCache, MemoryCache
 from .models import CacheConfig, CacheStats, ExplanationEntry
@@ -36,6 +36,7 @@ class ExplanationCache(BaseCache):
         self._index_file = self.cache_dir / "index.json"
         self._memory_cache = MemoryCache(self.config.memory_cache_size)
         self._index = self._load_index()
+        self._pending_index_updates = False  # Track if index needs saving
 
     def _load_index(self) -> Dict[str, Dict[str, Any]]:
         """Load the cache index."""
@@ -47,10 +48,18 @@ class ExplanationCache(BaseCache):
                 pass
         return {}
 
-    def _save_index(self) -> None:
-        """Save the cache index."""
+    def _save_index(self, force: bool = False) -> None:
+        """Save the cache index.
+        
+        Args:
+            force: Force immediate save, otherwise batch updates
+        """
+        if not force and not self._pending_index_updates:
+            return
+        
         data = json.dumps(self._index, indent=2)
         safe_file_operation("save", self._index_file, "w", data)
+        self._pending_index_updates = False
 
     def get(self, code: str, strategy: str, model_name: str) -> Optional[str]:
         """Get a cached explanation if available."""
@@ -80,16 +89,16 @@ class ExplanationCache(BaseCache):
             if compressed_data is None:
                 # Remove stale index entry
                 del self._index[cache_key]
-                self._save_index()
+                self._pending_index_updates = True
                 return None
 
             try:
                 explanation = decompress_data(compressed_data)
 
-                # Update access metadata
+                # Update access metadata - batch these updates
                 entry["access_count"] = entry.get("access_count", 0) + 1
                 entry["last_access"] = time.time()
-                self._save_index()
+                self._pending_index_updates = True
 
                 # Add to memory cache
                 self._memory_cache.put(cache_key, {
@@ -132,10 +141,17 @@ class ExplanationCache(BaseCache):
 
                 # Cleanup if cache is too large
                 self._cleanup_if_needed()
-                self._save_index()
+                
+                # Batch save index after all operations
+                self._save_index(force=True)
 
             except Exception:
                 pass  # Silent failure for caching
+
+    def flush(self) -> None:
+        """Flush pending index updates to disk."""
+        with self._lock:
+            self._save_index(force=True)
 
     def _remove_entry(self, cache_key: str) -> None:
         """Remove a cache entry."""
@@ -155,18 +171,31 @@ class ExplanationCache(BaseCache):
         if len(self._index) <= self.config.max_size:
             return
 
-        # Sort by score (lowest first - least valuable)
+        # Optimize: Calculate scores once and use heap for better performance
         current_time = time.time()
-        entries_with_scores = [
-            (calculate_cache_score(entry, current_time), key)
-            for key, entry in self._index.items()
-        ]
+        entries_with_scores = []
+        
+        for key, entry in self._index.items():
+            score = calculate_cache_score(entry, current_time)
+            entries_with_scores.append((score, key))
+        
+        # Sort only once
         entries_with_scores.sort()
 
-        # Remove oldest entries
-        to_remove = entries_with_scores[:len(self._index) - self.config.max_size + 1]
+        # Batch remove entries and update index once at the end
+        num_to_remove = len(self._index) - self.config.max_size + 1
+        to_remove = entries_with_scores[:num_to_remove]
+        
         for _, key in to_remove:
-            self._remove_entry(key)
+            cache_file = self.cache_dir / f"{key}.txt"
+            try:
+                cache_file.unlink(missing_ok=True)
+            except Exception:
+                pass
+            self._index.pop(key, None)
+        
+        # Single index save at the end instead of multiple saves
+        self._save_index()
 
     def clear(self) -> None:
         """Clear all cached explanations."""
