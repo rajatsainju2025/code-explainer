@@ -3,12 +3,14 @@
 import gzip
 import hashlib
 import time
+from functools import lru_cache
 from pathlib import Path
 from typing import Any, Optional
 
 
+@lru_cache(maxsize=1024)
 def generate_cache_key(*components: str) -> str:
-    """Generate a SHA256 cache key from components."""
+    """Generate a SHA256 cache key from components (cached for repeated lookups)."""
     content = "|".join(str(component) for component in components)
     return hashlib.sha256(content.encode()).hexdigest()
 

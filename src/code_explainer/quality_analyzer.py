@@ -2,7 +2,8 @@
 Code quality analysis utilities.
 """
 
-from typing import Dict, Any, List
+from functools import lru_cache
+from typing import Dict, Any, List, Tuple
 import ast
 import re
 from enum import Enum
@@ -31,7 +32,17 @@ class CodeQualityAnalyzer:
     """Analyzes code quality and provides suggestions."""
 
     def __init__(self):
-        pass
+        # Cache for parsed ASTs to avoid reparsing
+        self._ast_cache: Dict[str, ast.AST] = {}
+
+    @lru_cache(maxsize=256)
+    def _parse_code_cached(self, code: str) -> Tuple[bool, Any]:
+        """Parse code and cache result. Returns (success, tree_or_error)."""
+        try:
+            tree = ast.parse(code)
+            return (True, tree)
+        except SyntaxError as e:
+            return (False, e)
 
     def analyze_code(self, code: str) -> List[QualityIssue]:
         """Analyze code quality - main method expected by tests."""
@@ -42,19 +53,11 @@ class CodeQualityAnalyzer:
         issues = []
         suggestions = []
 
-        try:
-            # Parse the code
-            tree = ast.parse(code)
-
-            # Check for various quality issues
-            issues.extend(self._check_naming_conventions(tree))
-            issues.extend(self._check_complexity(tree))
-            issues.extend(self._check_best_practices(tree))
-
-            # Generate suggestions
-            suggestions = self._generate_suggestions(issues, code)
-
-        except SyntaxError as e:
+        # Use cached parsing
+        success, result = self._parse_code_cached(code)
+        
+        if not success:
+            e = result
             issues.append(QualityIssue(
                 level=IssueLevel.CRITICAL,
                 message=f"Syntax error: {e.msg}",
@@ -63,6 +66,15 @@ class CodeQualityAnalyzer:
                 column=e.offset or 0
             ))
             suggestions.append("Fix syntax errors before analysis")
+        else:
+            tree = result
+            # Check for various quality issues
+            issues.extend(self._check_naming_conventions(tree))
+            issues.extend(self._check_complexity(tree))
+            issues.extend(self._check_best_practices(tree))
+
+            # Generate suggestions
+            suggestions = self._generate_suggestions(issues, code)
 
         # Calculate scores
         complexity_score = self._calculate_complexity_score(issues)
