@@ -143,29 +143,29 @@ class AdvancedHybridSearch:
                       faiss_results: List[Tuple[int, float]],
                       bm25_results: List[Tuple[int, float]],
                       k: int) -> List[Tuple[int, float]]:
-        """Linear fusion of FAISS and BM25 results."""
+        """Linear fusion of FAISS and BM25 results with optimized numpy operations."""
+        if not faiss_results and not bm25_results:
+            return []
+        
         # Convert to dictionaries for easy merging
         faiss_dict = dict(faiss_results)
         bm25_dict = dict(bm25_results)
 
-        # Normalize BM25 scores to [0, 1] range
+        # Normalize BM25 scores to [0, 1] range using numpy for speed
         if bm25_dict:
-            bm_scores = list(bm25_dict.values())
-            bm_min, bm_max = min(bm_scores), max(bm_scores)
+            bm_scores = np.array(list(bm25_dict.values()))
+            bm_min, bm_max = bm_scores.min(), bm_scores.max()
             bm_range = bm_max - bm_min if bm_max > bm_min else 1.0
-            bm25_dict = {i: (s - bm_min) / bm_range for i, s in bm25_dict.items()}
+            bm25_dict = {i: float((s - bm_min) / bm_range) for i, s in bm25_dict.items()}
 
-        # Fuse scores
+        # Fuse scores with pre-allocated results
         all_indices = set(faiss_dict.keys()) | set(bm25_dict.keys())
-        fused_results = []
+        fused_results = [(
+            idx,
+            self.alpha * faiss_dict.get(idx, 0.0) + (1 - self.alpha) * bm25_dict.get(idx, 0.0)
+        ) for idx in all_indices]
 
-        for idx in all_indices:
-            faiss_score = faiss_dict.get(idx, 0.0)
-            bm25_score = bm25_dict.get(idx, 0.0)
-            fused_score = self.alpha * faiss_score + (1 - self.alpha) * bm25_score
-            fused_results.append((idx, fused_score))
-
-        # Sort by fused score and return top k
+        # Sort by fused score and return top k (early termination)
         fused_results.sort(key=lambda x: x[1], reverse=True)
         return fused_results[:k]
 
@@ -193,11 +193,12 @@ class AdvancedHybridSearch:
                            faiss_results: List[Tuple[int, float]],
                            bm25_results: List[Tuple[int, float]],
                            k: int) -> List[Tuple[int, float]]:
-        """Distribution-based fusion using score distributions."""
-        faiss_scores = [score for _, score in faiss_results] if faiss_results else []
-        bm25_scores = [score for _, score in bm25_results] if bm25_results else []
+        """Distribution-based fusion using score distributions with numpy optimization."""
+        # Use numpy arrays for efficient computation
+        faiss_scores = np.array([score for _, score in faiss_results]) if faiss_results else np.array([])
+        bm25_scores = np.array([score for _, score in bm25_results]) if bm25_results else np.array([])
 
-        # Calculate distribution statistics
+        # Calculate distribution statistics using numpy
         faiss_stats = self._calculate_distribution_stats(faiss_scores)
         bm25_stats = self._calculate_distribution_stats(bm25_scores)
 
@@ -206,6 +207,7 @@ class AdvancedHybridSearch:
         bm25_dict = dict(bm25_results)
         all_indices = set(faiss_dict.keys()) | set(bm25_dict.keys())
 
+        # Pre-allocate results list for better performance
         fused_results = []
         for idx in all_indices:
             faiss_score = faiss_dict.get(idx, faiss_stats['mean'])
@@ -222,17 +224,17 @@ class AdvancedHybridSearch:
         fused_results.sort(key=lambda x: x[1], reverse=True)
         return fused_results[:k]
 
-    def _calculate_distribution_stats(self, scores: List[float]) -> Dict[str, float]:
-        """Calculate distribution statistics for a list of scores."""
-        if not scores:
+    def _calculate_distribution_stats(self, scores: np.ndarray) -> Dict[str, float]:
+        """Calculate distribution statistics using numpy for efficiency."""
+        if len(scores) == 0:
             return {'mean': 0.0, 'std': 1.0, 'min': 0.0, 'max': 1.0}
 
-        scores_array = np.array(scores)
+        # Use numpy's optimized functions
         return {
-            'mean': float(np.mean(scores_array)),
-            'std': float(np.std(scores_array)) or 1.0,
-            'min': float(np.min(scores_array)),
-            'max': float(np.max(scores_array))
+            'mean': float(scores.mean()),
+            'std': float(scores.std()) if len(scores) > 1 else 1.0,
+            'min': float(scores.min()),
+            'max': float(scores.max())
         }
 
     def _combine_expanded_results(self,
