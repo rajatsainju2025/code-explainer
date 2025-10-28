@@ -148,10 +148,11 @@ class AuditLogger:
 
 
 class ContentFilter:
-    """Filter for detecting sensitive content in code."""
+    """Filter for detecting sensitive content in code with compiled regex patterns."""
 
     def __init__(self):
-        self.sensitive_patterns = {
+        # Define pattern strings
+        self.sensitive_pattern_strings = {
             "credentials": [
                 r'password\s*=\s*["\'][^"\']*["\']',
                 r'api_key\s*=\s*["\'][^"\']*["\']',
@@ -174,16 +175,23 @@ class ContentFilter:
                 r'http\.client',
             ]
         }
+        
+        # Compile all patterns once for better performance
+        self.compiled_patterns = {
+            category: [re.compile(pattern, re.IGNORECASE) for pattern in patterns]
+            for category, patterns in self.sensitive_pattern_strings.items()
+        }
 
     def scan(self, code: str) -> Dict[str, List[str]]:
-        """Scan code for sensitive content."""
+        """Scan code for sensitive content using pre-compiled patterns."""
         findings = {}
         
-        for category, patterns in self.sensitive_patterns.items():
-            matches = []
-            for pattern in patterns:
-                if re.search(pattern, code, re.IGNORECASE):
-                    matches.append(pattern)
+        for category, patterns in self.compiled_patterns.items():
+            matches = [
+                pattern.pattern
+                for pattern in patterns
+                if pattern.search(code)
+            ]
             
             if matches:
                 findings[category] = matches
