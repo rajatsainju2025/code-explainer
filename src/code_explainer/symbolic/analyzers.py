@@ -1,7 +1,8 @@
 """Analysis methods for symbolic analysis."""
 
 import ast
-from typing import Any, Dict, List
+from functools import lru_cache
+from typing import Any, Dict, List, Tuple
 
 
 class ComplexityAnalyzers:
@@ -9,22 +10,52 @@ class ComplexityAnalyzers:
 
     def __init__(self):
         self.variable_assignments: Dict[str, List[ast.AST]] = {}
+        self._ast_cache: Dict[str, ast.AST] = {}  # Cache for parsed ASTs
 
     def _analyze_complexity(self, tree: ast.AST) -> Dict[str, Any]:
-        """Analyze computational complexity."""
+        """Analyze computational complexity with optimized single-pass traversal."""
+        # Single-pass traversal to count loops, conditions, and calculate metrics
+        loop_count, condition_count, max_loop_nesting = self._count_nodes_single_pass(tree)
+        
         complexity: Dict[str, Any] = {
             "cyclomatic_complexity": self._calculate_cyclomatic_complexity(tree),
             "nesting_depth": self._calculate_nesting_depth(tree),
-            "number_of_loops": len(
-                [n for n in ast.walk(tree) if isinstance(n, (ast.For, ast.While))]
-            ),
-            "number_of_conditions": len([n for n in ast.walk(tree) if isinstance(n, ast.If)]),
+            "number_of_loops": loop_count,
+            "number_of_conditions": condition_count,
         }
 
-        # Estimate time complexity
-        complexity["estimated_time_complexity"] = self._estimate_time_complexity(tree)
+        # Estimate time complexity based on pre-calculated nesting
+        complexity["estimated_time_complexity"] = self._estimate_complexity_from_nesting(
+            max_loop_nesting
+        )
 
         return complexity
+
+    def _count_nodes_single_pass(self, tree: ast.AST) -> Tuple[int, int, int]:
+        """Single-pass traversal to count loops, conditions, and max loop nesting.
+        
+        Returns:
+            Tuple of (loop_count, condition_count, max_loop_nesting)
+        """
+        loop_count = 0
+        condition_count = 0
+        max_loop_nesting = 0
+        
+        def traverse(node, current_loop_depth=0):
+            nonlocal loop_count, condition_count, max_loop_nesting
+            
+            if isinstance(node, (ast.For, ast.While)):
+                loop_count += 1
+                current_loop_depth += 1
+                max_loop_nesting = max(max_loop_nesting, current_loop_depth)
+            elif isinstance(node, ast.If):
+                condition_count += 1
+            
+            for child in ast.iter_child_nodes(node):
+                traverse(child, current_loop_depth)
+        
+        traverse(tree)
+        return loop_count, condition_count, max_loop_nesting
 
     def _analyze_data_flow(self, tree: ast.AST) -> Dict[str, List[str]]:
         """Analyze data flow between variables."""
@@ -68,6 +99,7 @@ class ComplexityAnalyzers:
 
         return get_depth(tree)
 
+
     def _estimate_time_complexity(self, tree: ast.AST) -> str:
         """Estimate time complexity based on loop nesting."""
         max_loop_nesting = 0
@@ -82,7 +114,11 @@ class ComplexityAnalyzers:
                 count_loop_nesting(child, depth)
 
         count_loop_nesting(tree)
+        return self._estimate_complexity_from_nesting(max_loop_nesting)
 
+    @staticmethod
+    def _estimate_complexity_from_nesting(max_loop_nesting: int) -> str:
+        """Convert loop nesting depth to Big-O notation."""
         if max_loop_nesting == 0:
             return "O(1)"
         elif max_loop_nesting == 1:
@@ -93,6 +129,7 @@ class ComplexityAnalyzers:
             return "O(n³)"
         else:
             return f"O(n^{max_loop_nesting})"
+
 
     def _get_variable_dependencies(self, expr: ast.AST) -> List[str]:
         """Get variables that this expression depends on."""
