@@ -1,7 +1,13 @@
 """Type hints and annotations for Code Explainer."""
 
-from typing import TypeAlias, Literal, Protocol
+from typing import Literal, Protocol, Union
 from collections.abc import Sequence
+
+try:
+    from typing import TypeAlias
+except ImportError:
+    # Python < 3.10
+    TypeAlias = type
 
 # Strategy type aliases
 StrategyName: TypeAlias = Literal[
@@ -41,8 +47,8 @@ class ExplanationProtocol(Protocol):
     code: str
     explanation: str
     strategy: str
-    model: str | None
-    metadata: dict | None
+    model: Union[str, None]
+    metadata: Union[dict, None]
 
 
 class ModelProtocol(Protocol):
