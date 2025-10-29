@@ -4,7 +4,7 @@ import time
 import logging
 from typing import Dict, Any, Optional
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 
 from .models import (
     CodeExplanationRequest,
@@ -22,6 +22,14 @@ from .dependencies import (
     require_api_key
 )
 from .metrics import get_metrics_collector
+
+# Try to import Prometheus metrics (optional)
+try:
+    from .prometheus_metrics import prometheus_metrics
+    PROMETHEUS_AVAILABLE = True
+except ImportError:
+    PROMETHEUS_AVAILABLE = False
+
 from ..model.core import CodeExplainer
 from ..config import Config
 
@@ -257,3 +265,33 @@ async def reload_model(
     except Exception as e:
         logger.error(f"[{request_id}] Model reload failed: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Model reload failed: {str(e)}")
+
+
+@router.get("/prometheus")
+async def prometheus_metrics_endpoint(
+    request_id: str = Depends(get_request_id)
+) -> Response:
+    """Export metrics in Prometheus format.
+    
+    Returns metrics that can be scraped by Prometheus:
+    - Request counts by method/endpoint/status
+    - Request duration histograms
+    - Model inference duration
+    - Cache hit/miss counters
+    - Active requests gauge
+    - Model loaded status
+    """
+    if not PROMETHEUS_AVAILABLE:
+        raise HTTPException(
+            status_code=501,
+            detail="Prometheus metrics not available. Install prometheus-client package."
+        )
+    
+    try:
+        return prometheus_metrics.export_metrics()
+    except Exception as e:
+        logger.error(f"[{request_id}] Failed to export Prometheus metrics: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to export metrics: {str(e)}"
+        )
