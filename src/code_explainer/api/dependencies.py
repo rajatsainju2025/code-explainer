@@ -1,7 +1,10 @@
 """Dependency injection for FastAPI application."""
 
+import os
+import hashlib
+import secrets
 from typing import Optional
-from fastapi import Depends, HTTPException, Request
+from fastapi import Depends, HTTPException, Request, Header
 from ..model.core import CodeExplainer
 from ..config import Config
 
@@ -25,17 +28,90 @@ def get_request_id(request: Request) -> str:
 
 
 def validate_api_key(api_key: Optional[str] = None) -> bool:
-    """Validate API key if provided."""
+    """Validate API key against configured keys.
+    
+    Supports multiple API keys stored in:
+    1. Environment variable: CODE_EXPLAINER_API_KEYS (comma-separated)
+    2. Environment variable: CODE_EXPLAINER_API_KEY (single key)
+    3. No keys configured = open access
+    
+    Args:
+        api_key: API key to validate
+        
+    Returns:
+        True if key is valid or no keys configured, False otherwise
+    """
     if api_key is None:
-        return True  # Allow requests without API key for now
+        # Check if API keys are configured
+        configured_keys = os.environ.get('CODE_EXPLAINER_API_KEYS', '')
+        single_key = os.environ.get('CODE_EXPLAINER_API_KEY', '')
+        
+        # If no keys configured, allow open access
+        if not configured_keys and not single_key:
+            return True
+        
+        # If keys are configured, require authentication
+        return False
+    
+    # Get configured API keys
+    configured_keys = os.environ.get('CODE_EXPLAINER_API_KEYS', '')
+    single_key = os.environ.get('CODE_EXPLAINER_API_KEY', '')
+    
+    # Build list of valid keys
+    valid_keys = set()
+    if configured_keys:
+        valid_keys.update(k.strip() for k in configured_keys.split(',') if k.strip())
+    if single_key:
+        valid_keys.add(single_key.strip())
+    
+    # If no keys configured, allow access
+    if not valid_keys:
+        return True
+    
+    # Validate using constant-time comparison to prevent timing attacks
+    api_key_hash = hashlib.sha256(api_key.encode()).hexdigest()
+    for valid_key in valid_keys:
+        valid_key_hash = hashlib.sha256(valid_key.encode()).hexdigest()
+        if secrets.compare_digest(api_key_hash, valid_key_hash):
+            return True
+    
+    return False
 
-    # TODO: Implement proper API key validation
-    # For now, accept any non-empty key
-    return bool(api_key.strip())
 
-
-def get_optional_api_key(api_key: Optional[str] = None) -> Optional[str]:
-    """Get optional API key for authentication."""
-    if api_key and validate_api_key(api_key):
-        return api_key
+def get_optional_api_key(
+    x_api_key: Optional[str] = Header(None, alias="X-API-Key")
+) -> Optional[str]:
+    """Get optional API key from headers for authentication.
+    
+    Args:
+        x_api_key: API key from X-API-Key header
+        
+    Returns:
+        API key if valid, None otherwise
+    """
+    if x_api_key and validate_api_key(x_api_key):
+        return x_api_key
     return None
+
+
+def require_api_key(
+    x_api_key: Optional[str] = Header(None, alias="X-API-Key")
+) -> str:
+    """Require valid API key for protected endpoints.
+    
+    Args:
+        x_api_key: API key from X-API-Key header
+        
+    Returns:
+        Validated API key
+        
+    Raises:
+        HTTPException: If API key is missing or invalid
+    """
+    if not validate_api_key(x_api_key):
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid or missing API key. Provide X-API-Key header.",
+            headers={"WWW-Authenticate": "ApiKey"}
+        )
+    return x_api_key or ""
