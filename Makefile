@@ -533,3 +533,85 @@ release: ## Create and publish a new release
 		echo "📤 Upload to PyPI manually: twine upload dist/*"; \
 	fi
 	@echo "✅ Release complete!"
+
+# API Development Commands
+.PHONY: api-dev api-prod api-test api-reload api-metrics
+
+api-dev: ## Start API server in development mode
+	@echo "🚀 Starting API server (development)..."
+	uvicorn code_explainer.api.main:app --reload --host 0.0.0.0 --port 8000
+
+api-prod: ## Start API server in production mode
+	@echo "🚀 Starting API server (production)..."
+	uvicorn code_explainer.api.main:app --host 0.0.0.0 --port 8000 --workers 4
+
+api-test: ## Test API endpoints
+	@echo "🧪 Testing API endpoints..."
+	@curl -f http://localhost:8000/health || (echo "❌ API not responding" && exit 1)
+	@echo "\n✅ Health check passed"
+	@curl -f http://localhost:8000/version
+	@echo "\n✅ Version endpoint working"
+
+api-reload: ## Trigger model reload via API (requires API key)
+	@echo "🔄 Reloading model..."
+	@curl -X POST http://localhost:8000/admin/reload \
+		-H "X-API-Key: ${CODE_EXPLAINER_API_KEY}" || echo "Set CODE_EXPLAINER_API_KEY environment variable"
+
+api-metrics: ## Show API metrics
+	@echo "📊 Fetching metrics..."
+	@curl -s http://localhost:8000/metrics | python -m json.tool
+
+# Docker shortcuts
+.PHONY: docker-up docker-down docker-logs docker-ps docker-shell
+
+docker-up: ## Start all services with docker-compose
+	@echo "🐳 Starting services..."
+	docker-compose up -d
+	@echo "✅ Services started. API: http://localhost:8000, Streamlit: http://localhost:8501"
+
+docker-down: ## Stop all services
+	@echo "🛑 Stopping services..."
+	docker-compose down
+
+docker-logs: ## Show logs from all services
+	docker-compose logs -f
+
+docker-ps: ## Show running containers
+	docker-compose ps
+
+docker-shell: ## Open shell in API container
+	docker-compose exec api bash
+
+# Monitoring shortcuts
+.PHONY: monitoring-up monitoring-down prometheus-ui grafana-ui
+
+monitoring-up: ## Start monitoring stack (Prometheus + Grafana)
+	@echo "📊 Starting monitoring stack..."
+	docker-compose --profile monitoring up -d
+	@echo "✅ Prometheus: http://localhost:9090"
+	@echo "✅ Grafana: http://localhost:3000 (admin/admin)"
+
+monitoring-down: ## Stop monitoring stack
+	docker-compose --profile monitoring down
+
+prometheus-ui: ## Open Prometheus UI in browser
+	@echo "📊 Opening Prometheus..."
+	@open http://localhost:9090 2>/dev/null || xdg-open http://localhost:9090 2>/dev/null || echo "Open http://localhost:9090"
+
+grafana-ui: ## Open Grafana UI in browser
+	@echo "📊 Opening Grafana..."
+	@open http://localhost:3000 2>/dev/null || xdg-open http://localhost:3000 2>/dev/null || echo "Open http://localhost:3000"
+
+# Quick start shortcuts
+.PHONY: quickstart demo
+
+quickstart: install-dev ## Quick start: install and run demo
+	@echo "🎬 Running quick start..."
+	@$(MAKE) api-dev &
+	@sleep 5
+	@$(MAKE) api-test
+	@echo "✅ Quick start complete! API running at http://localhost:8000"
+
+demo: ## Run interactive demo
+	@echo "🎬 Starting demo..."
+	python -m code_explainer.cli explain "def hello(): print('world')"
