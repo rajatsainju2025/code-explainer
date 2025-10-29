@@ -1,6 +1,7 @@
 """Dependency injection for FastAPI application."""
 
 import os
+import gc
 import hashlib
 import secrets
 from typing import Optional
@@ -9,17 +10,79 @@ from ..model.core import CodeExplainer
 from ..config import Config
 
 
+# Global model instance for dependency injection
+_global_explainer: Optional[CodeExplainer] = None
+_explainer_lock = __import__('threading').RLock()
+
+
 def get_config() -> Config:
     """Get configuration instance."""
     return Config()
 
 
 def get_code_explainer(config: Config = Depends(get_config)) -> CodeExplainer:
-    """Get CodeExplainer instance with dependency injection."""
-    try:
-        return CodeExplainer(config)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to initialize model: {str(e)}")
+    """Get CodeExplainer instance with dependency injection.
+    
+    Uses a global singleton pattern to avoid reloading the model
+    for every request.
+    """
+    global _global_explainer
+    
+    with _explainer_lock:
+        if _global_explainer is None:
+            try:
+                _global_explainer = CodeExplainer(config)
+            except Exception as e:
+                raise HTTPException(
+                    status_code=500, 
+                    detail=f"Failed to initialize model: {str(e)}"
+                )
+        
+        return _global_explainer
+
+
+def reload_code_explainer(config: Optional[Config] = None) -> CodeExplainer:
+    """Reload the CodeExplainer model.
+    
+    Args:
+        config: Optional new configuration to use
+        
+    Returns:
+        New CodeExplainer instance
+        
+    Raises:
+        HTTPException: If model reload fails
+    """
+    global _global_explainer
+    
+    with _explainer_lock:
+        # Cleanup old model
+        if _global_explainer is not None:
+            try:
+                # Try to cleanup memory
+                if hasattr(_global_explainer, 'cleanup_memory'):
+                    _global_explainer.cleanup_memory()
+                del _global_explainer
+                gc.collect()
+            except Exception as e:
+                # Log but don't fail if cleanup has issues
+                import logging
+                logging.getLogger(__name__).warning(
+                    f"Model cleanup had issues: {str(e)}"
+                )
+        
+        # Load new model
+        try:
+            if config is None:
+                config = Config()
+            _global_explainer = CodeExplainer(config)
+            return _global_explainer
+        except Exception as e:
+            _global_explainer = None
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to reload model: {str(e)}"
+            )
 
 
 def get_request_id(request: Request) -> str:

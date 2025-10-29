@@ -17,7 +17,9 @@ from .dependencies import (
     get_code_explainer,
     get_config,
     get_request_id,
-    get_optional_api_key
+    get_optional_api_key,
+    reload_code_explainer,
+    require_api_key
 )
 from .metrics import get_metrics_collector
 from ..model.core import CodeExplainer
@@ -220,26 +222,37 @@ async def get_version(
         raise HTTPException(status_code=500, detail=f"Version info retrieval failed: {str(e)}")
 
 
-@router.post("/reload")
+@router.post("/admin/reload")
 async def reload_model(
     background_tasks: BackgroundTasks,
     config: Config = Depends(get_config),
     request_id: str = Depends(get_request_id),
-    api_key: Optional[str] = Depends(get_optional_api_key)
+    api_key: str = Depends(require_api_key)
 ) -> Dict[str, Any]:
-    """Reload the model (admin endpoint)."""
+    """Reload the model (admin endpoint - requires API key).
+    
+    This endpoint allows hot-reloading of the model without restarting the service.
+    Useful for applying configuration changes or updating to a new model version.
+    """
     try:
-        # TODO: Implement model reloading
-        # This would typically involve:
-        # 1. Unloading current model
-        # 2. Reloading with new config
-        # 3. Updating the dependency injection
-
-        logger.info(f"[{request_id}] Model reload requested")
+        logger.info(f"[{request_id}] Model reload requested by authenticated user")
+        
+        def reload_in_background():
+            """Perform reload in background to avoid blocking."""
+            try:
+                logger.info("Starting model reload...")
+                reload_code_explainer(config)
+                logger.info("Model reload completed successfully")
+            except Exception as e:
+                logger.error(f"Background model reload failed: {str(e)}")
+        
+        # Queue reload in background
+        background_tasks.add_task(reload_in_background)
+        
         return {
             "status": "reload_initiated",
             "request_id": request_id,
-            "message": "Model reload functionality not yet implemented"
+            "message": "Model reload has been initiated in the background. Check logs for completion status."
         }
     except Exception as e:
         logger.error(f"[{request_id}] Model reload failed: {str(e)}")
