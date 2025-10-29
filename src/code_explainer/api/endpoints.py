@@ -108,20 +108,31 @@ async def health_check(
 ) -> HealthResponse:
     """Health check endpoint."""
     try:
+        # Import here to get version
+        from .. import __version__
+        
         # Basic health checks
         model_loaded = hasattr(explainer, 'model') and explainer.model is not None
+        
+        # Check retrieval service readiness
+        retrieval_ready = False
+        if hasattr(explainer, 'retrieval_service') and explainer.retrieval_service:
+            try:
+                retrieval_ready = explainer.retrieval_service.is_ready()
+            except:
+                retrieval_ready = False
 
         return HealthResponse(
             status="healthy" if model_loaded else "degraded",
-            version="1.0.0",  # TODO: Get from config
+            version=__version__,
             model_loaded=model_loaded,
-            retrieval_ready=False  # TODO: Check retrieval service
+            retrieval_ready=retrieval_ready
         )
     except Exception as e:
         logger.error(f"[{request_id}] Health check failed: {str(e)}")
         return HealthResponse(
             status="unhealthy",
-            version="1.0.0",
+            version="unknown",
             model_loaded=False,
             retrieval_ready=False
         )
@@ -174,6 +185,39 @@ async def get_config_info(
     except Exception as e:
         logger.error(f"[{request_id}] Failed to get config: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Config retrieval failed: {str(e)}")
+
+
+@router.get("/version")
+async def get_version(
+    config: Config = Depends(get_config),
+    request_id: str = Depends(get_request_id)
+) -> Dict[str, Any]:
+    """Get detailed version information."""
+    try:
+        from .. import __version__, __author__
+        import sys
+        import torch
+        from transformers import __version__ as transformers_version
+        
+        version_info = {
+            "code_explainer_version": __version__,
+            "author": __author__,
+            "python_version": f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}",
+            "torch_version": torch.__version__,
+            "transformers_version": transformers_version,
+            "device": getattr(config, 'device', 'cpu'),
+            "request_id": request_id
+        }
+        
+        # Add CUDA info if available
+        if torch.cuda.is_available():
+            version_info["cuda_version"] = torch.version.cuda
+            version_info["cudnn_version"] = torch.backends.cudnn.version()
+        
+        return version_info
+    except Exception as e:
+        logger.error(f"[{request_id}] Failed to get version info: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Version info retrieval failed: {str(e)}")
 
 
 @router.post("/reload")
