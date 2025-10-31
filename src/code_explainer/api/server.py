@@ -1,9 +1,21 @@
-"""FastAPI server for Code Explainer service."""
+"""FastAPI server for Code Explainer service.
+
+Performance-focused tweaks applied:
+- Use ORJSONResponse when available for faster JSON serialization
+- Configure gzip compression via middleware (set up in middleware.py)
+"""
 
 import logging
 import uvicorn
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
+
+try:
+    # Prefer orjson if available for high-performance JSON serialization
+    from fastapi.responses import ORJSONResponse  # type: ignore
+    DefaultJSONResponse = ORJSONResponse
+except Exception:  # pragma: no cover - optional dependency
+    DefaultJSONResponse = JSONResponse
 
 from .. import __version__
 from .middleware import setup_all_middleware
@@ -19,7 +31,8 @@ def create_app() -> FastAPI:
         description="AI-powered code explanation service",
         version=__version__,
         docs_url="/docs",
-        redoc_url="/redoc"
+        redoc_url="/redoc",
+        default_response_class=DefaultJSONResponse,
     )
 
     # Setup middleware
