@@ -3,6 +3,7 @@
 import gc
 import logging
 from typing import Any, List, Optional, Dict, TYPE_CHECKING
+import torch
 
 from ..exceptions import ValidationError, ModelError, ConfigurationError
 from ..validation import CodeExplanationRequest, BatchCodeExplanationRequest
@@ -102,8 +103,13 @@ class CodeExplainerExplanationMixin:
             attention_mask = torch.ones_like(input_ids)
             inputs = {"input_ids": input_ids, "attention_mask": attention_mask}
 
-        # Generate explanation
-        with torch.no_grad():
+        # Generate explanation (use inference_mode if available for speed)
+        try:
+            inference_ctx = torch.inference_mode()  # type: ignore[attr-defined]
+        except Exception:  # pragma: no cover
+            inference_ctx = torch.no_grad()
+
+        with inference_ctx:
             gen_max = int(max_length) if max_length is not None else 512
             outputs = mdl.generate(
                 input_ids=inputs["input_ids"],
@@ -148,7 +154,7 @@ class CodeExplainerExplanationMixin:
 
     def explain_code_batch(
         self,
-        requests: List[Dict[str, any]]
+    requests: List[Dict[str, Any]]
     ) -> List[str]:
         """Generate explanations for a batch of code snippets with optimized processing.
 
