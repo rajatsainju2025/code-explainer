@@ -37,7 +37,9 @@ def get_code_explainer(config: Config = Depends(get_config)) -> CodeExplainer:
                     status_code=500, 
                     detail=f"Failed to initialize model: {str(e)}"
                 )
-        
+            
+        # Ensure model is moved to optimal device only once
+        # and reuse tokenizer/model across requests (singleton)
         return _global_explainer
 
 
