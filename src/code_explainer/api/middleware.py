@@ -35,20 +35,14 @@ class LoggingMiddleware(BaseHTTPMiddleware):
         
         # Log incoming request
         client_host = request.client.host if request.client else 'unknown'
-        logger.info(
-            f"[{request_id}] {request.method} {request.url.path} "
-            f"from {client_host}"
-        )
+        logger.info("[%s] %s %s from %s", request_id, request.method, request.url.path, client_host)
 
         try:
             response = await call_next(request)
             duration = time.time() - start_time
             
             # Log response with timing
-            logger.info(
-                f"[{request_id}] {response.status_code} "
-                f"completed in {duration:.4f}s"
-            )
+            logger.info("[%s] %s completed in %.4fs", request_id, response.status_code, duration)
             
             # Add timing header
             response.headers['X-Response-Time'] = f"{duration:.4f}"
@@ -56,10 +50,7 @@ class LoggingMiddleware(BaseHTTPMiddleware):
             return response
         except Exception as e:
             duration = time.time() - start_time
-            logger.error(
-                f"[{request_id}] Request failed after {duration:.4f}s: {str(e)}",
-                exc_info=True
-            )
+            logger.error("[%s] Request failed after %.4fs: %s", request_id, duration, str(e), exc_info=True)
             raise
 
 
