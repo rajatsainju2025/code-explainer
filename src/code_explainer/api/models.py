@@ -1,11 +1,12 @@
 """Pydantic models for API endpoints."""
 
 from typing import List, Dict, Any, Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 
 class CodeExplanationRequest(BaseModel):
     """Request model for code explanation."""
+    model_config = ConfigDict(extra="ignore", frozen=False)
     code: str = Field(..., description="Python code to explain", min_length=1)
     strategy: Optional[str] = Field(
         default="vanilla",
@@ -37,6 +38,7 @@ class BatchCodeExplanationRequest(BaseModel):
 
 class CodeExplanationResponse(BaseModel):
     """Response model for code explanation."""
+    model_config = ConfigDict(extra="ignore", ser_json_inf_nan="null")
     explanation: str = Field(..., description="Generated explanation")
     strategy: str = Field(..., description="Strategy used")
     processing_time: float = Field(..., description="Processing time in seconds")
@@ -45,6 +47,7 @@ class CodeExplanationResponse(BaseModel):
 
 class HealthResponse(BaseModel):
     """Response model for health check."""
+    model_config = ConfigDict(extra="ignore")
     status: str = Field(..., description="Service status")
     version: str = Field(..., description="API version")
     model_loaded: bool = Field(..., description="Whether model is loaded")
@@ -53,6 +56,7 @@ class HealthResponse(BaseModel):
 
 class PerformanceMetricsResponse(BaseModel):
     """Response model for performance metrics."""
+    model_config = ConfigDict(extra="ignore")
     total_requests: int = Field(..., description="Total requests processed")
     average_response_time: float = Field(..., description="Average response time in seconds")
     cache_hit_rate: float = Field(..., description="Cache hit rate percentage")
@@ -61,5 +65,6 @@ class PerformanceMetricsResponse(BaseModel):
 
 class ErrorResponse(BaseModel):
     """Error response model."""
+    model_config = ConfigDict(extra="ignore")
     detail: str = Field(..., description="Error description")
     error_code: Optional[str] = Field(None, description="Error code")
