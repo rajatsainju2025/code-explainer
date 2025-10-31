@@ -363,7 +363,10 @@ async def prometheus_metrics_endpoint(
         )
     
     try:
-        return prometheus_metrics.export_metrics()
+        resp = prometheus_metrics.export_metrics()
+        # Ensure compressed transfer where supported
+        resp.headers["Cache-Control"] = "no-store"
+        return resp
     except Exception as e:
         logger.error(f"[{request_id}] Failed to export Prometheus metrics: {str(e)}")
         raise HTTPException(
