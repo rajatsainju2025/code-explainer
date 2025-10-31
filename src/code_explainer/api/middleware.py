@@ -44,8 +44,9 @@ class LoggingMiddleware(BaseHTTPMiddleware):
             # Log response with timing
             logger.info("[%s] %s completed in %.4fs", request_id, response.status_code, duration)
             
-            # Add timing header
+            # Add timing headers
             response.headers['X-Response-Time'] = f"{duration:.4f}"
+            response.headers['Server-Timing'] = f"app;dur={duration*1000:.1f}"
             
             return response
         except Exception as e:
