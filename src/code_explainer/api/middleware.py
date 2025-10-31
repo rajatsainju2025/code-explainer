@@ -8,6 +8,7 @@ from fastapi import Request, Response, status
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.middleware.gzip import GZipMiddleware
 
 logger = logging.getLogger(__name__)
 
@@ -183,6 +184,13 @@ def setup_all_middleware(app):
     
     # Setup CORS
     setup_cors_middleware(app)
+
+    # Add gzip compression for large responses (saves bandwidth, faster over network)
+    try:
+        app.add_middleware(GZipMiddleware, minimum_size=1024)
+        logger.info("GZip compression enabled (min_size=1024 bytes)")
+    except Exception as e:  # pragma: no cover
+        logger.warning(f"Failed to enable GZipMiddleware: {e}")
 
     # Add logging middleware
     app.add_middleware(LoggingMiddleware)
