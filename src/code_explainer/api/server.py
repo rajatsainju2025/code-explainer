@@ -72,6 +72,13 @@ app = create_app()
 def main():
     """Main entry point for running the server."""
     import argparse
+    # Use uvloop if available for faster event loop on *nix platforms
+    try:  # pragma: no cover
+        import uvloop  # type: ignore
+        uvloop.install()
+        logger.info("uvloop installed for faster event loop")
+    except Exception:
+        pass
 
     parser = argparse.ArgumentParser(description="Code Explainer API Server")
     parser.add_argument("--host", default="0.0.0.0", help="Host to bind to")

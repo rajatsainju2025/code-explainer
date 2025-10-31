@@ -53,13 +53,14 @@ pydantic = ">=2.0.0,<3.0.0"
 fastapi = ">=0.100.0,<1.0.0"
 uvicorn = ">=0.22.0,<1.0.0"
 orjson = ">=3.9.15,<4.0.0" # fast JSON serialization for FastAPI
+uvloop = {version = ">=0.19.0,<1.0.0", markers = "platform_system != 'Windows'"}
 
 [tool.poetry.extras]
 rag = ["sentence-transformers", "faiss-cpu", "rank-bm25", "scikit-learn"]
 metrics = ["sacrebleu", "rouge-score", "bert-score", "codebleu"]
 monitoring = ["wandb", "tensorboard"]
 perf = ["orjson"]
-all = ["sentence-transformers", "faiss-cpu", "rank-bm25", "scikit-learn", "sacrebleu", "rouge-score", "bert-score", "codebleu", "wandb", "tensorboard", "orjson"]
+all = ["sentence-transformers", "faiss-cpu", "rank-bm25", "scikit-learn", "sacrebleu", "rouge-score", "bert-score", "codebleu", "wandb", "tensorboard", "orjson", "uvloop"]
 
 [tool.poetry.group.rag]
 optional = true
