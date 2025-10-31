@@ -5,6 +5,7 @@ import logging
 from typing import Dict, Any, Optional
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from fastapi.responses import JSONResponse, Response
+from fastapi.concurrency import run_in_threadpool
 
 from .models import (
     CodeExplanationRequest,
@@ -58,32 +59,41 @@ async def explain_code(
             metrics_collector.end_request(request_metrics, status_code=400)
             raise HTTPException(status_code=400, detail="Code cannot be empty")
 
-        # Track if cache is used
+        # Track inference timing
         start_inference = time.time()
-        
-        # Check if result is cached
-        cache_key = None
+
+        # Check cache first and return early on hit (avoids model compute)
+        cached = None
         if hasattr(explainer, 'explanation_cache') and explainer.explanation_cache:
-            from ..cache.utils import generate_cache_key
-            cache_key = generate_cache_key(
-                request.code,
-                request.strategy or "vanilla",
-                getattr(explainer, 'model_name', 'unknown')
-            )
-            if explainer.explanation_cache.get(
-                request.code,
-                request.strategy or "vanilla", 
-                getattr(explainer, 'model_name', 'unknown')
-            ):
+            try:
+                cached = explainer.explanation_cache.get(
+                    request.code,
+                    request.strategy or "vanilla",
+                    getattr(explainer, 'model_name', 'unknown')
+                )
+            except Exception:
+                cached = None
+            if cached is not None:
                 metrics_collector.record_cache_hit()
+                processing_time = time.time() - request_metrics.start_time
+                response = CodeExplanationResponse(
+                    explanation=cached,
+                    strategy=request.strategy or "vanilla",
+                    processing_time=round(processing_time, 4),
+                    model_name=getattr(explainer, 'model_name', 'unknown')
+                )
+                metrics_collector.end_request(request_metrics, status_code=200)
+                logger.info(f"[{request_id}] Served from cache in {processing_time:.4f}s")
+                return response
             else:
                 metrics_collector.record_cache_miss()
-        
-        # Generate explanation
-        explanation = explainer.explain_code(
-            code=request.code,
-            max_length=request.max_length,
-            strategy=request.strategy
+
+        # Generate explanation in a worker thread to avoid blocking the event loop
+        explanation = await run_in_threadpool(
+            explainer.explain_code,
+            request.code,
+            request.max_length,
+            request.strategy,
         )
         
         # Record inference time
@@ -109,6 +119,71 @@ async def explain_code(
         metrics_collector.end_request(request_metrics, status_code=500, error=str(e))
         logger.error(f"[{request_id}] Error processing explanation: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Explanation failed: {str(e)}")
+
+
+@router.post("/explain/batch")
+async def explain_code_batch(
+    payload: Dict[str, Any],
+    explainer: CodeExplainer = Depends(get_code_explainer),
+    request_id: str = Depends(get_request_id),
+    api_key: Optional[str] = Depends(get_optional_api_key)
+) -> Dict[str, Any]:
+    """Batch code explanation endpoint.
+
+    Expected payload:
+    {"codes": ["code1", "code2", ...], "max_length": 512, "strategy": "vanilla"}
+    """
+    metrics_collector = get_metrics_collector()
+    req_metrics = metrics_collector.start_request(request_id, "/explain/batch")
+    try:
+        codes = payload.get("codes") or []
+        if not isinstance(codes, list) or not codes:
+            metrics_collector.end_request(req_metrics, status_code=400)
+            raise HTTPException(status_code=400, detail="'codes' must be a non-empty list")
+
+        max_length = payload.get("max_length")
+        strategy = payload.get("strategy") or "vanilla"
+
+        # Try fast-path: serve any cached entries and collect misses
+        results: list[str] = [""] * len(codes)
+        to_compute: list[tuple[int, str]] = []
+        for idx, code in enumerate(codes):
+            cached = None
+            if hasattr(explainer, 'explanation_cache') and explainer.explanation_cache:
+                try:
+                    cached = explainer.explanation_cache.get(code, strategy, getattr(explainer, 'model_name', 'unknown'))
+                except Exception:
+                    cached = None
+            if cached is not None:
+                metrics_collector.record_cache_hit()
+                results[idx] = cached
+            else:
+                metrics_collector.record_cache_miss()
+                to_compute.append((idx, code))
+
+        # Compute missing explanations concurrently using threadpool
+        async def compute_one(i: int, c: str) -> None:
+            res = await run_in_threadpool(explainer.explain_code, c, max_length, strategy)
+            results[i] = res
+
+        import asyncio
+        await asyncio.gather(*(compute_one(i, c) for i, c in to_compute))
+
+        processing_time = time.time() - req_metrics.start_time
+        metrics_collector.end_request(req_metrics, status_code=200)
+        return {
+            "explanations": results,
+            "count": len(results),
+            "processing_time": round(processing_time, 4),
+            "strategy": strategy,
+            "model_name": getattr(explainer, 'model_name', 'unknown')
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        metrics_collector.end_request(req_metrics, status_code=500, error=str(e))
+        logger.error(f"[{request_id}] Batch explanation failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Batch explanation failed: {str(e)}")
 
 
 @router.get("/health", response_model=HealthResponse)
