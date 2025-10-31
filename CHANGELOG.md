@@ -1,3 +1,16 @@
+## [Unreleased]
+### Added
+- Batch explanation endpoint with concurrent compute and cache fast-path
+- GZip compression middleware and ORJSON responses
+- Uvicorn performance configuration and Makefile targets
+- Streaming dataset iterator (JSONL and ijson fallback)
+- API profiling script and performance tuning docs
+
+### Changed
+- Use torch.inference_mode for generation where available
+- Parameterized logging to reduce formatting overhead
+- Tokenizer loading is LRU-cached within process
+
 # Changelog
 
 All notable changes to this project will be documented in this file.
