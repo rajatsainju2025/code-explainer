@@ -543,7 +543,8 @@ api-dev: ## Start API server in development mode
 
 api-prod: ## Start API server in production mode
 	@echo "🚀 Starting API server (production)..."
-	uvicorn code_explainer.api.main:app --host 0.0.0.0 --port 8000 --workers 4
+	uvicorn code_explainer.api.server:create_app --factory --host 0.0.0.0 --port 8000 --workers 4 --limit-concurrency 100 --backlog 2048 --timeout-keep-alive 20 --no-access-log
+	@echo "Running with tuned Uvicorn settings (workers=4, keep-alive=20s)"
 
 api-test: ## Test API endpoints
 	@echo "🧪 Testing API endpoints..."
