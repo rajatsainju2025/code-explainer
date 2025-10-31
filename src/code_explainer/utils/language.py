@@ -1,7 +1,10 @@
-"""Language detection utilities."""
+"""Language detection utilities with fast substring heuristics."""
+
+from functools import lru_cache
 
 
-def detect_language(code: str) -> str:
+@lru_cache(maxsize=2048)
+def _detect_language_cached(code: str) -> str:
     """Very simple language detector for code snippets.
     Returns one of: python, javascript, java, cpp.
     """
@@ -13,3 +16,11 @@ def detect_language(code: str) -> str:
     if "function " in code_l or "=>" in code or "console.log" in code_l:
         return "javascript"
     return "python"
+
+
+def detect_language(code: str) -> str:
+    """Public API with small LRU cache to avoid repeated lowercase scans."""
+    # Guard very large strings to avoid caching huge objects
+    if len(code) > 10000:
+        return _detect_language_cached.__wrapped__(code)  # type: ignore[attr-defined]
+    return _detect_language_cached(code)
