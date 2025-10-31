@@ -52,12 +52,14 @@ omegaconf = ">=2.3.0,<3.0.0"
 pydantic = ">=2.0.0,<3.0.0"
 fastapi = ">=0.100.0,<1.0.0"
 uvicorn = ">=0.22.0,<1.0.0"
+orjson = ">=3.9.15,<4.0.0" # fast JSON serialization for FastAPI
 
 [tool.poetry.extras]
 rag = ["sentence-transformers", "faiss-cpu", "rank-bm25", "scikit-learn"]
 metrics = ["sacrebleu", "rouge-score", "bert-score", "codebleu"]
 monitoring = ["wandb", "tensorboard"]
-all = ["sentence-transformers", "faiss-cpu", "rank-bm25", "scikit-learn", "sacrebleu", "rouge-score", "bert-score", "codebleu", "wandb", "tensorboard"]
+perf = ["orjson"]
+all = ["sentence-transformers", "faiss-cpu", "rank-bm25", "scikit-learn", "sacrebleu", "rouge-score", "bert-score", "codebleu", "wandb", "tensorboard", "orjson"]
 
 [tool.poetry.group.rag]
 optional = true
