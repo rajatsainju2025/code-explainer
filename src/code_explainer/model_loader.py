@@ -13,6 +13,7 @@ from transformers import (
     PreTrainedModel,
     PreTrainedTokenizerBase,
 )
+from functools import lru_cache
 
 from .config import ModelConfig
 from .enhanced_error_handling import ModelError, ConfigurationError, ResourceError
@@ -94,10 +95,21 @@ class ModelLoader:
         Returns:
             PreTrainedTokenizerBase: Configured tokenizer
         """
-        tokenizer = AutoTokenizer.from_pretrained(path)
+        tokenizer = _cached_load_tokenizer(path)
         if getattr(tokenizer, "pad_token", None) is None:
             tokenizer.pad_token = tokenizer.eos_token
         return tokenizer
+
+
+@lru_cache(maxsize=8)
+def _cached_load_tokenizer(path: str) -> PreTrainedTokenizerBase:
+    """Cached tokenizer loader to avoid repeated disk/network fetches.
+
+    Transformers already caches files on disk; this avoids repeated
+    instantiation overhead within the same process.
+    """
+    tok = AutoTokenizer.from_pretrained(path)
+    return tok
 
     def _load_model(
         self, path: str, tokenizer: PreTrainedTokenizerBase
