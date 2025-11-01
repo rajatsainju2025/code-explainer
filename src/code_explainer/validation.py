@@ -41,11 +41,16 @@ class BatchCodeExplanationRequest(BaseModel):
             raise ValueError('Codes list cannot be empty')
         if len(v) > 100:
             raise ValueError('Cannot process more than 100 codes at once')
-        for i, code in enumerate(v):
-            if not code.strip():
-                raise ValueError(f'Code at index {i} cannot be empty or whitespace only')
-            if len(code) > 10000:
-                raise ValueError(f'Code at index {i} exceeds maximum length of 10000 characters')
+        
+        # Vectorized validation using list comprehensions
+        empty_indices = [i for i, code in enumerate(v) if not code.strip()]
+        if empty_indices:
+            raise ValueError(f'Code at index {empty_indices[0]} cannot be empty or whitespace only')
+        
+        long_indices = [i for i, code in enumerate(v) if len(code) > 10000]
+        if long_indices:
+            raise ValueError(f'Code at index {long_indices[0]} exceeds maximum length of 10000 characters')
+        
         return v
 
     @field_validator('strategy')

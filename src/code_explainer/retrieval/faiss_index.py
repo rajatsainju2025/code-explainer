@@ -32,11 +32,15 @@ class FAISSIndex:
         """Build FAISS index from code snippets."""
         logger.info(f"Building FAISS index for {len(codes)} code snippets...")
 
-        # Encode codes into vectors with batch processing
+        # Vectorized batch processing using numpy operations
+        num_batches = (len(codes) + self.batch_size - 1) // self.batch_size
+        batch_indices = np.arange(0, len(codes), self.batch_size)
+        
+        # Pre-allocate list for embeddings
         embeddings_list = []
-
-        for i in range(0, len(codes), self.batch_size):
-            batch_codes = codes[i:i + self.batch_size]
+        for start_idx in batch_indices:
+            end_idx = min(start_idx + self.batch_size, len(codes))
+            batch_codes = codes[start_idx:end_idx]
             batch_embeddings = self.model.encode(batch_codes, show_progress_bar=False)
             embeddings_list.append(batch_embeddings)
 

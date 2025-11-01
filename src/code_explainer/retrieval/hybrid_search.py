@@ -151,38 +151,51 @@ class AdvancedHybridSearch:
         faiss_dict = dict(faiss_results)
         bm25_dict = dict(bm25_results)
 
-        # Normalize BM25 scores to [0, 1] range using numpy for speed
+        # Vectorized BM25 score normalization using numpy
         if bm25_dict:
             bm_scores = np.array(list(bm25_dict.values()))
             bm_min, bm_max = bm_scores.min(), bm_scores.max()
             bm_range = bm_max - bm_min if bm_max > bm_min else 1.0
-            bm25_dict = {i: float((s - bm_min) / bm_range) for i, s in bm25_dict.items()}
+            # Vectorized normalization
+            normalized_scores = (bm_scores - bm_min) / bm_range
+            bm25_dict = dict(zip(bm25_dict.keys(), normalized_scores))
 
-        # Fuse scores with pre-allocated results
+        # Fuse scores with vectorized operations
         all_indices = set(faiss_dict.keys()) | set(bm25_dict.keys())
-        fused_results = [(
-            idx,
-            self.alpha * faiss_dict.get(idx, 0.0) + (1 - self.alpha) * bm25_dict.get(idx, 0.0)
-        ) for idx in all_indices]
-
-        # Sort by fused score and return top k (early termination)
-        fused_results.sort(key=lambda x: x[1], reverse=True)
-        return fused_results[:k]
+        indices_array = np.array(list(all_indices))
+        
+        faiss_scores = np.array([faiss_dict.get(idx, 0.0) for idx in indices_array])
+        bm25_scores = np.array([bm25_dict.get(idx, 0.0) for idx in indices_array])
+        
+        # Vectorized fusion
+        fused_scores = self.alpha * faiss_scores + (1 - self.alpha) * bm25_scores
+        
+        # Sort by fused score and return top k
+        sorted_indices = np.argsort(-fused_scores)[:k]
+        return [(int(indices_array[idx]), float(fused_scores[idx])) for idx in sorted_indices]
 
     def _rrf_fusion(self,
                    faiss_results: List[Tuple[int, float]],
                    bm25_results: List[Tuple[int, float]],
                    k: int) -> List[Tuple[int, float]]:
-        """Reciprocal Rank Fusion."""
+        """Reciprocal Rank Fusion with vectorized operations."""
         rrf_scores: Dict[int, float] = {}
 
-        # Add FAISS results with RRF
-        for rank, (idx, _) in enumerate(faiss_results, 1):
-            rrf_scores[idx] = rrf_scores.get(idx, 0.0) + (1.0 / (self.rrf_k + rank))
+        # Vectorized RRF calculation for FAISS results
+        if faiss_results:
+            faiss_indices = np.array([idx for idx, _ in faiss_results])
+            faiss_ranks = np.arange(1, len(faiss_results) + 1)
+            faiss_rrf_scores = 1.0 / (self.rrf_k + faiss_ranks)
+            for idx, score in zip(faiss_indices, faiss_rrf_scores):
+                rrf_scores[idx] = rrf_scores.get(idx, 0.0) + score
 
-        # Add BM25 results with RRF
-        for rank, (idx, _) in enumerate(bm25_results, 1):
-            rrf_scores[idx] = rrf_scores.get(idx, 0.0) + (1.0 / (self.rrf_k + rank))
+        # Vectorized RRF calculation for BM25 results
+        if bm25_results:
+            bm25_indices = np.array([idx for idx, _ in bm25_results])
+            bm25_ranks = np.arange(1, len(bm25_results) + 1)
+            bm25_rrf_scores = 1.0 / (self.rrf_k + bm25_ranks)
+            for idx, score in zip(bm25_indices, bm25_rrf_scores):
+                rrf_scores[idx] = rrf_scores.get(idx, 0.0) + score
 
         # Sort by RRF score
         fused_results = [(idx, score) for idx, score in rrf_scores.items()]
@@ -202,27 +215,29 @@ class AdvancedHybridSearch:
         faiss_stats = self._calculate_distribution_stats(faiss_scores)
         bm25_stats = self._calculate_distribution_stats(bm25_scores)
 
-        # Fuse using distribution-aware weighting
+        # Fuse using distribution-aware weighting with vectorized operations
         faiss_dict = dict(faiss_results)
         bm25_dict = dict(bm25_results)
         all_indices = set(faiss_dict.keys()) | set(bm25_dict.keys())
-
-        # Pre-allocate results list for better performance
-        fused_results = []
-        for idx in all_indices:
-            faiss_score = faiss_dict.get(idx, faiss_stats['mean'])
-            bm25_score = bm25_dict.get(idx, bm25_stats['mean'])
-
-            # Normalize using distribution stats
-            faiss_norm = (faiss_score - faiss_stats['mean']) / faiss_stats['std'] if faiss_stats['std'] > 0 else 0
-            bm25_norm = (bm25_score - bm25_stats['mean']) / bm25_stats['std'] if bm25_stats['std'] > 0 else 0
-
-            # Weighted combination
-            fused_score = self.alpha * faiss_norm + (1 - self.alpha) * bm25_norm
-            fused_results.append((idx, fused_score))
-
-        fused_results.sort(key=lambda x: x[1], reverse=True)
-        return fused_results[:k]
+        indices_array = np.array(list(all_indices))
+        
+        faiss_scores_array = np.array([faiss_dict.get(idx, faiss_stats['mean']) for idx in indices_array])
+        bm25_scores_array = np.array([bm25_dict.get(idx, bm25_stats['mean']) for idx in indices_array])
+        
+        # Vectorized normalization
+        faiss_norm = np.where(faiss_stats['std'] > 0, 
+                            (faiss_scores_array - faiss_stats['mean']) / faiss_stats['std'], 
+                            0)
+        bm25_norm = np.where(bm25_stats['std'] > 0, 
+                           (bm25_scores_array - bm25_stats['mean']) / bm25_stats['std'], 
+                           0)
+        
+        # Vectorized weighted combination
+        fused_scores = self.alpha * faiss_norm + (1 - self.alpha) * bm25_norm
+        
+        # Sort and return top k
+        sorted_indices = np.argsort(-fused_scores)[:k]
+        return [(int(indices_array[idx]), float(fused_scores[idx])) for idx in sorted_indices]
 
     def _calculate_distribution_stats(self, scores: np.ndarray) -> Dict[str, float]:
         """Calculate distribution statistics using numpy for efficiency."""

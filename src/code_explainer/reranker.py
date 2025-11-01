@@ -92,28 +92,45 @@ class MaximalMarginalRelevance:
         cand_embs = candidate_embeddings[:n]
         cand_items = candidates[:n]
 
-        # Compute query similarities
-        q_sims = [float(self._cosine_similarity(query_embedding, emb)) for emb in cand_embs]
+        # Vectorized query similarities computation
+        cand_embs_array = np.array(cand_embs)
+        q_sims = self._cosine_similarity(query_embedding, cand_embs_array)
+        if np.isscalar(q_sims):
+            q_sims = np.array([q_sims])
+        else:
+            q_sims = np.asarray(q_sims)
+        
         selected: List[int] = []
         remaining = set(range(n))
         k = min(max(0, int(top_k)), n)
+        
         while len(selected) < k and remaining:
-            best_idx = None
-            best_score = -1e9
-            for i in list(remaining):
-                if not selected:
-                    div = 0.0
-                else:
-                    # Max similarity to any already selected item
-                    div = max(
-                        float(self._cosine_similarity(cand_embs[i], cand_embs[j])) for j in selected
-                    )
-                score = self.lambda_param * q_sims[i] - (1.0 - self.lambda_param) * div
-                if score > best_score:
-                    best_score = score
-                    best_idx = i
-            if best_idx is None:
-                break
+            remaining_list = list(remaining)
+            if not selected:
+                # First selection - just pick highest query similarity
+                best_idx = remaining_list[np.argmax(q_sims[remaining_list])]
+            else:
+                # Vectorized diversity calculation
+                selected_embs = cand_embs_array[selected]
+                remaining_embs = cand_embs_array[remaining_list]
+                
+                # Compute similarities between remaining and selected items
+                sim_matrix = self._cosine_similarity(remaining_embs, selected_embs)
+                if isinstance(sim_matrix, (float, np.floating)):
+                    sim_matrix = np.array([[sim_matrix]])
+                elif isinstance(sim_matrix, np.ndarray) and sim_matrix.ndim == 1:
+                    sim_matrix = sim_matrix.reshape(-1, 1)
+                
+                # Max similarity for each remaining item to any selected
+                max_divs = np.max(sim_matrix, axis=1)
+                
+                # MMR scores
+                relevance_scores = q_sims[remaining_list]
+                mmr_scores = self.lambda_param * relevance_scores - (1.0 - self.lambda_param) * max_divs
+                
+                best_local_idx = np.argmax(mmr_scores)
+                best_idx = remaining_list[best_local_idx]
+            
             selected.append(best_idx)
             remaining.remove(best_idx)
 
@@ -122,7 +139,7 @@ class MaximalMarginalRelevance:
         for rank, idx in enumerate(selected, start=1):
             item = dict(cand_items[idx])
             item["mmr_rank"] = rank
-            item["query_similarity"] = q_sims[idx]
+            item["query_similarity"] = float(q_sims[idx])
             results.append(item)
         return results
 
