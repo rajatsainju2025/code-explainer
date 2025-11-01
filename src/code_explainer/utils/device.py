@@ -11,7 +11,7 @@ def get_device() -> str:
         from ..device_manager import device_manager
         device_capabilities = device_manager.get_optimal_device()
         return device_capabilities.device_type
-    except Exception:
+    except (ImportError, AttributeError, RuntimeError):
         # Fallback to original logic if DeviceManager fails
         import torch
 

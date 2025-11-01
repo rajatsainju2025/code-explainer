@@ -90,7 +90,7 @@ def prompt_for_language(config: Dict[str, Any], code: str) -> str:
 
             return "\n".join(rag_context)
 
-        except Exception as e:
+        except (ImportError, FileNotFoundError, RuntimeError) as e:
             logging.warning(f"Enhanced RAG failed: {e}. Falling back to vanilla prompt.")
             # Fallback to vanilla if retrieval fails
             return base_prompt

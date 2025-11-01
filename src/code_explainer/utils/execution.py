@@ -37,7 +37,7 @@ def _safe_exec_subprocess(code: str, timeout_s: float = 1.0, mem_mb: int = 64) -
         err = (proc.stderr or "").strip()
     except subprocess.TimeoutExpired:
         out, err = "", "TimeoutExpired"
-    except Exception as e:
+    except (subprocess.CalledProcessError, OSError, ValueError) as e:
         out, err = "", f"ExecutionError: {e}"
 
     # Truncate

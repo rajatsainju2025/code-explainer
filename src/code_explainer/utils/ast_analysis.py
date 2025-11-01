@@ -11,7 +11,7 @@ def _summarize_python_ast(code: str) -> str:
     """
     try:
         tree = ast.parse(code)
-    except Exception:
+    except (SyntaxError, ValueError, TypeError):
         return ""
 
     funcs: List[str] = []
@@ -32,7 +32,7 @@ def _summarize_python_ast(code: str) -> str:
                 else:
                     mod = node.module or ""
                     imports.extend([f"{mod}.{alias.name}" for alias in node.names])
-            except Exception:
+            except (AttributeError, TypeError):
                 pass
 
     lines = [
@@ -49,7 +49,7 @@ def _extract_python_ast_info(code: str) -> Tuple[List[str], List[str], List[str]
     """Return (functions, classes, imports) lists for Python code via AST."""
     try:
         tree = ast.parse(code)
-    except Exception:
+    except (SyntaxError, ValueError, TypeError):
         return [], [], []
 
     funcs: List[str] = []
@@ -68,7 +68,7 @@ def _extract_python_ast_info(code: str) -> Tuple[List[str], List[str], List[str]
                 else:
                     mod = node.module or ""
                     imports_set.update(f"{mod}.{alias.name}" for alias in node.names)
-            except Exception:
+            except (AttributeError, TypeError):
                 pass
     return funcs, classes, list(imports_set)
 
@@ -79,7 +79,7 @@ def _collect_docstrings_from_code(code: str) -> List[str]:
     docs: List[str] = []
     try:
         tree = ast.parse(code)
-    except Exception:
+    except (SyntaxError, ValueError, TypeError):
         return docs
 
     mod_doc = ast.get_docstring(tree)
@@ -138,7 +138,7 @@ def _collect_import_docs(
                     count += 1
                     if count >= max_modules:
                         break
-        except Exception:
+        except (ImportError, AttributeError, ModuleNotFoundError):
             continue
     return docs
 
