@@ -23,6 +23,6 @@ def register_train_commands(main_group):
             trainer = CodeExplainerTrainer(config_path=config)
             trainer.train(data_path=data)
             console.print(Panel.fit("✅ Training completed successfully!", style="bold green"))
-        except Exception as e:
+        except (ImportError, FileNotFoundError, RuntimeError, ValueError) as e:
             console.print(Panel.fit(f"❌ Training failed: {e}", style="bold red"))
             raise

@@ -1,6 +1,7 @@
 """Explanation commands for CLI."""
 
 import click
+from functools import lru_cache
 from rich.console import Console
 from rich.panel import Panel
 from rich.syntax import Syntax
@@ -8,6 +9,12 @@ from rich.syntax import Syntax
 from ...model import CodeExplainer
 
 console = Console()
+
+
+@lru_cache(maxsize=8)
+def _get_explainer(model_path, config):
+    """Cache CodeExplainer instances to avoid repeated initialization."""
+    return CodeExplainer(model_path=model_path, config_path=config)
 
 
 def register_explain_commands(main_group):
@@ -29,7 +36,7 @@ def register_explain_commands(main_group):
     @click.argument("code", required=False)
     def explain(model_path, config, prompt_strategy, symbolic, multi_agent, code):
         """Explain a code snippet."""
-        explainer = CodeExplainer(model_path=model_path, config_path=config)
+        explainer = _get_explainer(model_path, config)
 
         if code is None:
             # Interactive mode
@@ -58,13 +65,10 @@ def register_explain_commands(main_group):
                     # Generate explanation
                     with console.status("[bold green]Generating explanation..."):
                         if multi_agent:
-                            explanation = explainer.explain_code_multi_agent(
-                                code, strategy=prompt_strategy
-                            )
+                            explanation = explainer.multi_agent_orchestrator.explain_code_collaborative(code)
                         elif symbolic:
-                            explanation = explainer.explain_code_with_symbolic(
-                                code, include_symbolic=True, strategy=prompt_strategy
-                            )
+                            symbolic_result = explainer.symbolic_analyzer.analyze_code(code)
+                            explanation = f"{explainer.explain_code(code, strategy=prompt_strategy)}\n\nSymbolic Analysis:\n{symbolic_result}"
                         else:
                             explanation = explainer.explain_code(code, strategy=prompt_strategy)
 
@@ -77,11 +81,10 @@ def register_explain_commands(main_group):
         else:
             # Single explanation mode
             if multi_agent:
-                explanation = explainer.explain_code_multi_agent(code, strategy=prompt_strategy)
+                explanation = explainer.multi_agent_orchestrator.explain_code_collaborative(code)
             elif symbolic:
-                explanation = explainer.explain_code_with_symbolic(
-                    code, include_symbolic=True, strategy=prompt_strategy
-                )
+                symbolic_result = explainer.symbolic_analyzer.analyze_code(code)
+                explanation = f"{explainer.explain_code(code, strategy=prompt_strategy)}\n\nSymbolic Analysis:\n{symbolic_result}"
             else:
                 explanation = explainer.explain_code(code, strategy=prompt_strategy)
 
@@ -103,9 +106,9 @@ def register_explain_commands(main_group):
     @click.argument("file_path", type=click.Path(exists=True))
     def explain_file(model_path, config, prompt_strategy, file_path):
         """Explain code from a Python file."""
-        explainer = CodeExplainer(model_path=model_path, config_path=config)
+        explainer = _get_explainer(model_path, config)
 
-        with open(file_path, "r") as f:
+        with open(file_path, "r", encoding="utf-8") as f:
             code = f.read()
 
         console.print(f"📁 Explaining file: {file_path}")
@@ -114,19 +117,20 @@ def register_explain_commands(main_group):
         console.print(Panel(syntax, title="Code", border_style="blue"))
 
         with console.status("[bold green]Generating explanation..."):
-            analysis = explainer.analyze_code(code, strategy=prompt_strategy)
+            explanation = explainer.explain_code(code, strategy=prompt_strategy)
 
-        console.print(Panel(analysis["explanation"], title="Explanation", border_style="green"))
+        console.print(Panel(explanation, title="Explanation", border_style="green"))
 
-        # Show analysis
+        # Show basic analysis
+        lines = code.split('\n')
         analysis_text = f"""
 📊 **Code Analysis:**
-- Lines: {analysis['line_count']}
-- Characters: {analysis['character_count']}
-- Contains functions: {'✅' if analysis['contains_functions'] else '❌'}
-- Contains classes: {'✅' if analysis['contains_classes'] else '❌'}
-- Contains loops: {'✅' if analysis['contains_loops'] else '❌'}
-- Contains conditionals: {'✅' if analysis['contains_conditionals'] else '❌'}
-- Contains imports: {'✅' if analysis['contains_imports'] else '❌'}
+- Lines: {len(lines)}
+- Characters: {len(code)}
+- Contains functions: {'def ' in code}
+- Contains classes: {'class ' in code}
+- Contains loops: {'for ' in code or 'while ' in code}
+- Contains conditionals: {'if ' in code}
+- Contains imports: {'import ' in code}
         """
         console.print(Panel(analysis_text, title="Analysis", border_style="yellow"))
