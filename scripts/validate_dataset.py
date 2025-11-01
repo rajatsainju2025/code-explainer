@@ -77,8 +77,14 @@ def calculate_stats(data: List[Dict[str, Any]]) -> Dict[str, Any]:
     Returns:
         Statistics dictionary
     """
-    code_lengths = [len(rec.get('code', '')) for rec in data if isinstance(rec, dict)]
-    exp_lengths = [len(rec.get('explanation', '')) for rec in data if isinstance(rec, dict)]
+    # Use generators for memory-efficient processing
+    valid_records = (rec for rec in data if isinstance(rec, dict))
+    code_lengths_gen = (len(rec.get('code', '')) for rec in valid_records)
+    exp_lengths_gen = (len(rec.get('explanation', '')) for rec in valid_records)
+    
+    # Convert to lists for statistics (needed for min/max)
+    code_lengths = list(code_lengths_gen)
+    exp_lengths = list(exp_lengths_gen)
     
     return {
         'total': len(data),

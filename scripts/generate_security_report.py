@@ -50,9 +50,9 @@ def parse_bandit_results(results: Dict[str, Any]) -> Dict[str, Any]:
         'issues': issues,
         'summary': {
             'total': len(issues),
-            'high': len([i for i in issues if i['severity'] == 'HIGH']),
-            'medium': len([i for i in issues if i['severity'] == 'MEDIUM']),
-            'low': len([i for i in issues if i['severity'] == 'LOW'])
+            'high': sum(1 for i in issues if i['severity'] == 'HIGH'),
+            'medium': sum(1 for i in issues if i['severity'] == 'MEDIUM'),
+            'low': sum(1 for i in issues if i['severity'] == 'LOW')
         }
     }
 
@@ -107,9 +107,9 @@ def parse_semgrep_results(results: Dict[str, Any]) -> Dict[str, Any]:
         'issues': issues,
         'summary': {
             'total': len(issues),
-            'high': len([i for i in issues if i['severity'] == 'ERROR']),
-            'medium': len([i for i in issues if i['severity'] == 'WARNING']),
-            'low': len([i for i in issues if i['severity'] == 'INFO'])
+            'high': sum(1 for i in issues if i['severity'] == 'ERROR'),
+            'medium': sum(1 for i in issues if i['severity'] == 'WARNING'),
+            'low': sum(1 for i in issues if i['severity'] == 'INFO')
         }
     }
 
@@ -136,9 +136,9 @@ def parse_trivy_results(results: Dict[str, Any]) -> Dict[str, Any]:
         'issues': issues,
         'summary': {
             'total': len(issues),
-            'high': len([i for i in issues if i['severity'] == 'HIGH']),
-            'medium': len([i for i in issues if i['severity'] == 'MEDIUM']),
-            'low': len([i for i in issues if i['severity'] == 'LOW'])
+            'high': sum(1 for i in issues if i['severity'] == 'HIGH'),
+            'medium': sum(1 for i in issues if i['severity'] == 'MEDIUM'),
+            'low': sum(1 for i in issues if i['severity'] == 'LOW')
         }
     }
 

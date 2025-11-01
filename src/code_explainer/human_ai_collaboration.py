@@ -65,8 +65,8 @@ class CollaborationTracker:
 
             # Calculate summary
             interactions = session["interactions"]
-            feedback_count = len([i for i in interactions if i.get("type") == "feedback"])
-            corrections_count = len([i for i in interactions if i.get("type") == "correction"])
+            feedback_count = sum(1 for i in interactions if i.get("type") == "feedback")
+            corrections_count = sum(1 for i in interactions if i.get("type") == "correction")
 
             summary = {
                 "session_id": self.current_session_id,

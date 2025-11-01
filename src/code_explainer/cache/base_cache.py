@@ -325,9 +325,12 @@ class AdvancedMemoryCache(AsyncCacheMixin):
         """Clean up expired entries. Returns number of entries removed."""
         with self._lock:
             expired_keys = [key for key, entry in self._entries.items() if entry.is_expired()]
-            for key in expired_keys:
+            # Use generator for efficient removal
+            removed_count = 0
+            for key in (key for key, entry in self._entries.items() if entry.is_expired()):
                 self._remove_entry(key)
-            return len(expired_keys)
+                removed_count += 1
+            return removed_count
 
     def set_eviction_policy(self, policy: EvictionPolicy) -> None:
         """Change the eviction policy."""
