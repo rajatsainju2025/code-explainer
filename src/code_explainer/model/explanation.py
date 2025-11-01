@@ -89,13 +89,13 @@ class CodeExplainerExplanationMixin:
                 inputs = {k: v.to(device) for k, v in tokenized.items()}  # type: ignore[attr-defined]
             else:
                 raise ValidationError("Tokenizer returned non-dict output")
-        except Exception:
+        except (AttributeError, TypeError, RuntimeError):
             # Backward-compatible fallback for mocked tokenizers using encode
             ids: List[int]
             if hasattr(tok, "encode"):
                 try:
                     ids = cast(List[int], tok.encode(prompt))  # type: ignore[attr-defined]
-                except Exception:
+                except (AttributeError, TypeError):
                     ids = [1, 2, 3]
             else:
                 ids = [1, 2, 3]

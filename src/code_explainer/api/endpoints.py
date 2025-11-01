@@ -70,7 +70,7 @@ async def explain_code(
                     request.strategy or "vanilla",
                     getattr(explainer, 'model_name', 'unknown')
                 )
-            except Exception:
+            except (OSError, ValueError, KeyError):
                 cached = None
             if cached is not None:
                 metrics_collector.record_cache_hit()
@@ -203,7 +203,7 @@ async def health_check(
         if hasattr(explainer, 'retrieval_service') and explainer.retrieval_service:
             try:
                 retrieval_ready = explainer.retrieval_service.is_ready()
-            except:
+            except (AttributeError, RuntimeError, ConnectionError):
                 retrieval_ready = False
 
         return HealthResponse(

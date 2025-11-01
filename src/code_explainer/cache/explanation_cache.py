@@ -106,7 +106,8 @@ class ExplanationCache(BaseCache):
                 })
 
                 return explanation
-            except Exception:
+            except (OSError, ValueError, KeyError):
+                # Handle decompression or data corruption errors
                 return None
 
     def put(self, code: str, strategy: str, model_name: str, explanation: str) -> None:

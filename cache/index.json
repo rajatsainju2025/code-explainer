@@ -81,30 +81,30 @@
     "compressed": false
   },
   "2e8bb1abdb3bb75c6a1176537ec4c0f8cd183a711d0b7309c44339ad8cce0526": {
-    "access_count": 3,
+    "access_count": 1,
     "code_length": 31,
     "strategy": "vanilla",
     "model_name": "unknown",
-    "timestamp": 1760921880.052564,
-    "last_access": 1760971415.00035,
+    "timestamp": 1762018373.018774,
+    "last_access": 1762018373.018774,
     "compressed": false
   },
   "381b651b5c83909d9cbf3629da97cde6f91fd2a97107f7ce48a959c7591400fd": {
-    "access_count": 3,
+    "access_count": 1,
     "code_length": 22,
     "strategy": "vanilla",
     "model_name": "unknown",
-    "timestamp": 1760921880.06056,
-    "last_access": 1760971415.005291,
+    "timestamp": 1762018373.0204852,
+    "last_access": 1762018373.0204852,
     "compressed": false
   },
   "c2245c788f62ba53afc79879175bac790256d9270ddbf5a7925a9bd0b2cf291d": {
-    "access_count": 3,
+    "access_count": 1,
     "code_length": 212,
     "strategy": "vanilla",
     "model_name": "unknown",
-    "timestamp": 1760921880.0693178,
-    "last_access": 1760971415.010014,
+    "timestamp": 1762018373.021964,
+    "last_access": 1762018373.021964,
     "compressed": false
   }
 }
