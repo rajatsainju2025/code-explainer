@@ -2,14 +2,16 @@
 
 import json
 import logging
+from functools import lru_cache
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
 import yaml
 
 
+@lru_cache(maxsize=16)
 def load_config(config_path: Union[str, Path]) -> Dict[str, Any]:
-    """Load configuration from JSON or YAML file.
+    """Load configuration from JSON or YAML file with caching.
 
     Args:
         config_path: Path to the configuration file

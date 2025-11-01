@@ -2,6 +2,7 @@
 Data utilities for dataset loading and processing.
 """
 
+from functools import lru_cache
 from typing import Dict, Any, List, Optional, Iterable
 from pathlib import Path
 import json
@@ -13,8 +14,9 @@ class DataLoader:
     def __init__(self, data_dir: str = "data"):
         self.data_dir = Path(data_dir)
 
+    @lru_cache(maxsize=32)
     def load_dataset(self, dataset_name: str) -> List[Dict[str, Any]]:
-        """Load a dataset by name."""
+        """Load a dataset by name with caching for repeated loads."""
         dataset_path = self.data_dir / f"{dataset_name}.json"
 
         if not dataset_path.exists():

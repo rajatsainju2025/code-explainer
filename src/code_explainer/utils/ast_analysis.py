@@ -54,7 +54,7 @@ def _extract_python_ast_info(code: str) -> Tuple[List[str], List[str], List[str]
 
     funcs: List[str] = []
     classes: List[str] = []
-    imports: List[str] = []
+    imports_set = set()
 
     for node in ast.walk(tree):
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
@@ -64,13 +64,13 @@ def _extract_python_ast_info(code: str) -> Tuple[List[str], List[str], List[str]
         elif isinstance(node, (ast.Import, ast.ImportFrom)):
             try:
                 if isinstance(node, ast.Import):
-                    imports.extend([alias.name for alias in node.names])
+                    imports_set.update(alias.name for alias in node.names)
                 else:
                     mod = node.module or ""
-                    imports.extend([f"{mod}.{alias.name}" for alias in node.names])
+                    imports_set.update(f"{mod}.{alias.name}" for alias in node.names)
             except Exception:
                 pass
-    return funcs, classes, imports
+    return funcs, classes, list(imports_set)
 
 
 @lru_cache(maxsize=256)

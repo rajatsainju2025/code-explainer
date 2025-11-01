@@ -5,11 +5,16 @@
 - Uvicorn performance configuration and Makefile targets
 - Streaming dataset iterator (JSONL and ijson fallback)
 - API profiling script and performance tuning docs
+- LRU caching for data loading and config loading
+- Data loading benchmark script
+- Optimized AST analysis with deduplicated imports
 
 ### Changed
 - Use torch.inference_mode for generation where available
 - Parameterized logging to reduce formatting overhead
 - Tokenizer loading is LRU-cached within process
+- Removed unused imports across codebase
+- Optimized import statements with lazy loading where beneficial
 
 # Changelog
 
