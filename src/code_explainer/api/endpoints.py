@@ -4,15 +4,14 @@ import time
 import logging
 from typing import Dict, Any, Optional
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
-from fastapi.responses import JSONResponse, Response
+from fastapi.responses import Response
 from fastapi.concurrency import run_in_threadpool
 
 from .models import (
     CodeExplanationRequest,
     CodeExplanationResponse,
     HealthResponse,
-    PerformanceMetricsResponse,
-    ErrorResponse
+    PerformanceMetricsResponse
 )
 from .dependencies import (
     get_code_explainer,

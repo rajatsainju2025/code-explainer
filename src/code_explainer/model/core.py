@@ -3,27 +3,18 @@
 import gc
 import logging
 from pathlib import Path
-from typing import Any, Optional, Union, Tuple, TYPE_CHECKING
+from typing import Any, Optional, Union
 from dataclasses import dataclass
 
 import torch
 from transformers import (
-    AutoModelForCausalLM,
-    AutoModelForSeq2SeqLM,
-    AutoTokenizer,
     PreTrainedModel,
-    PreTrainedTokenizer,
     PreTrainedTokenizerBase,
 )
 
-from ..config import Config, init_config
-from ..enhanced_error_handling import get_logger, setup_logging
-from ..model_loader import ModelLoader, ModelResources, ModelError
-from ..exceptions import ValidationError, ConfigurationError
+from ..model_loader import ModelLoader
 from ..multi_agent import MultiAgentOrchestrator
-from ..symbolic import SymbolicAnalyzer, format_symbolic_explanation
-from ..utils import get_device, load_config, prompt_for_language
-from ..validation import CodeExplanationRequest, BatchCodeExplanationRequest
+from ..symbolic import SymbolicAnalyzer
 from ..cache import ExplanationCache
 
 # Import mixins
@@ -35,8 +26,6 @@ from .explanation import CodeExplainerExplanationMixin
 from .monitoring import CodeExplainerMonitoringMixin
 
 # Import OmegaConf for config conversion
-from omegaconf import OmegaConf
-from omegaconf import DictConfig, ListConfig  # type: ignore
 
 # Import new intelligent explanation components
 try:

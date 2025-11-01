@@ -1,7 +1,7 @@
 """Hydra configuration for Code Explainer."""
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, Optional, Union, List
+from typing import Dict, Optional
 
 from omegaconf import MISSING
 

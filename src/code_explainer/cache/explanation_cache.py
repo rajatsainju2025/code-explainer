@@ -2,11 +2,10 @@
 
 import json
 import time
-from pathlib import Path
-from typing import Any, Dict, Optional, List, Tuple
+from typing import Any, Dict, Optional
 
 from .base_cache import BaseCache, MemoryCache
-from .models import CacheConfig, CacheStats, ExplanationEntry
+from .models import CacheConfig, CacheStats
 from .utils import (calculate_cache_score, compress_data, decompress_data,
                    generate_cache_key, is_expired, safe_file_operation)
 
