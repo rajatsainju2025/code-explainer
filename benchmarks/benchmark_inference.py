@@ -16,8 +16,14 @@ from dataclasses import dataclass, field
 from datetime import datetime
 import psutil
 import tracemalloc
+from functools import lru_cache
 
 from code_explainer import CodeExplainer
+
+@lru_cache(maxsize=4)
+def _get_cached_explainer(model_path: Optional[str], config_path: Optional[str]) -> CodeExplainer:
+    """Cache CodeExplainer instances to avoid repeated initialization."""
+    return CodeExplainer(model_path=model_path, config_path=config_path)
 
 logger = logging.getLogger(__name__)
 
@@ -67,10 +73,7 @@ class InferenceBenchmark:
         """Initialize the code explainer."""
         if self.explainer is None:
             logger.info("Initializing CodeExplainer for benchmarking...")
-            self.explainer = CodeExplainer(
-                model_path=self.model_path,
-                config_path=self.config_path
-            )
+            self.explainer = _get_cached_explainer(self.model_path, self.config_path)
 
     def teardown(self):
         """Clean up resources."""
@@ -94,7 +97,7 @@ class InferenceBenchmark:
         for _ in range(warmup_samples):
             _ = self.explainer.explain_code(code, strategy=strategy)
 
-        # Benchmark runs
+        # Benchmark runs with optimized memory tracing
         logger.info(f"Running {num_samples} benchmark samples...")
         times = []
         memory_peaks = []
@@ -102,24 +105,24 @@ class InferenceBenchmark:
         process = psutil.Process()
         initial_cpu = process.cpu_percent()
 
+        # Start memory tracing once for all samples
+        tracemalloc.start()
+        initial_memory = process.memory_info().rss
+
         result = ""  # Initialize result variable
         for i in range(num_samples):
-            # Start memory tracing
-            tracemalloc.start()
-            initial_memory = process.memory_info().rss
-
             start_time = time.perf_counter()
             result = self.explainer.explain_code(code, strategy=strategy)
             end_time = time.perf_counter()
 
-            # Memory usage
-            current, peak = tracemalloc.get_traced_memory()
-            tracemalloc.stop()
-            memory_peaks.append(peak)
-
             elapsed = end_time - start_time
             times.append(elapsed)
             logger.debug(".3f")
+
+        # Get final memory stats
+        current, peak = tracemalloc.get_traced_memory()
+        tracemalloc.stop()
+        memory_peaks.append(peak)
 
         final_cpu = process.cpu_percent()
 
@@ -130,7 +133,7 @@ class InferenceBenchmark:
         max_time = max(times)
         std_dev = statistics.stdev(times) if len(times) > 1 else 0.0
         throughput = 1.0 / mean_time if mean_time > 0 else 0.0
-        memory_peak = max(memory_peaks) if memory_peaks else 0
+        memory_peak = memory_peaks[0] if memory_peaks else 0
         cpu_percent = final_cpu - initial_cpu
 
         result = BenchmarkResult(
@@ -173,7 +176,7 @@ class InferenceBenchmark:
                 logger.info(f"Benchmarking strategy: {strategy}")
                 result = self.benchmark_explanation(code, strategy, num_samples)
                 results.append(result)
-            except Exception as e:
+            except (ImportError, RuntimeError, ValueError, TypeError) as e:
                 logger.error(f"Failed to benchmark strategy {strategy}: {e}")
                 # Create error result
                 results.append(BenchmarkResult(
@@ -269,44 +272,41 @@ class InferenceBenchmark:
             "threshold": threshold
         }
 
+    def load_test_cases_from_file(self, filepath: str) -> List[tuple[str, str]]:
+        """Load test cases from a JSON file."""
+        try:
+            with open(filepath, 'r') as f:
+                data = json.load(f)
+                return [(case['name'], case['code']) for case in data.get('test_cases', [])]
+        except (FileNotFoundError, json.JSONDecodeError, KeyError) as e:
+            logger.warning(f"Failed to load test cases from {filepath}: {e}")
+            return []
+
 def run_comprehensive_benchmark(
     model_path: Optional[str] = None,
     config_path: Optional[str] = None,
     output_file: Optional[str] = None,
-    compare_baseline: Optional[str] = None
+    compare_baseline: Optional[str] = None,
+    test_cases_file: Optional[str] = None,
+    num_samples: int = 3
 ):
     """Run comprehensive benchmarking suite."""
     benchmark = InferenceBenchmark(model_path, config_path)
 
-    # Test cases with varying complexity
-    test_cases = [
-        ("Simple function", "def add(a, b): return a + b"),
-        ("Complex algorithm", """
-def fibonacci(n):
-    if n <= 1:
-        return n
-    return fibonacci(n-1) + fibonacci(n-2)
-""".strip()),
-        ("Class with methods", """
-class Calculator:
-    def __init__(self):
-        self.history = []
-
-    def add(self, a, b):
-        result = a + b
-        self.history.append(f"{a} + {b} = {result}")
-        return result
-
-    def get_history(self):
-        return self.history
-""".strip())
-    ]
+    # Load test cases
+    if test_cases_file:
+        test_cases = benchmark.load_test_cases_from_file(test_cases_file)
+        if not test_cases:
+            logger.warning(f"No test cases loaded from {test_cases_file}, using defaults")
+            test_cases = get_default_test_cases()
+    else:
+        test_cases = get_default_test_cases()
 
     all_results = []
 
     for name, code in test_cases:
         logger.info(f"Benchmarking: {name}")
-        results = benchmark.benchmark_multiple_strategies(code, num_samples=3)
+        results = benchmark.benchmark_multiple_strategies(code, num_samples=num_samples)
         all_results.extend(results)
 
     # Save results
@@ -333,6 +333,32 @@ class Calculator:
     benchmark.teardown()
     return all_results
 
+
+def get_default_test_cases() -> List[tuple[str, str]]:
+    """Get default test cases for benchmarking."""
+    return [
+        ("Simple function", "def add(a, b): return a + b"),
+        ("Complex algorithm", """
+def fibonacci(n):
+    if n <= 1:
+        return n
+    return fibonacci(n-1) + fibonacci(n-2)
+""".strip()),
+        ("Class with methods", """
+class Calculator:
+    def __init__(self):
+        self.history = []
+
+    def add(self, a, b):
+        result = a + b
+        self.history.append(f"{a} + {b} = {result}")
+        return result
+
+    def get_history(self):
+        return self.history
+""".strip())
+    ]
+
 if __name__ == "__main__":
     import argparse
 
@@ -341,6 +367,7 @@ if __name__ == "__main__":
     parser.add_argument("--config-path", help="Path to config file")
     parser.add_argument("--output", help="Output file for results")
     parser.add_argument("--baseline", help="Baseline file for comparison")
+    parser.add_argument("--test-cases", help="JSON file containing test cases")
     parser.add_argument("--samples", type=int, default=5, help="Number of samples per benchmark")
 
     args = parser.parse_args()
@@ -351,7 +378,9 @@ if __name__ == "__main__":
         model_path=args.model_path,
         config_path=args.config_path,
         output_file=args.output,
-        compare_baseline=args.baseline
+        compare_baseline=args.baseline,
+        test_cases_file=args.test_cases,
+        num_samples=args.samples
     )
 
     print(f"\nBenchmark completed with {len(results)} results")
