@@ -3,6 +3,7 @@ import os
 import sys
 from pathlib import Path
 from typing import Generator
+from functools import lru_cache
 import torch
 import pytest
 from omegaconf import OmegaConf
@@ -18,10 +19,13 @@ if str(ROOT) not in sys.path:
 from code_explainer.config import Config, ModelConfig
 from code_explainer.model_loader import ModelLoader, ModelResources
 
-@pytest.fixture
-def test_config() -> Config:
-    """Create a test configuration."""
-    config_dict = {
+# Cache fixture instances for faster repeated test access
+_fixture_cache = {}
+
+@lru_cache(maxsize=1)
+def _get_config_dict():
+    """Get the test config dict (cached)."""
+    return {
         "model": {
             "name": "microsoft/CodeGPT-small-py",
             "arch": "causal",
@@ -49,22 +53,31 @@ def test_config() -> Config:
             "template": "Explain this code:\n{code}\n",
         },
     }
+
+@pytest.fixture
+def test_config():
+    """Create a test configuration (cached)."""
+    config_dict = _get_config_dict()
     return OmegaConf.create(config_dict)
 
 @pytest.fixture
-def test_model_config(test_config) -> ModelConfig:
+def test_model_config(test_config):
     """Create a test model configuration."""
     return test_config.model
 
 @pytest.fixture
 def temp_dir(tmp_path) -> Generator[Path, None, None]:
-    """Create a temporary directory for test artifacts."""
+    """Create a temporary directory for test artifacts (with cleanup)."""
+    original_cwd = os.getcwd()
     os.chdir(tmp_path)
-    yield tmp_path
+    try:
+        yield tmp_path
+    finally:
+        os.chdir(original_cwd)
 
-@pytest.fixture
-def test_code_samples() -> list[str]:
-    """Return a list of test code samples."""
+@lru_cache(maxsize=1)
+def _get_test_code_samples():
+    """Get cached test code samples."""
     return [
         "def add(a, b):\n    return a + b",
         "print('Hello, World!')",
@@ -78,8 +91,13 @@ def test_code_samples() -> list[str]:
     ]
 
 @pytest.fixture
-def mock_tokenizer():
-    """Create a mock tokenizer for testing."""
+def test_code_samples():
+    """Return a list of test code samples (cached)."""
+    return _get_test_code_samples()
+
+@lru_cache(maxsize=1)
+def _get_mock_tokenizer():
+    """Create a cached mock tokenizer."""
     class MockTokenizer:
         def __init__(self):
             self.pad_token = "[PAD]"
@@ -101,8 +119,13 @@ def mock_tokenizer():
     return MockTokenizer()
 
 @pytest.fixture
-def mock_model():
-    """Create a mock model for testing."""
+def mock_tokenizer():
+    """Create a mock tokenizer for testing (cached)."""
+    return _get_mock_tokenizer()
+
+@lru_cache(maxsize=1)
+def _get_mock_model():
+    """Create a cached mock model."""
     class MockModel:
         def __init__(self):
             self.config = type("Config", (), {"pad_token_id": 0})
@@ -118,3 +141,9 @@ def mock_model():
             return torch.tensor([[4, 5, 6, 0, 0]])
 
     return MockModel()
+
+@pytest.fixture
+def mock_model():
+    """Create a mock model for testing (cached)."""
+    return _get_mock_model()
+
