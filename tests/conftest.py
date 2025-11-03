@@ -54,11 +54,26 @@ def _get_config_dict():
         },
     }
 
+@pytest.fixture(scope="session")
+def _session_cache():
+    """Session-scoped cache for expensive resources."""
+    return {}
+
+
+@pytest.fixture(scope="module")
+def _module_cache():
+    """Module-scoped cache for test data."""
+    return {}
+
+
 @pytest.fixture
-def test_config():
-    """Create a test configuration (cached)."""
-    config_dict = _get_config_dict()
-    return OmegaConf.create(config_dict)
+def test_config(_session_cache):
+    """Create a test configuration (module-scoped with caching)."""
+    cache_key = "test_config"
+    if cache_key not in _session_cache:
+        config_dict = _get_config_dict()
+        _session_cache[cache_key] = OmegaConf.create(config_dict)
+    return _session_cache[cache_key]
 
 @pytest.fixture
 def test_model_config(test_config):
@@ -94,6 +109,11 @@ def _get_test_code_samples():
 def test_code_samples():
     """Return a list of test code samples (cached)."""
     return _get_test_code_samples()
+
+@pytest.fixture(scope="function", autouse=False)
+def fast_temp_dir(tmp_path):
+    """Fast temporary directory without chdir (avoids race conditions in parallel tests)."""
+    return tmp_path
 
 @lru_cache(maxsize=1)
 def _get_mock_tokenizer():
