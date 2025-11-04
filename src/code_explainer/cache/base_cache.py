@@ -162,34 +162,29 @@ class MemoryCache:
 
     def __init__(self, max_size: int = 100):
         self.max_size = max_size
-        self._cache = {}
-        self._access_order = []
+        self._cache = OrderedDict()
 
     def get(self, key: str) -> Optional[Any]:
         """Get item from memory cache."""
         if key in self._cache:
             # Move to end (most recently used)
-            self._access_order.remove(key)
-            self._access_order.append(key)
+            self._cache.move_to_end(key)
             return self._cache[key]
         return None
 
     def put(self, key: str, value: Any) -> None:
         """Put item in memory cache."""
         if key in self._cache:
-            self._access_order.remove(key)
+            self._cache.move_to_end(key)
         elif len(self._cache) >= self.max_size:
             # Remove least recently used
-            lru_key = self._access_order.pop(0)
-            del self._cache[lru_key]
+            self._cache.popitem(last=False)
 
         self._cache[key] = value
-        self._access_order.append(key)
 
     def clear(self) -> None:
         """Clear memory cache."""
         self._cache.clear()
-        self._access_order.clear()
 
     def size(self) -> int:
         """Get cache size."""
