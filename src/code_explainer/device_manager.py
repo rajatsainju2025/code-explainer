@@ -65,9 +65,11 @@ class DeviceManager:
         raise RuntimeError("No compatible device found")
 
     def _get_device_capabilities(self, device_type: str) -> Optional[DeviceCapabilities]:
-        """Get capabilities for a specific device type."""
-        if device_type in self._cached_capabilities:
-            return self._cached_capabilities[device_type]
+        """Get capabilities for a specific device type with caching."""
+        # Return cached result if available (O(1) lookup)
+        cached = self._cached_capabilities.get(device_type)
+        if cached is not None:
+            return cached
 
         capabilities = None
 
