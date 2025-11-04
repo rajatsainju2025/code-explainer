@@ -38,15 +38,18 @@ class CrossEncoderReranker:
     ) -> List[Dict[str, Any]]:
         if not candidates:
             return []
+        
+        # Create pairs efficiently with list comprehension
         pairs = [(query, c.get("content", "")) for c in candidates]
         scores = self.model.predict(pairs)  # type: ignore[operator]
-        # Ensure numpy array for indexing
         scores = np.asarray(scores)
-        ranked = []
-        for c, s in zip(candidates, scores.tolist()):
-            item = dict(c)
-            item["rerank_score"] = float(s)
-            ranked.append(item)
+        
+        # Create result list with scores in single pass
+        ranked = [
+            {**c, "rerank_score": float(s)}
+            for c, s in zip(candidates, scores.tolist())
+        ]
+        
         if score_threshold is not None:
             ranked = [r for r in ranked if r["rerank_score"] >= score_threshold]
         ranked.sort(key=lambda r: r["rerank_score"], reverse=True)
