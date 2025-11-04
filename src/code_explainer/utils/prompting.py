@@ -21,8 +21,12 @@ def prompt_for_language(config: Dict[str, Any], code: str) -> str:
 
     strategy = prompt_cfg.get("strategy", "vanilla")
 
+    # Skip augmentation for non-Python code
+    if lang != "python":
+        return base_prompt
+
     # AST-augmented
-    if strategy == "ast_augmented" and lang == "python":
+    if strategy == "ast_augmented":
         ctx = summarize_code_structure(code)
         if ctx:
             return (
@@ -33,7 +37,7 @@ def prompt_for_language(config: Dict[str, Any], code: str) -> str:
             )
 
     # Retrieval-augmented: use docstrings (own code + limited stdlib import docs)
-    if strategy == "retrieval_augmented" and lang == "python":
+    if strategy == "retrieval_augmented":
         funcs, classes, imports = _extract_python_ast_info(code)
         own_docs = _collect_docstrings_from_code(code)
         import_docs = _collect_import_docs(imports)
@@ -51,7 +55,7 @@ def prompt_for_language(config: Dict[str, Any], code: str) -> str:
             )
 
     # Execution-trace augmented: run safely and include observed stdout/stderr
-    if strategy == "execution_trace" and lang == "python":
+    if strategy == "execution_trace":
         out, err = _safe_exec_subprocess(code)
         trace_lines = ["Execution trace (safe sandbox):"]
         if out:
