@@ -1,8 +1,9 @@
 # Ensure the 'code_explainer' package is importable by adding the src directory to sys.path
 import os
 import sys
+import threading
 from pathlib import Path
-from typing import Generator
+from typing import Generator, Dict, Any
 from functools import lru_cache
 import torch
 import pytest
@@ -19,8 +20,9 @@ if str(ROOT) not in sys.path:
 from code_explainer.config import Config, ModelConfig
 from code_explainer.model_loader import ModelLoader, ModelResources
 
-# Cache fixture instances for faster repeated test access
-_fixture_cache = {}
+# Thread-safe fixture cache for parallel test execution
+_fixture_cache: Dict[str, Any] = {}
+_cache_lock = threading.Lock()
 
 @lru_cache(maxsize=1)
 def _get_config_dict():
@@ -56,8 +58,8 @@ def _get_config_dict():
 
 @pytest.fixture(scope="session")
 def _session_cache():
-    """Session-scoped cache for expensive resources."""
-    return {}
+    """Session-scoped thread-safe cache for expensive resources."""
+    return _fixture_cache
 
 
 @pytest.fixture(scope="module")
@@ -66,14 +68,18 @@ def _module_cache():
     return {}
 
 
+def _get_cached_fixture(cache_key: str, factory_func):
+    """Thread-safe cached fixture creation."""
+    with _cache_lock:
+        if cache_key not in _fixture_cache:
+            _fixture_cache[cache_key] = factory_func()
+        return _fixture_cache[cache_key]
+
+
 @pytest.fixture
 def test_config(_session_cache):
-    """Create a test configuration (module-scoped with caching)."""
-    cache_key = "test_config"
-    if cache_key not in _session_cache:
-        config_dict = _get_config_dict()
-        _session_cache[cache_key] = OmegaConf.create(config_dict)
-    return _session_cache[cache_key]
+    """Create a test configuration (module-scoped with thread-safe caching)."""
+    return _get_cached_fixture("test_config", lambda: OmegaConf.create(_get_config_dict()))
 
 @pytest.fixture
 def test_model_config(test_config):
@@ -140,8 +146,8 @@ def _get_mock_tokenizer():
 
 @pytest.fixture
 def mock_tokenizer():
-    """Create a mock tokenizer for testing (cached)."""
-    return _get_mock_tokenizer()
+    """Create a mock tokenizer for testing (thread-safe cached)."""
+    return _get_cached_fixture("mock_tokenizer", _get_mock_tokenizer)
 
 @lru_cache(maxsize=1)
 def _get_mock_model():
@@ -164,6 +170,24 @@ def _get_mock_model():
 
 @pytest.fixture
 def mock_model():
-    """Create a mock model for testing (cached)."""
-    return _get_mock_model()
+    """Create a mock model for testing (thread-safe cached)."""
+    return _get_cached_fixture("mock_model", _get_mock_model)
+
+
+@pytest.fixture(scope="session", autouse=True)
+def optimize_test_performance():
+    """Session fixture to optimize test performance."""
+    # Disable unnecessary logging during tests
+    import logging
+    logging.getLogger().setLevel(logging.WARNING)
+
+    # Pre-warm common imports
+    import torch
+    import numpy as np
+
+    yield
+
+    # Cleanup after all tests
+    import gc
+    gc.collect()
 
