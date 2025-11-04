@@ -46,7 +46,7 @@ def _summarize_python_ast(code: str) -> str:
 
 @lru_cache(maxsize=512)
 def _extract_python_ast_info(code: str) -> Tuple[List[str], List[str], List[str]]:
-    """Return (functions, classes, imports) lists for Python code via AST."""
+    """Return (functions, classes, imports) lists for Python code via AST - optimized with sets."""
     try:
         tree = ast.parse(code)
     except (SyntaxError, ValueError, TypeError):
@@ -61,16 +61,13 @@ def _extract_python_ast_info(code: str) -> Tuple[List[str], List[str], List[str]
             funcs.append(node.name)
         elif isinstance(node, ast.ClassDef):
             classes.append(node.name)
-        elif isinstance(node, (ast.Import, ast.ImportFrom)):
-            try:
-                if isinstance(node, ast.Import):
-                    imports_set.update(alias.name for alias in node.names)
-                else:
-                    mod = node.module or ""
-                    imports_set.update(f"{mod}.{alias.name}" for alias in node.names)
-            except (AttributeError, TypeError):
-                pass
-    return funcs, classes, list(imports_set)
+        elif isinstance(node, ast.Import):
+            imports_set.update(alias.name for alias in node.names)
+        elif isinstance(node, ast.ImportFrom):
+            mod = node.module or ""
+            imports_set.update(f"{mod}.{alias.name}" for alias in node.names)
+    
+    return funcs, classes, sorted(imports_set)
 
 
 @lru_cache(maxsize=256)
