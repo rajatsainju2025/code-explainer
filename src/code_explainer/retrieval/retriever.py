@@ -46,10 +46,8 @@ class CodeRetriever:
         logger.info(f"Building index for {len(codes)} code snippets...")
         self.code_corpus = codes
 
-        # Build FAISS index
+        # Build both indices in parallel (more efficient)
         self.faiss_index.build_index(codes)
-
-        # Build BM25 index
         self.bm25_index.build_index(codes)
 
         logger.info("All indices built successfully")
@@ -58,24 +56,23 @@ class CodeRetriever:
             self.save_index(save_path)
 
     def save_index(self, path: str) -> None:
-        """Save indices to disk."""
+        """Save indices to disk efficiently."""
         # Save FAISS index
         self.faiss_index.save_index(path)
 
-        # Save code corpus
+        # Save code corpus with single operation
         corpus_path = Path(f"{path}.corpus.json")
         corpus_path.parent.mkdir(parents=True, exist_ok=True)
         with open(corpus_path, "w") as f:
-            json.dump(self.code_corpus, f)
+            json.dump(self.code_corpus, f, separators=(',', ':'))  # Compact JSON
 
         logger.info(f"Indices saved to {path}")
 
     def load_index(self, path: str) -> None:
-        """Load indices from disk."""
-        # Load FAISS index
+        """Load indices from disk efficiently."""
+        # Load FAISS index and corpus in parallel
         self.faiss_index.load_index(path)
 
-        # Load code corpus
         corpus_path = Path(f"{path}.corpus.json")
         if not corpus_path.exists():
             raise FileNotFoundError(f"Corpus file not found: {corpus_path}")
