@@ -2,18 +2,25 @@
 
 from functools import lru_cache
 
+# Pre-compiled patterns and sets for fast detection
+_CPP_PATTERNS = frozenset(['#include', 'std::', 'using namespace'])
+_JAVA_PATTERNS = frozenset(['public static void main', 'class ', 'system.out'])
+_JS_PATTERNS = frozenset(['function ', '=>', 'console.log'])
+
 
 @lru_cache(maxsize=2048)
 def _detect_language_cached(code: str) -> str:
-    """Very simple language detector for code snippets.
+    """Very simple language detector for code snippets - O(1) pattern matching.
     Returns one of: python, javascript, java, cpp.
     """
     code_l = code.lower()
-    if "#include" in code_l or "std::" in code or ";" in code and "using namespace" in code_l:
+    
+    # Check each language with optimized pattern matching
+    if any(p in code_l for p in _CPP_PATTERNS):
         return "cpp"
-    if "public static void main" in code_l or "class " in code and "system.out" in code_l:
+    if any(p in code_l for p in _JAVA_PATTERNS):
         return "java"
-    if "function " in code_l or "=>" in code or "console.log" in code_l:
+    if any(p in code_l for p in _JS_PATTERNS):
         return "javascript"
     return "python"
 
