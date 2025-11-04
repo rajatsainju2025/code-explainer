@@ -49,11 +49,11 @@ class MultiAgentOrchestrator:
         if not components:
             return "Unable to generate collaborative explanation."
 
-        # Sort components by confidence and type priority
+        # Pre-computed type priority map for sorting efficiency
         type_priority = {"logic": 1, "structure": 2, "context": 3, "verification": 4}
         components.sort(key=lambda x: (type_priority.get(x.component_type, 5), -x.confidence))
 
-        # Use list comprehension with extend for better performance
+        # Build explanation parts efficiently with list comprehension
         explanation_parts = [
             "# Multi-Agent Code Explanation",
             "",
@@ -61,17 +61,13 @@ class MultiAgentOrchestrator:
             "",
         ]
 
-        # Filter and collect content in one pass
-        confident_content = [
-            (component.content, "") 
+        # Single-pass collection of confident content (avoids intermediate list)
+        explanation_parts.extend(
+            content 
             for component in components 
             if component.confidence > 0.5
-        ]
-        
-        # Flatten the tuples into a single list
-        for content, empty in confident_content:
-            explanation_parts.append(content)
-            explanation_parts.append(empty)
+            for content in (component.content, "")
+        )
 
         explanation_parts.extend([
             "---",
