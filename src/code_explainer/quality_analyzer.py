@@ -8,6 +8,10 @@ import ast
 import re
 from enum import Enum
 
+# Pre-compile regex patterns at module level for efficiency
+SNAKE_CASE_PATTERN = re.compile(r'^[a-z_][a-z0-9_]*$')
+PASCAL_CASE_PATTERN = re.compile(r'^[A-Z][a-zA-Z0-9]*$')
+
 
 class IssueLevel(Enum):
     """Severity levels for code quality issues."""
@@ -30,10 +34,6 @@ class QualityIssue:
 
 class CodeQualityAnalyzer:
     """Analyzes code quality and provides suggestions."""
-
-    # Compile regex patterns once at class level for better performance
-    SNAKE_CASE_PATTERN = re.compile(r'^[a-z_][a-z0-9_]*$')
-    PASCAL_CASE_PATTERN = re.compile(r'^[A-Z][a-zA-Z0-9]*$')
 
     def __init__(self):
         # Cache for parsed ASTs to avoid reparsing
@@ -99,7 +99,7 @@ class CodeQualityAnalyzer:
 
         for node in ast.walk(tree):
             if isinstance(node, ast.FunctionDef):
-                if not self.SNAKE_CASE_PATTERN.match(node.name):
+                if not SNAKE_CASE_PATTERN.match(node.name):
                     issues.append(QualityIssue(
                         level=IssueLevel.MEDIUM,
                         message=f"Function '{node.name}' should use snake_case",
@@ -108,7 +108,7 @@ class CodeQualityAnalyzer:
                         column=node.col_offset
                     ))
             elif isinstance(node, ast.ClassDef):
-                if not self.PASCAL_CASE_PATTERN.match(node.name):
+                if not PASCAL_CASE_PATTERN.match(node.name):
                     issues.append(QualityIssue(
                         level=IssueLevel.MEDIUM,
                         message=f"Class '{node.name}' should use PascalCase",
