@@ -22,6 +22,22 @@ from collections import defaultdict, deque
 
 logger = logging.getLogger(__name__)
 
+# Pre-compile dangerous patterns for efficient detection
+DANGEROUS_IMPORTS = frozenset({
+    'os', 'subprocess', 'sys', 'socket', '__import__',
+    'exec', 'eval', 'compile', 'open', 'input'
+})
+
+DANGEROUS_FUNCTIONS = frozenset({
+    'system', 'exec', 'eval', 'compile', 'getattr',
+    'setattr', 'delattr', '__import__', 'open'
+})
+
+DANGEROUS_PATTERN = re.compile(
+    r'\b(os|subprocess|__import__|exec|eval|compile)\s*\(',
+    re.IGNORECASE | re.MULTILINE
+)
+
 
 class RateLimiter:
     """Rate limiter using sliding window algorithm."""
