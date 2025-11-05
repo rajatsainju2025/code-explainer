@@ -1,4 +1,17 @@
-"""Cache factory and consolidation layer to eliminate duplication."""
+"""Cache factory and consolidation layer to eliminate duplication.
+
+This module provides a factory pattern for creating cache instances with
+a unified interface. It ensures consistency across different cache types and
+provides metrics collection for monitoring cache performance.
+
+Classes:
+    CacheFactory: Factory for creating cache instances
+    CacheBase: Base class defining cache interface
+    CacheMetrics: Track cache performance metrics
+    
+Functions:
+    create_cache_key: Create consistent cache keys
+"""
 
 from typing import Optional, Type, Dict, Any
 import logging
@@ -7,7 +20,15 @@ logger = logging.getLogger(__name__)
 
 
 class CacheFactory:
-    """Factory for creating cache instances with consistent interface."""
+    """Factory for creating cache instances with consistent interface.
+    
+    This factory pattern ensures all cache implementations follow the same
+    interface and enables easy swapping of cache types without changing
+    client code.
+    
+    Attributes:
+        _cache_registry: Dictionary mapping cache type names to classes
+    """
 
     _cache_registry: Dict[str, Type] = {}
 
@@ -34,7 +55,17 @@ class CacheFactory:
 
 
 class CacheBase:
-    """Base class for all cache implementations to ensure consistent interface."""
+    """Base class for all cache implementations to ensure consistent interface.
+    
+    Defines the standard methods that all cache types must implement,
+    ensuring interchangeability and consistent behavior.
+    
+    Attributes:
+        cache_dir: Directory where cache files are stored
+        max_size: Maximum number of items to store
+        ttl_seconds: Time-to-live for cached items in seconds
+        size: Current number of items in cache
+    """
 
     def __init__(self, cache_dir: str = ".cache", max_size: int = 1000, ttl_seconds: Optional[int] = None):
         """Initialize cache with standard parameters."""
@@ -73,7 +104,17 @@ class CacheBase:
 
 
 class CacheMetrics:
-    """Track cache performance metrics."""
+    """Track cache performance metrics.
+    
+    Collects statistics about cache hits, misses, and evictions to enable
+    performance monitoring and optimization analysis.
+    
+    Attributes:
+        hits: Number of cache hits
+        misses: Number of cache misses
+        evictions: Number of items evicted
+        errors: Number of cache errors
+    """
 
     def __init__(self):
         self.hits = 0
