@@ -2,6 +2,7 @@
 
 from typing import List, Optional, Literal
 from pydantic import BaseModel, Field, field_validator
+from .exceptions import ValidationError
 
 
 class CodeExplanationRequest(BaseModel):
@@ -14,7 +15,7 @@ class CodeExplanationRequest(BaseModel):
     @classmethod
     def validate_code_not_empty(cls, v):
         if not v.strip():
-            raise ValueError('Code cannot be empty or whitespace only')
+            raise ValidationError('Code cannot be empty or whitespace only', field_name='code')
         return v
 
     @field_validator('strategy')
@@ -24,7 +25,7 @@ class CodeExplanationRequest(BaseModel):
         allowed = {"vanilla", "ast_augmented", "retrieval_augmented", "execution_trace"}
         if v is not None and v not in allowed:
             allowed_str = ", ".join(sorted(allowed))
-            raise ValueError(f'Strategy must be one of: {allowed_str}')
+            raise ValidationError(f'Strategy must be one of: {allowed_str}', field_name='strategy', field_value=v)
         return v
 
 
@@ -38,16 +39,16 @@ class BatchCodeExplanationRequest(BaseModel):
     @classmethod
     def validate_codes(cls, v):
         if not v:
-            raise ValueError('Codes list cannot be empty')
+            raise ValidationError('Codes list cannot be empty', field_name='codes')
         if len(v) > 100:
-            raise ValueError('Cannot process more than 100 codes at once')
+            raise ValidationError('Cannot process more than 100 codes at once', field_name='codes', field_value=f'{len(v)} codes')
         
         # Single-pass validation for maximum efficiency
         for i, code in enumerate(v):
             if not code.strip():
-                raise ValueError(f'Code at index {i} cannot be empty or whitespace only')
+                raise ValidationError(f'Code at index {i} cannot be empty or whitespace only', field_name=f'codes[{i}]')
             if len(code) > 10000:
-                raise ValueError(f'Code at index {i} exceeds maximum length of 10000 characters')
+                raise ValidationError(f'Code at index {i} exceeds maximum length of 10000 characters', field_name=f'codes[{i}]', field_value=f'{len(code)} chars')
         
         return v
 
@@ -57,7 +58,7 @@ class BatchCodeExplanationRequest(BaseModel):
         allowed = {"vanilla", "ast_augmented", "retrieval_augmented", "execution_trace"}
         if v is not None and v not in allowed:
             allowed_str = ", ".join(sorted(allowed))
-            raise ValueError(f'Strategy must be one of: {allowed_str}')
+            raise ValidationError(f'Strategy must be one of: {allowed_str}', field_name='strategy', field_value=v)
         return v
 
 
