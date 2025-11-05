@@ -1,24 +1,29 @@
 """Explanation commands for CLI."""
 
-import click
 from functools import lru_cache
+from typing import Any, Optional
+import click
 from rich.console import Console
 from rich.panel import Panel
 from rich.syntax import Syntax
 
 from ...model import CodeExplainer
 
-console = Console()
+console: Console = Console()
 
 
 @lru_cache(maxsize=8)
-def _get_explainer(model_path, config):
+def _get_explainer(model_path: str, config: str) -> CodeExplainer:
     """Cache CodeExplainer instances to avoid repeated initialization."""
     return CodeExplainer(model_path=model_path, config_path=config)
 
 
-def register_explain_commands(main_group):
-    """Register explanation-related commands."""
+def register_explain_commands(main_group: Any) -> None:
+    """Register explanation-related commands.
+    
+    Args:
+        main_group: Click command group to register commands to
+    """
 
     @main_group.command()
     @click.option("--model-path", "-m", default="./results", help="Path to trained model")
@@ -34,9 +39,16 @@ def register_explain_commands(main_group):
     @click.option("--symbolic", is_flag=True, help="Include symbolic analysis in explanation")
     @click.option("--multi-agent", is_flag=True, help="Use multi-agent collaborative explanation")
     @click.argument("code", required=False)
-    def explain(model_path, config, prompt_strategy, symbolic, multi_agent, code):
+    def explain(
+        model_path: str,
+        config: str,
+        prompt_strategy: Optional[str],
+        symbolic: bool,
+        multi_agent: bool,
+        code: Optional[str]
+    ) -> None:
         """Explain a code snippet."""
-        explainer = _get_explainer(model_path, config)
+        explainer: CodeExplainer = _get_explainer(model_path, config)
 
         if code is None:
             # Interactive mode

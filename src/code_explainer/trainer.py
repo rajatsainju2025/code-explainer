@@ -1,42 +1,61 @@
-"""
-Code Explainer trainer for fine-tuning models.
-"""
+"""Code Explainer trainer for fine-tuning models."""
 
-from typing import Dict, Any, Optional, Union
+from typing import Dict, Any, Optional, Union, List
 from pathlib import Path
 import logging
 
-logger = logging.getLogger(__name__)
+logger: logging.Logger = logging.getLogger(__name__)
 
 
 class CodeExplainerTrainer:
     """Trainer for fine-tuning code explanation models."""
 
-    def __init__(self, config: Dict[str, Any]):
-        self.config = config
-        self.model = None
-        self.tokenizer = None
+    def __init__(self, config: Dict[str, Any]) -> None:
+        """Initialize trainer with configuration.
+        
+        Args:
+            config: Configuration dictionary for training
+        """
+        self.config: Dict[str, Any] = config
+        self.model: Optional[Any] = None
+        self.tokenizer: Optional[Any] = None
 
-    def setup_training(self):
+    def setup_training(self) -> None:
         """Setup training environment."""
         logger.info("Setting up training environment...")
         # Implementation would go here
         pass
 
-    def train(self, train_dataset, eval_dataset=None):
-        """Train the model."""
+    def train(self, train_dataset: Any, eval_dataset: Optional[Any] = None) -> Dict[str, Any]:
+        """Train the model.
+        
+        Args:
+            train_dataset: Training dataset
+            eval_dataset: Optional evaluation dataset
+            
+        Returns:
+            Dictionary with training results
+        """
         logger.info("Starting training...")
         # Implementation would go here
         return {"status": "training_completed"}
 
-    def save_model(self, output_dir: str):
-        """Save trained model."""
+    def save_model(self, output_dir: str) -> None:
+        """Save trained model.
+        
+        Args:
+            output_dir: Directory to save model to
+        """
         logger.info(f"Saving model to {output_dir}")
         # Implementation would go here
         pass
 
-    def load_model(self, model_path: str):
-        """Load a trained model."""
+    def load_model(self, model_path: str) -> None:
+        """Load a trained model.
+        
+        Args:
+            model_path: Path to model to load
+        """
         logger.info(f"Loading model from {model_path}")
         # Implementation would go here
         pass
