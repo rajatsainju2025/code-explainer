@@ -4,6 +4,7 @@ import json
 import logging
 import time
 import threading
+from functools import lru_cache
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -17,6 +18,20 @@ from .models import RetrievalCandidate, RetrievalConfig, RetrievalStats, SearchR
 
 logger = logging.getLogger(__name__)
 
+# Cache for loaded models to avoid redundant loading
+_MODEL_CACHE: Dict[str, SentenceTransformer] = {}
+_MODEL_CACHE_LOCK = threading.Lock()
+
+
+def _get_cached_model(model_name: str) -> SentenceTransformer:
+    """Get or load a model from cache."""
+    if model_name not in _MODEL_CACHE:
+        with _MODEL_CACHE_LOCK:
+            if model_name not in _MODEL_CACHE:
+                logger.debug(f"Loading model: {model_name}")
+                _MODEL_CACHE[model_name] = SentenceTransformer(model_name)
+    return _MODEL_CACHE[model_name]
+
 
 class CodeRetriever:
     """Handles building and querying a FAISS index for code retrieval.
@@ -28,7 +43,8 @@ class CodeRetriever:
                  model: Optional[SentenceTransformer] = None):
         """Initialize the code retriever."""
         self.config = RetrievalConfig(model_name=model_name)
-        self.model = model if model is not None else SentenceTransformer(model_name)
+        # Use provided model or get from cache
+        self.model = model if model is not None else _get_cached_model(model_name)
 
         # Core components
         self.code_corpus: List[str] = []
