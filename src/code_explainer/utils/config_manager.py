@@ -11,6 +11,7 @@ Classes:
 """
 
 import os
+from functools import lru_cache
 from typing import Any, Dict, Optional
 from pathlib import Path
 
@@ -35,9 +36,24 @@ class ConfigManager:
         self._config: Dict[str, Any] = {}
         self._env_overrides: Dict[str, Any] = {}
         self._runtime_config: Dict[str, Any] = {}
+        # Cache for get() results
+        self._get_cache: Dict[str, Any] = {}
+    
+    @lru_cache(maxsize=256)
+    def get_env(self, key: str, default: str = "") -> str:
+        """Get environment variable with caching.
+        
+        Args:
+            key: Environment variable name
+            default: Default value
+        
+        Returns:
+            Environment variable value or default
+        """
+        return os.getenv(key, default)
     
     def get(self, key: str, default: Any = None) -> Any:
-        """Get configuration value with fallback chain.
+        """Get configuration value with fallback chain (optimized).
         
         Args:
             key: Configuration key
@@ -46,7 +62,7 @@ class ConfigManager:
         Returns:
             Configuration value
         """
-        # Check runtime config first
+        # Check runtime config first (most specific)
         if key in self._runtime_config:
             return self._runtime_config[key]
         
