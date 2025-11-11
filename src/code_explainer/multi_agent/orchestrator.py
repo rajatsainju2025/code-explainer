@@ -1,7 +1,7 @@
 """Multi-agent orchestrator for collaborative code explanation."""
 
 import logging
-from typing import Dict, List
+from typing import Dict, List, Generator, Tuple
 
 from .agents.context_agent import ContextAgent
 from .agents.semantic_agent import SemanticAgent
@@ -11,6 +11,9 @@ from .base_agent import BaseAgent
 from .models import AgentMessage, ExplanationComponent
 
 logger = logging.getLogger(__name__)
+
+# Pre-computed priority mapping for efficient sorting
+_TYPE_PRIORITY: Dict[str, int] = {"logic": 1, "structure": 2, "context": 3, "verification": 4}
 
 
 class MultiAgentOrchestrator:
@@ -49,27 +52,24 @@ class MultiAgentOrchestrator:
         if not components:
             return "Unable to generate collaborative explanation."
 
-        # Pre-computed type priority map for sorting efficiency
-        type_priority = {"logic": 1, "structure": 2, "context": 3, "verification": 4}
-        components.sort(key=lambda x: (type_priority.get(x.component_type, 5), -x.confidence))
+        # Sort using pre-computed priority map (avoids lambda function overhead)
+        components.sort(key=lambda x: (_TYPE_PRIORITY.get(x.component_type, 5), -x.confidence))
 
-        # Build explanation parts efficiently with list comprehension
-        explanation_parts = [
+        # Build explanation parts efficiently
+        parts = [
             "# Multi-Agent Code Explanation",
             "",
             "This explanation was generated collaboratively by multiple specialized AI agents:",
             "",
         ]
 
-        # Single-pass collection of confident content (avoids intermediate list)
-        explanation_parts.extend(
-            content 
-            for component in components 
-            if component.confidence > 0.5
-            for content in (component.content, "")
-        )
+        # Use generator to process only confident components (memory efficient)
+        for component in components:
+            if component.confidence > 0.5:
+                parts.append(component.content)
+                parts.append("")
 
-        explanation_parts.extend([
+        parts.extend([
             "---",
             "",
             "**Collaboration Summary:**",
@@ -78,7 +78,14 @@ class MultiAgentOrchestrator:
             f"structural analysis, semantic understanding, contextual information, and verification strategies.",
         ])
 
-        return "\n".join(explanation_parts)
+        return "\n".join(parts)
+
+    def _iter_confident_content(self, components: List[ExplanationComponent]) -> Generator[str, None, None]:
+        """Generator for streaming confident component content."""
+        for component in components:
+            if component.confidence > 0.5:
+                yield component.content
+                yield ""
 
     def send_message(self, message: AgentMessage) -> None:
         """Route message to appropriate agent."""
