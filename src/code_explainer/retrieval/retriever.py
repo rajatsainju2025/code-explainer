@@ -111,11 +111,6 @@ class CodeRetriever:
         if method not in {"faiss", "bm25", "hybrid"}:
             raise ValueError("method must be one of: faiss|bm25|hybrid")
 
-        # Update statistics
-        with self._stats_lock:
-            self.stats.total_queries += 1
-            self.stats.method_usage[method] += 1
-
         start_time = time.time()
 
         if method == "faiss":
@@ -128,9 +123,11 @@ class CodeRetriever:
             results = self.hybrid_search.search(query_code, k)
             result_indices = [i for i, _ in results]
 
-        # Update timing statistics
+        # Update timing statistics with minimal lock contention
         response_time = time.time() - start_time
         with self._stats_lock:
+            self.stats.total_queries += 1
+            self.stats.method_usage[method] += 1
             self.stats.total_response_time += response_time
             self.stats.avg_response_time = (
                 self.stats.total_response_time / self.stats.total_queries
