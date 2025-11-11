@@ -4,6 +4,10 @@ from typing import List, Optional, Literal
 from pydantic import BaseModel, Field, field_validator
 from .exceptions import ValidationError
 
+# Pre-computed sets for constant-time validation
+_ALLOWED_STRATEGIES = frozenset({"vanilla", "ast_augmented", "retrieval_augmented", "execution_trace"})
+_ALLOWED_CACHE_STRATEGIES = frozenset({"lru", "lfu", "fifo", "size_based", "adaptive"})
+
 
 class CodeExplanationRequest(BaseModel):
     """Request model for code explanation."""
@@ -21,10 +25,8 @@ class CodeExplanationRequest(BaseModel):
     @field_validator('strategy')
     @classmethod
     def validate_strategy(cls, v):
-        # Supported strategies across the project
-        allowed = {"vanilla", "ast_augmented", "retrieval_augmented", "execution_trace"}
-        if v is not None and v not in allowed:
-            allowed_str = ", ".join(sorted(allowed))
+        if v is not None and v not in _ALLOWED_STRATEGIES:
+            allowed_str = ", ".join(sorted(_ALLOWED_STRATEGIES))
             raise ValidationError(f'Strategy must be one of: {allowed_str}', field_name='strategy', field_value=v)
         return v
 
@@ -55,9 +57,8 @@ class BatchCodeExplanationRequest(BaseModel):
     @field_validator('strategy')
     @classmethod
     def validate_strategy(cls, v):
-        allowed = {"vanilla", "ast_augmented", "retrieval_augmented", "execution_trace"}
-        if v is not None and v not in allowed:
-            allowed_str = ", ".join(sorted(allowed))
+        if v is not None and v not in _ALLOWED_STRATEGIES:
+            allowed_str = ", ".join(sorted(_ALLOWED_STRATEGIES))
             raise ValidationError(f'Strategy must be one of: {allowed_str}', field_name='strategy', field_value=v)
         return v
 
@@ -99,8 +100,7 @@ class CacheConfigValidation(BaseModel):
     @field_validator('cache_strategy')
     @classmethod
     def validate_cache_strategy(cls, v):
-        allowed = {"lru", "lfu", "fifo", "size_based", "adaptive"}
-        if v not in allowed:
-            allowed_str = ", ".join(sorted(allowed))
+        if v not in _ALLOWED_CACHE_STRATEGIES:
+            allowed_str = ", ".join(sorted(_ALLOWED_CACHE_STRATEGIES))
             raise ValueError(f'Cache strategy must be one of: {allowed_str}')
         return v
