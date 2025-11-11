@@ -24,7 +24,9 @@ class EvictionPolicy(Enum):
 
 
 class CacheEntry:
-    """Enhanced cache entry with eviction metadata."""
+    """Enhanced cache entry with eviction metadata (optimized with __slots__)."""
+    __slots__ = ('key', 'value', 'created_at', 'last_accessed', 'access_count', 'ttl', 'size')
+    
     def __init__(self, key: str, value: Any, ttl: Optional[float] = None):
         self.key = key
         self.value = value
