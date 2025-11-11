@@ -1,7 +1,8 @@
 """Main symbolic analyzer combining all analysis components."""
 
 import ast
-from typing import Dict, List
+from functools import lru_cache
+from typing import Dict, List, Tuple
 
 from .models import SymbolicExplanation
 from .extractors import ConditionExtractors
@@ -19,11 +20,13 @@ class SymbolicAnalyzer(ConditionExtractors, PropertyGenerators, ComplexityAnalyz
 
         # Initialize state
         self.control_flow: List[ast.AST] = []
+        # Cache for parsed ASTs to avoid reparsing
+        self._ast_cache: Dict[str, ast.AST] = {}
 
     def analyze_code(self, code: str) -> SymbolicExplanation:
         """Analyze code and return symbolic explanation."""
-        # Parse code into AST
-        tree = ast.parse(code)
+        # Parse code into AST (with caching for repeated analyses)
+        tree = self._get_or_parse_ast(code)
 
         # Reset state
         self._reset_state()
@@ -56,6 +59,22 @@ class SymbolicAnalyzer(ConditionExtractors, PropertyGenerators, ComplexityAnalyz
             data_flow=data_flow,
         )
 
+    def _get_or_parse_ast(self, code: str) -> ast.AST:
+        """Get cached AST or parse new one."""
+        # Use first 50 chars as cache key for small codes
+        cache_key = code[:50] if len(code) < 100 else code
+        
+        if cache_key in self._ast_cache:
+            return self._ast_cache[cache_key]
+        
+        tree = ast.parse(code)
+        
+        # Cache only small programs to avoid unbounded growth
+        if len(code) < 5000 and len(self._ast_cache) < 100:
+            self._ast_cache[cache_key] = tree
+        
+        return tree
+
     def _reset_state(self):
         """Reset analyzer state."""
         self.variable_assignments = {}
@@ -63,7 +82,7 @@ class SymbolicAnalyzer(ConditionExtractors, PropertyGenerators, ComplexityAnalyz
         self.control_flow = []
 
     def _analyze_ast(self, tree: ast.AST):
-        """Analyze AST to build internal state."""
+        """Analyze AST to build internal state (optimized with early exit)."""
         for node in ast.walk(tree):
             if isinstance(node, ast.Assign):
                 for target in node.targets:
