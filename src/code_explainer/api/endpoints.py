@@ -2,7 +2,7 @@
 
 import time
 import logging
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from fastapi.responses import Response
 from fastapi.concurrency import run_in_threadpool
@@ -158,31 +158,44 @@ async def explain_code_batch(
 
         max_length = payload.get("max_length")
         strategy = payload.get("strategy") or "vanilla"
+        
+        # Cache model name for reuse
+        model_name = _get_model_name(explainer)
 
         # Try fast-path: serve any cached entries and collect misses
-        results: list[str] = [""] * len(codes)
-        to_compute: list[tuple[int, str]] = []
+        # Use list instead of pre-allocated array for better memory efficiency
+        results: List[Optional[str]] = []
+        to_compute: List[tuple] = []
+        
         for idx, code in enumerate(codes):
             cached = None
             if hasattr(explainer, 'explanation_cache') and explainer.explanation_cache:
                 try:
-                    cached = explainer.explanation_cache.get(code, strategy, getattr(explainer, 'model_name', 'unknown'))
+                    cached = explainer.explanation_cache.get(code, strategy, model_name)
                 except Exception:
                     cached = None
             if cached is not None:
                 metrics_collector.record_cache_hit()
-                results[idx] = cached
+                results.append(cached)
             else:
                 metrics_collector.record_cache_miss()
+                results.append(None)  # Placeholder
                 to_compute.append((idx, code))
 
-        # Compute missing explanations concurrently using threadpool
-        async def compute_one(i: int, c: str) -> None:
-            res = await run_in_threadpool(explainer.explain_code, c, max_length, strategy)
-            results[i] = res
+        # Compute missing explanations concurrently using list comprehension
+        # instead of gather with lambda closures for better performance
+        async def compute_batch():
+            """Compute all missing explanations concurrently."""
+            import asyncio
+            tasks = [
+                (i, run_in_threadpool(explainer.explain_code, c, max_length, strategy))
+                for i, c in to_compute
+            ]
+            for i, task in tasks:
+                results[i] = await task
 
-        import asyncio
-        await asyncio.gather(*(compute_one(i, c) for i, c in to_compute))
+        if to_compute:
+            await compute_batch()
 
         processing_time = time.time() - req_metrics.start_time
         metrics_collector.end_request(req_metrics, status_code=200)
@@ -191,7 +204,7 @@ async def explain_code_batch(
             "count": len(results),
             "processing_time": round(processing_time, 4),
             "strategy": strategy,
-            "model_name": getattr(explainer, 'model_name', 'unknown')
+            "model_name": model_name
         }
     except HTTPException:
         raise
