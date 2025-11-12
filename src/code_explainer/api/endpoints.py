@@ -32,10 +32,23 @@ except ImportError:
 
 from ..model.core import CodeExplainer
 from ..config import Config
+from ..utils.response_pooling import acquire_response_builder, release_response_builder
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+# Cache for frequently accessed attributes to reduce getattr overhead
+_MODEL_NAME_CACHE: Dict[CodeExplainer, str] = {}
+_MODEL_NAME_CACHE_LOCK = __import__('threading').RLock()
+
+
+def _get_model_name(explainer: CodeExplainer) -> str:
+    """Get model name from explainer with caching to avoid repeated getattr calls."""
+    with _MODEL_NAME_CACHE_LOCK:
+        if explainer not in _MODEL_NAME_CACHE:
+            _MODEL_NAME_CACHE[explainer] = getattr(explainer, 'model_name', 'unknown')
+        return _MODEL_NAME_CACHE[explainer]
 
 
 @router.post("/explain", response_model=CodeExplanationResponse)
@@ -60,6 +73,9 @@ async def explain_code(
 
         # Track inference timing
         start_inference = time.time()
+        
+        # Cache model name for response building (reduce getattr overhead)
+        model_name = _get_model_name(explainer)
 
         # Check cache first and return early on hit (avoids model compute)
         cached = None
@@ -68,7 +84,7 @@ async def explain_code(
                 cached = explainer.explanation_cache.get(
                     request.code,
                     request.strategy or "vanilla",
-                    getattr(explainer, 'model_name', 'unknown')
+                    model_name
                 )
             except (OSError, ValueError, KeyError):
                 cached = None
@@ -79,7 +95,7 @@ async def explain_code(
                     explanation=cached,
                     strategy=request.strategy or "vanilla",
                     processing_time=round(processing_time, 4),
-                    model_name=getattr(explainer, 'model_name', 'unknown')
+                    model_name=model_name
                 )
                 metrics_collector.end_request(request_metrics, status_code=200)
                 logger.info(f"[{request_id}] Served from cache in {processing_time:.4f}s")
@@ -105,7 +121,7 @@ async def explain_code(
             explanation=explanation,
             strategy=request.strategy or "vanilla",
             processing_time=round(processing_time, 4),
-            model_name=getattr(explainer, 'model_name', 'unknown')
+            model_name=model_name
         )
 
         metrics_collector.end_request(request_metrics, status_code=200)
