@@ -16,7 +16,7 @@ from transformers import (
 from functools import lru_cache
 
 from .config import ModelConfig
-from .enhanced_error_handling import ModelError, ConfigurationError, ResourceError
+from .error_handling import ModelError, ConfigurationError, ResourceError
 from .device_manager import DeviceManager, DeviceCapabilities
 
 logger = logging.getLogger(__name__)

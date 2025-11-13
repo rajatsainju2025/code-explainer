@@ -6,7 +6,7 @@ import logging
 
 from ..cache import ExplanationCache
 from ..config import Config, init_config
-from ..enhanced_error_handling import setup_logging
+from ..error_handling import setup_logging
 from ..model_loader import ModelLoader, ModelResources
 from ..exceptions import ConfigurationError
 
