@@ -3,7 +3,7 @@ import os
 import sys
 import threading
 from pathlib import Path
-from typing import Generator, Dict, Any
+from typing import Generator, Dict, Any, List
 from functools import lru_cache
 import torch
 import pytest
@@ -190,4 +190,25 @@ def optimize_test_performance():
     # Cleanup after all tests
     import gc
     gc.collect()
+
+
+# Parallel test execution configuration
+def pytest_configure(config):
+    """Configure pytest with parallel execution settings."""
+    config.addinivalue_line(
+        "markers", "serial: marks tests as non-parallelizable"
+    )
+
+
+def pytest_collection_modifyitems(config, items: List[pytest.Item]) -> None:
+    """Modify test collection to support parallel execution.
+    
+    Marks tests that use shared resources as serial to prevent race conditions.
+    """
+    serial_markers = {"serial", "integration"}
+    
+    for item in items:
+        # Mark integration and I/O heavy tests as serial
+        if any(marker in item.keywords for marker in serial_markers):
+            item.add_marker(pytest.mark.serial)
 
