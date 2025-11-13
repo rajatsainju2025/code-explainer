@@ -72,7 +72,7 @@ def prompt_for_language(config: Dict[str, Any], code: str) -> str:
 
     # Enhanced RAG with code retrieval
     if strategy == "enhanced_rag" and lang == "python":
-        from ..retrieval import CodeRetriever
+        from ..retrieval.retriever import CodeRetriever
 
         retriever = CodeRetriever()
         try:
