@@ -38,6 +38,8 @@ class RetrievalStats:
     total_response_time: float = 0.0
     rerank_usage: int = 0
     mmr_usage: int = 0
+    cache_hits: int = 0  # Number of query cache hits
+    cache_misses: int = 0  # Number of query cache misses
 
 
 @dataclass

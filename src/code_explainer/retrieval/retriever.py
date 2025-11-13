@@ -4,9 +4,11 @@ import json
 import logging
 import time
 import threading
+import hashlib
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
+from collections import OrderedDict
 
 from sentence_transformers import SentenceTransformer
 
@@ -21,6 +23,57 @@ logger = logging.getLogger(__name__)
 # Cache for loaded models to avoid redundant loading
 _MODEL_CACHE: Dict[str, SentenceTransformer] = {}
 _MODEL_CACHE_LOCK = threading.Lock()
+
+# Query result cache to avoid redundant retrieval computations
+class LRUQueryCache:
+    """LRU cache for retrieval results to avoid redundant computations."""
+    def __init__(self, max_size: int = 256):
+        self.cache: OrderedDict = OrderedDict()
+        self.max_size = max_size
+        self.hits = 0
+        self.misses = 0
+        self._lock = threading.Lock()
+    
+    def _make_key(self, query: str, k: int, method: str, alpha: float, 
+                  use_reranker: bool, use_mmr: bool) -> str:
+        """Create deterministic cache key from query parameters."""
+        key_str = f"{query}|{k}|{method}|{alpha}|{use_reranker}|{use_mmr}"
+        return hashlib.md5(key_str.encode()).hexdigest()
+    
+    def get(self, query: str, k: int, method: str, alpha: float,
+            use_reranker: bool = False, use_mmr: bool = False) -> Optional[Any]:
+        """Get cached result if available."""
+        key = self._make_key(query, k, method, alpha, use_reranker, use_mmr)
+        with self._lock:
+            if key in self.cache:
+                # Move to end (LRU)
+                self.cache.move_to_end(key)
+                self.hits += 1
+                return self.cache[key]
+            self.misses += 1
+        return None
+    
+    def put(self, query: str, k: int, method: str, alpha: float,
+            value: Any, use_reranker: bool = False, use_mmr: bool = False) -> None:
+        """Cache a result."""
+        key = self._make_key(query, k, method, alpha, use_reranker, use_mmr)
+        with self._lock:
+            self.cache[key] = value
+            self.cache.move_to_end(key)
+            if len(self.cache) > self.max_size:
+                self.cache.popitem(last=False)
+    
+    def clear(self) -> None:
+        """Clear the cache."""
+        with self._lock:
+            self.cache.clear()
+            self.hits = 0
+            self.misses = 0
+    
+    def get_hit_rate(self) -> float:
+        """Get cache hit rate."""
+        total = self.hits + self.misses
+        return self.hits / total if total > 0 else 0.0
 
 
 def _get_cached_model(model_name: str) -> SentenceTransformer:
@@ -37,11 +90,21 @@ class CodeRetriever:
     """Handles building and querying a FAISS index for code retrieval.
 
     Supports FAISS vector search, BM25 lexical search, and hybrid fusion.
+    Includes LRU query result caching to avoid redundant computations.
     """
 
     def __init__(self, model_name: str = "sentence-transformers/all-MiniLM-L6-v2",
-                 model: Optional[SentenceTransformer] = None):
-        """Initialize the code retriever."""
+                 model: Optional[SentenceTransformer] = None, 
+                 enable_query_cache: bool = True,
+                 query_cache_size: int = 256):
+        """Initialize the code retriever.
+        
+        Args:
+            model_name: Name of the sentence transformer model
+            model: Pre-loaded model instance (optional)
+            enable_query_cache: Whether to cache query results
+            query_cache_size: Maximum number of cached queries
+        """
         self.config = RetrievalConfig(model_name=model_name)
         # Use provided model or get from cache
         self.model = model if model is not None else _get_cached_model(model_name)
@@ -52,6 +115,10 @@ class CodeRetriever:
         self.bm25_index = BM25Index()
         self.hybrid_search = HybridSearch(self.faiss_index, self.bm25_index, self.config.hybrid_alpha)
         self.enhanced_retrieval = EnhancedRetrieval(self.model)
+
+        # Query result caching
+        self.enable_query_cache = enable_query_cache
+        self.query_cache = LRUQueryCache(max_size=query_cache_size) if enable_query_cache else None
 
         # Statistics
         self.stats = RetrievalStats()
@@ -150,13 +217,11 @@ class CodeRetriever:
         rerank_top_k: int = 20,
         mmr_lambda: float = 0.5
     ) -> List[Dict[str, Any]]:
-        """Enhanced retrieval with reranking and MMR."""
+        """Enhanced retrieval with reranking and MMR.
+        
+        Results are cached to avoid redundant computations.
+        """
         start_time = time.time()
-
-        # Update statistics
-        with self._stats_lock:
-            self.stats.total_queries += 1
-            self.stats.method_usage[method] += 1
 
         if not self.code_corpus:
             raise ValueError("Index/corpus is not loaded or built.")
@@ -164,6 +229,23 @@ class CodeRetriever:
         method = (method or "faiss").lower()
         if method not in {"faiss", "bm25", "hybrid"}:
             raise ValueError("method must be one of: faiss|bm25|hybrid")
+
+        # Check query cache first to avoid redundant computation
+        if self.enable_query_cache and self.query_cache is not None:
+            cached_result = self.query_cache.get(
+                query_code, k, method, alpha, use_reranker, use_mmr
+            )
+            if cached_result is not None:
+                with self._stats_lock:
+                    self.stats.total_queries += 1
+                    self.stats.cache_hits += 1
+                logger.debug(f"Query cache hit for: {query_code[:30]}...")
+                return cached_result
+
+        # Update statistics
+        with self._stats_lock:
+            self.stats.total_queries += 1
+            self.stats.method_usage[method] += 1
 
         # Get initial candidates
         initial_k = max(k, rerank_top_k if use_reranker else k)
@@ -226,7 +308,7 @@ class CodeRetriever:
             )
 
         # Convert to dict format for backward compatibility
-        return [
+        result = [
             {
                 "content": c.content,
                 "index": c.index,
@@ -238,6 +320,14 @@ class CodeRetriever:
             }
             for c in candidates
         ]
+
+        # Cache the result
+        if self.enable_query_cache and self.query_cache is not None:
+            self.query_cache.put(
+                query_code, k, method, alpha, result, use_reranker, use_mmr
+            )
+
+        return result
 
     def size(self) -> int:
         """Get the number of indexed code snippets."""
