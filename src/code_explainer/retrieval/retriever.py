@@ -17,12 +17,9 @@ from .enhanced_retrieval import EnhancedRetrieval
 from .faiss_index import FAISSIndex
 from .hybrid_search import HybridSearch
 from .models import RetrievalCandidate, RetrievalConfig, RetrievalStats, SearchResult
+from .model_cache import get_cached_model
 
 logger = logging.getLogger(__name__)
-
-# Cache for loaded models to avoid redundant loading
-_MODEL_CACHE: Dict[str, SentenceTransformer] = {}
-_MODEL_CACHE_LOCK = threading.Lock()
 
 # Query result cache to avoid redundant retrieval computations
 class LRUQueryCache:
@@ -76,15 +73,6 @@ class LRUQueryCache:
         return self.hits / total if total > 0 else 0.0
 
 
-def _get_cached_model(model_name: str) -> SentenceTransformer:
-    """Get or load a model from cache."""
-    if model_name not in _MODEL_CACHE:
-        with _MODEL_CACHE_LOCK:
-            if model_name not in _MODEL_CACHE:
-                logger.debug(f"Loading model: {model_name}")
-                _MODEL_CACHE[model_name] = SentenceTransformer(model_name)
-    return _MODEL_CACHE[model_name]
-
 
 class CodeRetriever:
     """Handles building and querying a FAISS index for code retrieval.
@@ -106,8 +94,8 @@ class CodeRetriever:
             query_cache_size: Maximum number of cached queries
         """
         self.config = RetrievalConfig(model_name=model_name)
-        # Use provided model or get from cache
-        self.model = model if model is not None else _get_cached_model(model_name)
+        # Use provided model or get from persistent cache
+        self.model = model if model is not None else get_cached_model(model_name)
 
         # Core components
         self.code_corpus: List[str] = []
