@@ -65,7 +65,7 @@ async def explain_code(
     request_metrics = metrics_collector.start_request(request_id, "/explain")
     
     try:
-        logger.info(f"[{request_id}] Processing explanation request")
+        logger.debug(f"[{request_id}] Processing explanation request")
 
         # Validate input
         if not request.code.strip():
@@ -99,7 +99,7 @@ async def explain_code(
                     model_name=model_name
                 )
                 metrics_collector.end_request(request_metrics, status_code=200)
-                logger.info(f"[{request_id}] Served from cache in {processing_time:.4f}s")
+                logger.debug(f"[{request_id}] Served from cache in {processing_time:.4f}s")
                 return response
             else:
                 metrics_collector.record_cache_miss()
@@ -126,7 +126,7 @@ async def explain_code(
         )
 
         metrics_collector.end_request(request_metrics, status_code=200)
-        logger.info(f"[{request_id}] Explanation generated in {processing_time:.4f}s")
+        logger.debug(f"[{request_id}] Explanation generated in {processing_time:.4f}s")
         return response
 
     except HTTPException:

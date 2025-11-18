@@ -147,7 +147,7 @@ def _cached_load_tokenizer(path: str) -> PreTrainedTokenizerBase:
                     "load_in_8bit": True,
                     "device_map": self.config.device_map or "auto"
                 })
-                logger.info(f"Loading model with 8-bit quantization on {self.device_capabilities.device_type}")
+                self.logger.debug(f"Loading model resources from: {model_path}")
             else:
                 logger.warning(f"8-bit quantization not supported on {self.device_capabilities.device_type}, using {recommended_dtype}")
         else:
