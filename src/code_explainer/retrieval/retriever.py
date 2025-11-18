@@ -1,5 +1,6 @@
 """Main code retriever orchestrating all retrieval components."""
 
+import gzip
 import json
 import logging
 import time
@@ -127,38 +128,57 @@ class CodeRetriever:
             self.save_index(save_path)
 
     def save_index(self, path: str) -> None:
-        """Save indices to disk efficiently."""
+        """Save indices to disk efficiently with gzip compression."""
         # Save FAISS index
         self.faiss_index.save_index(path)
 
-        # Save code corpus with compact JSON (minimal whitespace)
-        corpus_path = Path(f"{path}.corpus.json")
+        # Save code corpus with gzip compression (reduces size by ~90%)
+        corpus_path = Path(f"{path}.corpus.json.gz")
         corpus_path.parent.mkdir(parents=True, exist_ok=True)
         
-        # Use compact separators to reduce file size (~30% smaller)
+        # Use compact separators to reduce file size further
         json_data = json.dumps(self.code_corpus, separators=(',', ':'), ensure_ascii=True)
         
-        with open(corpus_path, "w") as f:
+        # Compress with gzip
+        with gzip.open(corpus_path, 'wt', encoding='utf-8') as f:
             f.write(json_data)
 
-        logger.info(f"Indices saved to {path}")
+        logger.debug(f"Indices saved to {path} with compressed corpus")
 
     def load_index(self, path: str) -> None:
-        """Load indices from disk efficiently."""
-        # Load FAISS index and corpus in parallel
+        """Load indices from disk, supporting both compressed and uncompressed formats."""
+        # Load FAISS index
         self.faiss_index.load_index(path)
 
+        # Try to load compressed corpus first, fall back to uncompressed
+        corpus_path_gz = Path(f"{path}.corpus.json.gz")
         corpus_path = Path(f"{path}.corpus.json")
-        if not corpus_path.exists():
-            raise FileNotFoundError(f"Corpus file not found: {corpus_path}")
-
-        with open(corpus_path, "r") as f:
-            self.code_corpus = json.load(f)
+        
+        if corpus_path_gz.exists():
+            # Load compressed corpus
+            try:
+                with gzip.open(corpus_path_gz, 'rt', encoding='utf-8') as f:
+                    self.code_corpus = json.load(f)
+                logger.debug(f"Loaded compressed corpus from {corpus_path_gz}")
+            except Exception as e:
+                logger.error(f"Failed to load compressed corpus: {e}")
+                raise FileNotFoundError(f"Corpus file corrupted: {corpus_path_gz}")
+        elif corpus_path.exists():
+            # Load uncompressed corpus (backward compatibility)
+            try:
+                with open(corpus_path, "r") as f:
+                    self.code_corpus = json.load(f)
+                logger.debug(f"Loaded uncompressed corpus from {corpus_path}")
+            except Exception as e:
+                logger.error(f"Failed to load uncompressed corpus: {e}")
+                raise FileNotFoundError(f"Corpus file not found: {corpus_path}")
+        else:
+            raise FileNotFoundError(f"Corpus file not found (tried {corpus_path_gz} and {corpus_path})")
 
         # Rebuild BM25 index
         self.bm25_index.build_index(self.code_corpus)
 
-        logger.info(f"Indices loaded from {path}. Corpus size: {len(self.code_corpus)}")
+        logger.debug(f"Indices loaded from {path}. Corpus size: {len(self.code_corpus)}")
 
     def retrieve_similar_code(self, query_code: str, k: int = 3,
                              method: str = "faiss", alpha: float = 0.5) -> List[str]:
