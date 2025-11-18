@@ -193,3 +193,17 @@ def _cached_load_tokenizer(path: str) -> PreTrainedTokenizerBase:
 
         model.eval()
         return model
+
+# Lazy tokenizer cache
+_TOKENIZER_CACHE = {}
+_TOKENIZER_CACHE_TTL = 3600  # 1 hour
+
+
+def _cached_load_tokenizer_lazy(model_path: str):
+    """Lazy load tokenizer with extended TTL for reuse."""
+    import time
+    cache_key = f"{model_path}_{int(time.time() // _TOKENIZER_CACHE_TTL)}"
+    if cache_key in _TOKENIZER_CACHE:
+        return _TOKENIZER_CACHE[cache_key]
+    # Load new
+    return AutoTokenizer.from_pretrained(model_path)
