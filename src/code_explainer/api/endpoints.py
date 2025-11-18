@@ -1,5 +1,6 @@
 """API endpoints for the Code Explainer service."""
 
+import asyncio
 import time
 import logging
 from typing import Dict, Any, Optional, List
@@ -182,17 +183,17 @@ async def explain_code_batch(
                 results.append(None)  # Placeholder
                 to_compute.append((idx, code))
 
-        # Compute missing explanations concurrently using list comprehension
-        # instead of gather with lambda closures for better performance
+        # Compute missing explanations concurrently using asyncio.gather
+        # for true parallelism instead of sequential await
         async def compute_batch():
             """Compute all missing explanations concurrently."""
-            import asyncio
             tasks = [
-                (i, run_in_threadpool(explainer.explain_code, c, max_length, strategy))
-                for i, c in to_compute
+                run_in_threadpool(explainer.explain_code, code, max_length, strategy)
+                for idx, code in to_compute
             ]
-            for i, task in tasks:
-                results[i] = await task
+            computed_results = await asyncio.gather(*tasks)
+            for (idx, _), explanation in zip(to_compute, computed_results):
+                results[idx] = explanation
 
         if to_compute:
             await compute_batch()
