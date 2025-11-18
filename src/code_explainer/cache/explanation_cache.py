@@ -2,7 +2,9 @@
 
 import json
 import time
+import threading
 from typing import Any, Dict, Optional
+from collections import deque
 
 from .base_cache import BaseCache, MemoryCache
 from .models import CacheConfig, CacheStats
@@ -11,7 +13,13 @@ from .utils import (calculate_cache_score, compress_data, decompress_data,
 
 
 class ExplanationCache(BaseCache):
-    """Cache for code explanations to avoid redundant model calls."""
+    """Cache for code explanations to avoid redundant model calls.
+    
+    Features:
+    - Write-behind batching: queues index updates and flushes periodically
+    - Reduces disk I/O for high-frequency cache writes
+    - Maintains consistency with occasional forced flushes
+    """
 
     def __init__(
         self,
@@ -19,7 +27,9 @@ class ExplanationCache(BaseCache):
         max_size: int = 1000,
         ttl_seconds: int = 86400,  # 24 hours
         compression_enabled: bool = True,
-        memory_cache_size: int = 100
+        memory_cache_size: int = 100,
+        write_behind_batch_size: int = 10,
+        write_behind_flush_interval: float = 5.0
     ):
         config = CacheConfig(
             cache_dir=cache_dir,
@@ -35,7 +45,13 @@ class ExplanationCache(BaseCache):
         self._index_file = self.cache_dir / "index.json"
         self._memory_cache = MemoryCache(self.config.memory_cache_size)
         self._index = self._load_index()
-        self._pending_index_updates = False  # Track if index needs saving
+        
+        # Write-behind batching configuration
+        self.write_behind_batch_size = write_behind_batch_size
+        self.write_behind_flush_interval = write_behind_flush_interval
+        self._pending_writes_queue: deque = deque()
+        self._last_flush_time = time.time()
+        self._write_behind_lock = threading.Lock()
 
     def _load_index(self) -> Dict[str, Dict[str, Any]]:
         """Load the cache index."""
@@ -47,18 +63,57 @@ class ExplanationCache(BaseCache):
                 pass
         return {}
 
+    def _should_flush_writes(self) -> bool:
+        """Check if pending writes should be flushed.
+        
+        Returns True if:
+        - Batch size threshold reached, OR
+        - Time interval elapsed since last flush
+        """
+        now = time.time()
+        time_elapsed = now - self._last_flush_time
+        
+        return (len(self._pending_writes_queue) >= self.write_behind_batch_size or
+                time_elapsed >= self.write_behind_flush_interval)
+
+    def _queue_index_write(self, cache_key: str, operation: str = "update") -> None:
+        """Queue an index write operation for batched flushing.
+        
+        Args:
+            cache_key: Key of cache entry being modified
+            operation: Type of operation (update, delete, cleanup)
+        """
+        with self._write_behind_lock:
+            self._pending_writes_queue.append({
+                "key": cache_key,
+                "operation": operation,
+                "timestamp": time.time()
+            })
+            
+            # Check if we should flush now
+            if self._should_flush_writes():
+                self._flush_pending_writes_unsafe()
+
+    def _flush_pending_writes_unsafe(self) -> None:
+        """Internal flush without lock (must be called with _write_behind_lock held)."""
+        if not self._pending_writes_queue:
+            return
+        
+        # Save index once for all pending writes
+        self._save_index(force=True)
+        
+        # Clear pending writes queue
+        self._pending_writes_queue.clear()
+        self._last_flush_time = time.time()
+
     def _save_index(self, force: bool = False) -> None:
         """Save the cache index.
         
         Args:
-            force: Force immediate save, otherwise batch updates
+            force: Force immediate save, even if no pending writes queued
         """
-        if not force and not self._pending_index_updates:
-            return
-        
         data = json.dumps(self._index, indent=2)
         safe_file_operation("save", self._index_file, "w", data)
-        self._pending_index_updates = False
 
     def get(self, code: str, strategy: str, model_name: str) -> Optional[str]:
         """Get a cached explanation if available."""
@@ -88,16 +143,16 @@ class ExplanationCache(BaseCache):
             if compressed_data is None:
                 # Remove stale index entry
                 del self._index[cache_key]
-                self._pending_index_updates = True
+                self._queue_index_write(cache_key, "delete")
                 return None
 
             try:
                 explanation = decompress_data(compressed_data)
 
-                # Update access metadata - batch these updates
+                # Update access metadata - queue for batched save
                 entry["access_count"] = entry.get("access_count", 0) + 1
                 entry["last_access"] = time.time()
-                self._pending_index_updates = True
+                self._queue_index_write(cache_key, "update")
 
                 # Add to memory cache
                 self._memory_cache.put(cache_key, {
@@ -142,16 +197,17 @@ class ExplanationCache(BaseCache):
                 # Cleanup if cache is too large
                 self._cleanup_if_needed()
                 
-                # Batch save index after all operations
-                self._save_index(force=True)
+                # Queue index write for batched flushing
+                self._queue_index_write(cache_key, "update")
 
             except Exception:
                 pass  # Silent failure for caching
 
     def flush(self) -> None:
-        """Flush pending index updates to disk."""
+        """Flush all pending index updates to disk."""
         with self._lock:
-            self._save_index(force=True)
+            with self._write_behind_lock:
+                self._flush_pending_writes_unsafe()
 
     def _remove_entry(self, cache_key: str) -> None:
         """Remove a cache entry."""
@@ -193,9 +249,9 @@ class ExplanationCache(BaseCache):
             except Exception:
                 pass
             self._index.pop(key, None)
+            self._queue_index_write(key, "cleanup")
         
-        # Single index save at the end instead of multiple saves
-        self._save_index()
+        # Index save happens via write-behind queue
 
     def clear(self) -> None:
         """Clear all cached explanations."""
