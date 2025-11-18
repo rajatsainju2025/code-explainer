@@ -12,7 +12,7 @@ from transformers import (
     PreTrainedTokenizerBase,
 )
 
-from ..model_loader import ModelLoader
+from ..model_loader import ModelLoader, ModelResources
 from ..multi_agent import MultiAgentOrchestrator
 from ..symbolic import SymbolicAnalyzer
 from ..cache import ExplanationCache
@@ -104,8 +104,13 @@ class CodeExplainer(
         )
         self.logger = self._setup_logging()
 
-        # Initialize model resources
-        self._resources = self._initialize_model_resources(resolved_model_path)
+        # Store model path for lazy loading
+        self._model_path = resolved_model_path
+        
+        # Defer model loading until first access (lazy loading)
+        # This significantly improves startup time
+        self._resources: Optional["ModelResources"] = None
+        self.model_loader: Optional[ModelLoader] = None
 
         # Initialize additional components
         self._initialize_components()

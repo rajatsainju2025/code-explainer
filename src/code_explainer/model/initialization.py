@@ -89,10 +89,10 @@ class CodeExplainerInitializationMixin:
         """
         try:
             if model_path is None:
-                self.logger.warning("No model path provided, model resources will not be initialized")
+                self.logger.debug("No model path provided, deferring model loading until first access")
                 return None
 
-            self.logger.info(f"Initializing model resources from: {model_path}")
+            self.logger.debug(f"Loading model resources from: {model_path}")
 
             # Initialize model loader
             self.model_loader = ModelLoader(self.config.model)
@@ -100,7 +100,7 @@ class CodeExplainerInitializationMixin:
             # Load model resources
             resources = self.model_loader.load(model_path)
 
-            self.logger.info("Model resources initialized successfully")
+            self.logger.debug("Model resources initialized successfully")
             return resources
 
         except Exception as e:
