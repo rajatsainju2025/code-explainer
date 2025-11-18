@@ -3,11 +3,14 @@ Device Management and Auto-Detection Utilities
 
 This module provides unified device detection, capability assessment, and
 configuration management for PyTorch models across CPU, CUDA, and MPS devices.
+Includes persistent caching of device capabilities to avoid repeated probes.
 """
 
 import os
+import json
 import warnings
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
+from pathlib import Path
 from typing import Optional, Union, Dict, Any
 import torch
 import logging
@@ -29,10 +32,73 @@ class DeviceCapabilities:
 
 
 class DeviceManager:
-    """Centralized device detection and management."""
+    """Centralized device detection and management.
+    
+    Caches device capabilities to ~/.cache/code-explainer/device_cache.json
+    to avoid repeated CUDA/MPS probes in subsequent runs.
+    """
+
+    CACHE_DIR = Path.home() / ".cache" / "code-explainer"
+    CACHE_FILE = CACHE_DIR / "device_cache.json"
 
     def __init__(self):
         self._cached_capabilities: Dict[str, DeviceCapabilities] = {}
+        self._load_cached_capabilities()
+
+    def _load_cached_capabilities(self) -> None:
+        """Load cached device capabilities from disk if available."""
+        if not self.CACHE_FILE.exists():
+            return
+        
+        try:
+            with open(self.CACHE_FILE, 'r') as f:
+                cache_data = json.load(f)
+            
+            for device_type, data in cache_data.items():
+                try:
+                    # Reconstruct DeviceCapabilities from cached data
+                    device = torch.device(data['device_type'])
+                    cap = DeviceCapabilities(
+                        device_type=data['device_type'],
+                        device=device,
+                        supports_8bit=data.get('supports_8bit', False),
+                        supports_fp16=data.get('supports_fp16', False),
+                        supports_bf16=data.get('supports_bf16', False),
+                        memory_gb=data.get('memory_gb'),
+                        compute_capability=data.get('compute_capability'),
+                        device_name=data.get('device_name')
+                    )
+                    self._cached_capabilities[device_type] = cap
+                    logger.debug(f"Loaded cached {device_type} capabilities from disk")
+                except Exception as e:
+                    logger.warning(f"Failed to load cached {device_type} capabilities: {e}")
+        except Exception as e:
+            logger.warning(f"Failed to load device cache file: {e}")
+
+    def _save_cached_capabilities(self) -> None:
+        """Save device capabilities to disk cache."""
+        try:
+            self.CACHE_DIR.mkdir(parents=True, exist_ok=True)
+            
+            cache_data = {}
+            for device_type, cap in self._cached_capabilities.items():
+                # Convert to serializable format (avoid torch.device serialization)
+                cache_data[device_type] = {
+                    'device_type': cap.device_type,
+                    'supports_8bit': cap.supports_8bit,
+                    'supports_fp16': cap.supports_fp16,
+                    'supports_bf16': cap.supports_bf16,
+                    'memory_gb': cap.memory_gb,
+                    'compute_capability': cap.compute_capability,
+                    'device_name': cap.device_name
+                }
+            
+            with open(self.CACHE_FILE, 'w') as f:
+                json.dump(cache_data, f)
+            
+            logger.debug(f"Saved device capabilities cache to {self.CACHE_FILE}")
+        except Exception as e:
+            logger.warning(f"Failed to save device cache file: {e}")
 
     def get_optimal_device(self, prefer_device: Optional[str] = None) -> DeviceCapabilities:
         """Get optimal device with fallback strategy."""
@@ -65,7 +131,7 @@ class DeviceManager:
         raise RuntimeError("No compatible device found")
 
     def _get_device_capabilities(self, device_type: str) -> Optional[DeviceCapabilities]:
-        """Get capabilities for a specific device type with caching."""
+        """Get capabilities for a specific device type with persistent caching."""
         # Return cached result if available (O(1) lookup)
         cached = self._cached_capabilities.get(device_type)
         if cached is not None:
@@ -86,6 +152,8 @@ class DeviceManager:
 
         if capabilities:
             self._cached_capabilities[device_type] = capabilities
+            # Save to persistent cache for future runs
+            self._save_cached_capabilities()
 
         return capabilities
 
