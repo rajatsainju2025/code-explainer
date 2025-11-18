@@ -402,3 +402,11 @@ async def prometheus_metrics_endpoint(
             status_code=500,
             detail=f"Failed to export metrics: {str(e)}"
         )
+
+def _get_retrieval_cache_stats() -> Dict[str, Any]:
+    """Get retrieval cache statistics for monitoring."""
+    try:
+        from .model_cache import get_model_cache_info
+        return get_model_cache_info()
+    except Exception:
+        return {"error": "cache_stats_unavailable"}
