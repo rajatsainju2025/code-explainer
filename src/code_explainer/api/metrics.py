@@ -2,13 +2,13 @@
 
 import time
 import threading
-from collections import defaultdict
+from collections import defaultdict, deque
 from dataclasses import dataclass, field
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Deque
 from datetime import datetime, timedelta
 
 
-@dataclass
+@dataclass(slots=True)
 class RequestMetrics:
     """Metrics for a single request."""
     
@@ -24,11 +24,18 @@ class RequestMetrics:
         """Get request duration in seconds."""
         if self.end_time > 0:
             return self.end_time - self.start_time
-        return time.time() - self.start_time
+        return time.perf_counter() - self.start_time
 
 
 class MetricsCollector:
     """Thread-safe metrics collector for API requests."""
+    
+    __slots__ = (
+        '_lock', '_requests', '_max_history', '_total_requests',
+        '_endpoint_counts', '_error_counts', '_response_times',
+        '_model_inference_times', '_cache_hits', '_cache_misses',
+        '_response_time_sum', '_response_time_count'
+    )
     
     def __init__(self, max_history: int = 10000):
         """Initialize metrics collector.
@@ -37,17 +44,21 @@ class MetricsCollector:
             max_history: Maximum number of requests to keep in history
         """
         self._lock = threading.RLock()
-        self._requests: List[RequestMetrics] = []
+        self._requests: Deque[RequestMetrics] = deque(maxlen=max_history)
         self._max_history = max_history
         
         # Aggregated metrics
         self._total_requests = 0
         self._endpoint_counts: Dict[str, int] = defaultdict(int)
         self._error_counts: Dict[str, int] = defaultdict(int)
-        self._response_times: Dict[str, List[float]] = defaultdict(list)
+        self._response_times: Dict[str, Deque[float]] = defaultdict(lambda: deque(maxlen=1000))
+        
+        # Running average (more efficient than storing all times)
+        self._response_time_sum = 0.0
+        self._response_time_count = 0
         
         # Model-specific metrics
-        self._model_inference_times: List[float] = []
+        self._model_inference_times: Deque[float] = deque(maxlen=1000)
         self._cache_hits = 0
         self._cache_misses = 0
     
@@ -64,7 +75,7 @@ class MetricsCollector:
         metrics = RequestMetrics(
             request_id=request_id,
             endpoint=endpoint,
-            start_time=time.time()
+            start_time=time.perf_counter()
         )
         
         with self._lock:
@@ -86,29 +97,25 @@ class MetricsCollector:
             status_code: HTTP status code
             error: Error message if request failed
         """
-        metrics.end_time = time.time()
+        metrics.end_time = time.perf_counter()
         metrics.status_code = status_code
         metrics.error = error
+        duration = metrics.duration
         
         with self._lock:
-            # Add to history
+            # Add to history (deque handles maxlen automatically)
             self._requests.append(metrics)
             
-            # Trim history if needed
-            if len(self._requests) > self._max_history:
-                self._requests = self._requests[-self._max_history:]
+            # Update running average
+            self._response_time_sum += duration
+            self._response_time_count += 1
             
-            # Update aggregated metrics
-            self._response_times[metrics.endpoint].append(metrics.duration)
-            
-            # Keep only recent response times
-            if len(self._response_times[metrics.endpoint]) > 1000:
-                self._response_times[metrics.endpoint] = \
-                    self._response_times[metrics.endpoint][-1000:]
+            # Update per-endpoint metrics
+            self._response_times[metrics.endpoint].append(duration)
             
             # Track errors
             if status_code >= 400:
-                self._error_counts[f"{status_code}"] += 1
+                self._error_counts[str(status_code)] += 1
     
     def record_model_inference(self, duration: float) -> None:
         """Record model inference time.
@@ -118,10 +125,6 @@ class MetricsCollector:
         """
         with self._lock:
             self._model_inference_times.append(duration)
-            
-            # Keep only recent inference times
-            if len(self._model_inference_times) > 1000:
-                self._model_inference_times = self._model_inference_times[-1000:]
     
     def record_cache_hit(self) -> None:
         """Record a cache hit."""
@@ -140,12 +143,11 @@ class MetricsCollector:
             Dictionary of metrics
         """
         with self._lock:
-            # Calculate average response time
-            all_times = []
-            for times in self._response_times.values():
-                all_times.extend(times)
-            
-            avg_response_time = sum(all_times) / len(all_times) if all_times else 0.0
+            # Use running average (O(1) instead of O(n))
+            avg_response_time = (
+                self._response_time_sum / self._response_time_count 
+                if self._response_time_count > 0 else 0.0
+            )
             
             # Calculate cache hit rate
             total_cache_requests = self._cache_hits + self._cache_misses
