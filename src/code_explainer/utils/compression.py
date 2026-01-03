@@ -14,6 +14,8 @@ from typing import Any, Dict, Optional, Tuple
 class CompressionStrategy:
     """Base class for compression strategies."""
     
+    __slots__ = ()
+    
     def compress(self, data: bytes) -> bytes:
         """Compress data."""
         raise NotImplementedError
@@ -24,12 +26,16 @@ class CompressionStrategy:
     
     def get_compression_ratio(self, data: bytes) -> float:
         """Get compression ratio."""
+        if not data:
+            return 1.0
         compressed = self.compress(data)
-        return len(compressed) / len(data) if data else 1.0
+        return len(compressed) / len(data)
 
 
 class DeflateCompression(CompressionStrategy):
     """DEFLATE compression (RFC 1951)."""
+    
+    __slots__ = ('level',)
     
     def __init__(self, level: int = 6):
         """Initialize deflate compression.
@@ -50,6 +56,8 @@ class DeflateCompression(CompressionStrategy):
 
 class GZipCompression(CompressionStrategy):
     """GZip compression."""
+    
+    __slots__ = ('level',)
     
     def __init__(self, level: int = 6):
         """Initialize gzip compression.
@@ -73,6 +81,8 @@ class GZipCompression(CompressionStrategy):
 
 class NoCompression(CompressionStrategy):
     """No compression (passthrough)."""
+    
+    __slots__ = ()
     
     def compress(self, data: bytes) -> bytes:
         """Return data unchanged."""
