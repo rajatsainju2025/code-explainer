@@ -3,7 +3,8 @@
 import json
 import time
 import threading
-from typing import Any, Dict, Optional
+import heapq
+from typing import Any, Dict, Optional, List, Tuple
 from collections import deque
 
 from .base_cache import BaseCache, MemoryCache
@@ -50,8 +51,12 @@ class ExplanationCache(BaseCache):
         self.write_behind_batch_size = write_behind_batch_size
         self.write_behind_flush_interval = write_behind_flush_interval
         self._pending_writes_queue: deque = deque()
-        self._last_flush_time = time.time()
+        self._last_flush_time = time.monotonic()  # Use monotonic for intervals
         self._write_behind_lock = threading.Lock()
+        
+        # Cache hit/miss tracking
+        self._hits = 0
+        self._misses = 0
 
     def _load_index(self) -> Dict[str, Dict[str, Any]]:
         """Load the cache index."""
@@ -70,11 +75,12 @@ class ExplanationCache(BaseCache):
         - Batch size threshold reached, OR
         - Time interval elapsed since last flush
         """
-        now = time.time()
-        time_elapsed = now - self._last_flush_time
+        queue_len = len(self._pending_writes_queue)
+        if queue_len >= self.write_behind_batch_size:
+            return True
         
-        return (len(self._pending_writes_queue) >= self.write_behind_batch_size or
-                time_elapsed >= self.write_behind_flush_interval)
+        time_elapsed = time.monotonic() - self._last_flush_time
+        return time_elapsed >= self.write_behind_flush_interval
 
     def _queue_index_write(self, cache_key: str, operation: str = "update") -> None:
         """Queue an index write operation for batched flushing.
@@ -87,7 +93,6 @@ class ExplanationCache(BaseCache):
             self._pending_writes_queue.append({
                 "key": cache_key,
                 "operation": operation,
-                "timestamp": time.time()
             })
             
             # Check if we should flush now
@@ -104,7 +109,7 @@ class ExplanationCache(BaseCache):
         
         # Clear pending writes queue
         self._pending_writes_queue.clear()
-        self._last_flush_time = time.time()
+        self._last_flush_time = time.monotonic()
 
     def _save_index(self, force: bool = False) -> None:
         """Save the cache index.
@@ -112,7 +117,8 @@ class ExplanationCache(BaseCache):
         Args:
             force: Force immediate save, even if no pending writes queued
         """
-        data = json.dumps(self._index, indent=2)
+        # Use compact JSON for smaller file size
+        data = json.dumps(self._index, separators=(',', ':'))
         safe_file_operation("save", self._index_file, "w", data)
 
     def get(self, code: str, strategy: str, model_name: str) -> Optional[str]:
@@ -120,22 +126,25 @@ class ExplanationCache(BaseCache):
         cache_key = generate_cache_key(code, strategy, model_name)
 
         with self._lock:
-            # Check memory cache first
+            # Check memory cache first (fastest path)
             memory_result = self._memory_cache.get(cache_key)
             if memory_result is not None:
                 entry = memory_result
                 if not is_expired(entry['timestamp'], self.config.ttl_seconds):
+                    self._hits += 1
                     return entry['data']
                 else:
                     self._memory_cache.put(cache_key, None)  # Mark as expired
 
             # Check disk cache
-            if cache_key not in self._index:
+            entry = self._index.get(cache_key)
+            if entry is None:
+                self._misses += 1
                 return None
 
-            entry = self._index[cache_key]
             if is_expired(entry.get('timestamp', 0), self.config.ttl_seconds):
                 self._remove_entry(cache_key)
+                self._misses += 1
                 return None
 
             cache_file = self.cache_dir / f"{cache_key}.txt"
@@ -144,6 +153,7 @@ class ExplanationCache(BaseCache):
                 # Remove stale index entry
                 del self._index[cache_key]
                 self._queue_index_write(cache_key, "delete")
+                self._misses += 1
                 return None
 
             try:
@@ -160,10 +170,17 @@ class ExplanationCache(BaseCache):
                     'timestamp': entry['timestamp']
                 })
 
+                self._hits += 1
                 return explanation
             except (OSError, ValueError, KeyError):
                 # Handle decompression or data corruption errors
+                self._misses += 1
                 return None
+    
+    def get_hit_rate(self) -> float:
+        """Get cache hit rate for monitoring."""
+        total = self._hits + self._misses
+        return self._hits / total if total > 0 else 0.0
 
     def put(self, code: str, strategy: str, model_name: str, explanation: str) -> None:
         """Cache an explanation."""
@@ -227,20 +244,18 @@ class ExplanationCache(BaseCache):
         if len(self._index) <= self.config.max_size:
             return
 
-        # Optimize: Calculate scores once and use heap for better performance
+        # Use heapq.nsmallest for O(n log k) instead of full sort O(n log n)
         current_time = time.time()
-        entries_with_scores = []
-        
-        for key, entry in self._index.items():
-            score = calculate_cache_score(entry, current_time)
-            entries_with_scores.append((score, key))
-        
-        # Sort only once
-        entries_with_scores.sort()
-
-        # Batch remove entries and update index once at the end
         num_to_remove = len(self._index) - self.config.max_size + 1
-        to_remove = entries_with_scores[:num_to_remove]
+        
+        # Generator expression to avoid creating full list
+        scored_entries = (
+            (calculate_cache_score(entry, current_time), key)
+            for key, entry in self._index.items()
+        )
+        
+        # Get only the entries we need to remove
+        to_remove = heapq.nsmallest(num_to_remove, scored_entries)
         
         for _, key in to_remove:
             cache_file = self.cache_dir / f"{key}.txt"
