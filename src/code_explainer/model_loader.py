@@ -100,17 +100,6 @@ class ModelLoader:
             tokenizer.pad_token = tokenizer.eos_token
         return tokenizer
 
-
-@lru_cache(maxsize=8)
-def _cached_load_tokenizer(path: str) -> PreTrainedTokenizerBase:
-    """Cached tokenizer loader to avoid repeated disk/network fetches.
-
-    Transformers already caches files on disk; this avoids repeated
-    instantiation overhead within the same process.
-    """
-    tok = AutoTokenizer.from_pretrained(path)
-    return tok
-
     def _load_model(
         self, path: str, tokenizer: PreTrainedTokenizerBase
     ) -> PreTrainedModel:
@@ -147,7 +136,7 @@ def _cached_load_tokenizer(path: str) -> PreTrainedTokenizerBase:
                     "load_in_8bit": True,
                     "device_map": self.config.device_map or "auto"
                 })
-                self.logger.debug(f"Loading model resources from: {model_path}")
+                logger.debug(f"Loading model with 8-bit quantization from: {path}")
             else:
                 logger.warning(f"8-bit quantization not supported on {self.device_capabilities.device_type}, using {recommended_dtype}")
         else:
@@ -164,21 +153,14 @@ def _cached_load_tokenizer(path: str) -> PreTrainedTokenizerBase:
             model = AutoModelForCausalLM.from_pretrained(path, **model_kwargs)
             if getattr(model.config, "pad_token_id", None) is None:
                 # Use the tokenizer's pad_token_id if available
-                if hasattr(tokenizer, 'pad_token_id') and tokenizer.pad_token_id is not None:
-                    try:
-                        # Ensure we're assigning an integer
-                        pad_token_id = getattr(tokenizer, 'pad_token_id', None)
-                        if isinstance(pad_token_id, int):
-                            model.config.pad_token_id = pad_token_id
-                    except (AttributeError, TypeError):
-                        logger.warning("Could not set pad_token_id on model config")
+                pad_token_id = getattr(tokenizer, 'pad_token_id', None)
+                if isinstance(pad_token_id, int):
+                    model.config.pad_token_id = pad_token_id
 
         # Move model to device if not using 8-bit quantization
         if not use_8bit or not self.device_capabilities.supports_8bit:
             try:
-                # Move model to the target device
-                device_obj = self.device
-                model = model.to(device_obj)  # type: ignore
+                model = model.to(self.device)
             except Exception as e:
                 logger.warning(f"Could not move model to device {self.device}: {e}")
                 # Try OOM fallback if available
@@ -186,24 +168,19 @@ def _cached_load_tokenizer(path: str) -> PreTrainedTokenizerBase:
                 if fallback_device:
                     self.device_capabilities = fallback_device
                     self.device = fallback_device.device
-                    device_obj = self.device
-                    model = model.to(device_obj)  # type: ignore
+                    model = model.to(self.device)
                 else:
                     raise
 
         model.eval()
         return model
 
-# Lazy tokenizer cache
-_TOKENIZER_CACHE = {}
-_TOKENIZER_CACHE_TTL = 3600  # 1 hour
 
+@lru_cache(maxsize=8)
+def _cached_load_tokenizer(path: str) -> PreTrainedTokenizerBase:
+    """Cached tokenizer loader to avoid repeated disk/network fetches.
 
-def _cached_load_tokenizer_lazy(model_path: str):
-    """Lazy load tokenizer with extended TTL for reuse."""
-    import time
-    cache_key = f"{model_path}_{int(time.time() // _TOKENIZER_CACHE_TTL)}"
-    if cache_key in _TOKENIZER_CACHE:
-        return _TOKENIZER_CACHE[cache_key]
-    # Load new
-    return AutoTokenizer.from_pretrained(model_path)
+    Transformers already caches files on disk; this avoids repeated
+    instantiation overhead within the same process.
+    """
+    return AutoTokenizer.from_pretrained(path)
