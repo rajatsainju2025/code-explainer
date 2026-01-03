@@ -22,9 +22,17 @@ from .model_cache import get_cached_model
 
 logger = logging.getLogger(__name__)
 
-# Query result cache to avoid redundant retrieval computations
+# Pre-computed hash for faster key generation
+_HASH_FACTORY = hashlib.md5
+
+
 class LRUQueryCache:
-    """LRU cache for retrieval results to avoid redundant computations."""
+    """LRU cache for retrieval results to avoid redundant computations.
+    
+    Uses __slots__ to reduce memory overhead per cache instance.
+    """
+    __slots__ = ('cache', 'max_size', 'hits', 'misses', '_lock')
+    
     def __init__(self, max_size: int = 256):
         self.cache: OrderedDict = OrderedDict()
         self.max_size = max_size
@@ -35,19 +43,21 @@ class LRUQueryCache:
     def _make_key(self, query: str, k: int, method: str, alpha: float, 
                   use_reranker: bool, use_mmr: bool) -> str:
         """Create deterministic cache key from query parameters."""
-        key_str = f"{query}|{k}|{method}|{alpha}|{use_reranker}|{use_mmr}"
-        return hashlib.md5(key_str.encode()).hexdigest()
+        # Use tuple for faster string concatenation
+        key_parts = (query, str(k), method, f"{alpha:.2f}", str(use_reranker), str(use_mmr))
+        return _HASH_FACTORY("|".join(key_parts).encode()).hexdigest()
     
     def get(self, query: str, k: int, method: str, alpha: float,
             use_reranker: bool = False, use_mmr: bool = False) -> Optional[Any]:
         """Get cached result if available."""
         key = self._make_key(query, k, method, alpha, use_reranker, use_mmr)
         with self._lock:
-            if key in self.cache:
+            value = self.cache.get(key)
+            if value is not None:
                 # Move to end (LRU)
                 self.cache.move_to_end(key)
                 self.hits += 1
-                return self.cache[key]
+                return value
             self.misses += 1
         return None
     
@@ -56,9 +66,11 @@ class LRUQueryCache:
         """Cache a result."""
         key = self._make_key(query, k, method, alpha, use_reranker, use_mmr)
         with self._lock:
+            # Update existing or add new
             self.cache[key] = value
             self.cache.move_to_end(key)
-            if len(self.cache) > self.max_size:
+            # Evict if over capacity
+            while len(self.cache) > self.max_size:
                 self.cache.popitem(last=False)
     
     def clear(self) -> None:
@@ -72,7 +84,16 @@ class LRUQueryCache:
         """Get cache hit rate."""
         total = self.hits + self.misses
         return self.hits / total if total > 0 else 0.0
-
+    
+    def get_stats(self) -> Dict[str, Any]:
+        """Get detailed cache statistics."""
+        return {
+            "size": len(self.cache),
+            "max_size": self.max_size,
+            "hits": self.hits,
+            "misses": self.misses,
+            "hit_rate": self.get_hit_rate()
+        }
 
 
 class CodeRetriever:
