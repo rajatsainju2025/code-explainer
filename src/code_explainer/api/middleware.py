@@ -12,45 +12,61 @@ from starlette.middleware.gzip import GZipMiddleware
 
 logger = logging.getLogger(__name__)
 
+# Pre-create UUID factory for faster request ID generation
+_UUID4 = uuid.uuid4
+
+# Pre-compile common response headers
+_HEADER_REQUEST_ID = "X-Request-ID"
+_HEADER_RESPONSE_TIME = "X-Response-Time"
+_HEADER_SERVER_TIMING = "Server-Timing"
+
 
 class RequestIDMiddleware(BaseHTTPMiddleware):
     """Middleware to add unique request ID to each request."""
 
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         # Try to get request ID from headers, otherwise generate new one
-        request_id = request.headers.get('X-Request-ID', str(uuid.uuid4()))
+        request_id = request.headers.get(_HEADER_REQUEST_ID) or str(_UUID4())
         request.state.request_id = request_id
 
         response = await call_next(request)
-        response.headers["X-Request-ID"] = request_id
+        response.headers[_HEADER_REQUEST_ID] = request_id
         return response
 
 
 class LoggingMiddleware(BaseHTTPMiddleware):
     """Enhanced middleware for structured request/response logging with timing."""
+    
+    # Skip logging for these paths to reduce noise
+    _SKIP_PATHS = frozenset({'/health', '/metrics', '/favicon.ico'})
 
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
+        # Skip logging for health checks and metrics (high frequency, low value)
+        path = request.url.path
+        if path in self._SKIP_PATHS:
+            return await call_next(request)
+        
         request_id = getattr(request.state, 'request_id', 'unknown')
-        start_time = time.time()
+        start_time = time.perf_counter()  # More precise than time.time()
         
         # Log incoming request
         client_host = request.client.host if request.client else 'unknown'
-        logger.info("[%s] %s %s from %s", request_id, request.method, request.url.path, client_host)
+        logger.info("[%s] %s %s from %s", request_id, request.method, path, client_host)
 
         try:
             response = await call_next(request)
-            duration = time.time() - start_time
+            duration = time.perf_counter() - start_time
             
             # Log response with timing
             logger.info("[%s] %s completed in %.4fs", request_id, response.status_code, duration)
             
             # Add timing headers
-            response.headers['X-Response-Time'] = f"{duration:.4f}"
-            response.headers['Server-Timing'] = f"app;dur={duration*1000:.1f}"
+            response.headers[_HEADER_RESPONSE_TIME] = f"{duration:.4f}"
+            response.headers[_HEADER_SERVER_TIMING] = f"app;dur={duration*1000:.1f}"
             
             return response
         except Exception as e:
-            duration = time.time() - start_time
+            duration = time.perf_counter() - start_time
             logger.error("[%s] Request failed after %.4fs: %s", request_id, duration, str(e), exc_info=True)
             raise
 
