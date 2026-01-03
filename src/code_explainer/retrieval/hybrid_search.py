@@ -12,6 +12,9 @@ from .faiss_index import FAISSIndex
 
 logger = logging.getLogger(__name__)
 
+# Pre-compile regex for query tokenization
+_WORD_PATTERN = re.compile(r'\b\w+\b')
+
 
 class FusionStrategy(Enum):
     """Strategies for fusing multiple retrieval scores."""
@@ -22,6 +25,8 @@ class FusionStrategy(Enum):
 
 class QueryExpansion:
     """Query expansion utilities."""
+    
+    __slots__ = ()  # No instance attributes needed
 
     @staticmethod
     def expand_with_synonyms(query: str, synonyms: Optional[Dict[str, List[str]]] = None) -> List[str]:
@@ -30,12 +35,14 @@ class QueryExpansion:
             return [query]
 
         expanded_queries = [query]
-        words = re.findall(r'\b\w+\b', query.lower())
+        query_lower = query.lower()
+        words = _WORD_PATTERN.findall(query_lower)
 
         for word in words:
-            if word in synonyms:
-                for synonym in synonyms[word][:2]:  # Limit to 2 synonyms per word
-                    expanded = query.lower().replace(word, synonym)
+            word_synonyms = synonyms.get(word)
+            if word_synonyms:
+                for synonym in word_synonyms[:2]:  # Limit to 2 synonyms per word
+                    expanded = query_lower.replace(word, synonym)
                     if expanded not in expanded_queries:
                         expanded_queries.append(expanded)
 
@@ -59,6 +66,8 @@ class QueryExpansion:
 
 class AdvancedHybridSearch:
     """Advanced hybrid search with multiple fusion strategies and query expansion."""
+    
+    __slots__ = ('faiss_index', 'bm25_index', 'fusion_strategy', 'alpha', 'rrf_k', 'query_expander')
 
     def __init__(self,
                  faiss_index: Optional[FAISSIndex] = None,
@@ -81,9 +90,14 @@ class AdvancedHybridSearch:
         """Perform advanced hybrid search with optional query expansion."""
         if expand_query:
             queries = self.query_expander.expand_with_synonyms(query, synonyms)
-            logger.info(f"Expanded query '{query}' to {len(queries)} variations")
+            if len(queries) > 1:
+                logger.debug(f"Expanded query '{query}' to {len(queries)} variations")
         else:
             queries = [query]
+
+        # Fast path for single query
+        if len(queries) == 1:
+            return self._search_single_query(queries[0], k)
 
         all_results = []
         for q in queries:
