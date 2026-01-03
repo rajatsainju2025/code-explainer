@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
 
-@dataclass
+@dataclass(slots=True)
 class RetrievalCandidate:
     """A candidate result from retrieval."""
     content: str
@@ -16,9 +16,9 @@ class RetrievalCandidate:
     metadata: Dict[str, Any] = field(default_factory=dict)
 
 
-@dataclass
+@dataclass(slots=True, frozen=True)
 class RetrievalConfig:
-    """Configuration for retrieval behavior."""
+    """Configuration for retrieval behavior (immutable)."""
     model_name: str = "sentence-transformers/all-MiniLM-L6-v2"
     batch_size: int = 32
     faiss_index_type: str = "IndexFlatL2"
@@ -29,20 +29,29 @@ class RetrievalConfig:
     mmr_lambda: float = 0.5
 
 
-@dataclass
+# Pre-create default method usage dict to avoid repeated lambda calls
+_DEFAULT_METHOD_USAGE = {"faiss": 0, "bm25": 0, "hybrid": 0}
+
+
+@dataclass(slots=True)
 class RetrievalStats:
     """Statistics for retrieval operations."""
     total_queries: int = 0
-    method_usage: Dict[str, int] = field(default_factory=lambda: {"faiss": 0, "bm25": 0, "hybrid": 0})
+    method_usage: Dict[str, int] = field(default_factory=lambda: dict(_DEFAULT_METHOD_USAGE))
     avg_response_time: float = 0.0
     total_response_time: float = 0.0
     rerank_usage: int = 0
     mmr_usage: int = 0
-    cache_hits: int = 0  # Number of query cache hits
-    cache_misses: int = 0  # Number of query cache misses
+    cache_hits: int = 0
+    cache_misses: int = 0
+    
+    def get_cache_hit_rate(self) -> float:
+        """Calculate cache hit rate."""
+        total = self.cache_hits + self.cache_misses
+        return self.cache_hits / total if total > 0 else 0.0
 
 
-@dataclass
+@dataclass(slots=True)
 class SearchResult:
     """Result of a search operation."""
     query: str
