@@ -195,6 +195,13 @@ class MemoryCache:
 
 class AdvancedMemoryCache(AsyncCacheMixin):
     """Enhanced memory cache with advanced eviction policies and async support."""
+    
+    # Use __slots__ to reduce memory overhead per cache instance
+    __slots__ = (
+        '_max_size', '_eviction_policy', '_entries', '_access_order',
+        '_frequency', '_ttl_heap', '_size_heap', '_current_memory_size',
+        '_max_memory_size', '_lock', '_hits', '_misses'
+    )
 
     def __init__(self, max_size: int = 100, eviction_policy: EvictionPolicy = EvictionPolicy.LRU):
         self._max_size = max_size
@@ -207,17 +214,21 @@ class AdvancedMemoryCache(AsyncCacheMixin):
         self._current_memory_size = 0
         self._max_memory_size = max_size * 1024 * 1024  # Assume average entry size
         self._lock = threading.RLock()
+        self._hits = 0
+        self._misses = 0
 
     def get(self, key: str) -> Optional[Any]:
         """Get item from memory cache with advanced eviction tracking."""
         with self._lock:
-            if key in self._entries:
-                entry = self._entries[key]
+            entry = self._entries.get(key)
+            if entry is not None:
                 if entry.is_expired():
                     self._remove_entry(key)
+                    self._misses += 1
                     return None
 
                 entry.access()
+                self._hits += 1
 
                 # Update access order based on policy
                 if self._eviction_policy == EvictionPolicy.LRU:
@@ -226,7 +237,13 @@ class AdvancedMemoryCache(AsyncCacheMixin):
                     self._frequency[key] = self._frequency.get(key, 0) + 1
 
                 return entry.value
+            self._misses += 1
         return None
+    
+    def get_hit_rate(self) -> float:
+        """Get cache hit rate for monitoring."""
+        total = self._hits + self._misses
+        return self._hits / total if total > 0 else 0.0
 
     def put(self, key: str, value: Any, ttl: Optional[float] = None) -> None:
         """Put item in memory cache with advanced eviction."""
@@ -257,15 +274,12 @@ class AdvancedMemoryCache(AsyncCacheMixin):
 
     def _remove_entry(self, key: str) -> None:
         """Remove an entry from all data structures."""
-        if key in self._entries:
-            entry = self._entries[key]
+        entry = self._entries.pop(key, None)
+        if entry is not None:
             self._current_memory_size -= entry.size
-            del self._entries[key]
 
-        if key in self._access_order:
-            del self._access_order[key]
-        if key in self._frequency:
-            del self._frequency[key]
+        self._access_order.pop(key, None)
+        self._frequency.pop(key, None)
 
     def _evict_one_entry(self) -> None:
         """Evict one entry based on the current eviction policy."""
@@ -312,6 +326,8 @@ class AdvancedMemoryCache(AsyncCacheMixin):
             self._ttl_heap.clear()
             self._size_heap.clear()
             self._current_memory_size = 0
+            self._hits = 0
+            self._misses = 0
 
     def size(self) -> int:
         """Get cache size."""
@@ -321,13 +337,11 @@ class AdvancedMemoryCache(AsyncCacheMixin):
     def cleanup_expired(self) -> int:
         """Clean up expired entries. Returns number of entries removed."""
         with self._lock:
+            # Build list of expired keys efficiently
             expired_keys = [key for key, entry in self._entries.items() if entry.is_expired()]
-            # Use generator for efficient removal
-            removed_count = 0
-            for key in (key for key, entry in self._entries.items() if entry.is_expired()):
+            for key in expired_keys:
                 self._remove_entry(key)
-                removed_count += 1
-            return removed_count
+            return len(expired_keys)
 
     def set_eviction_policy(self, policy: EvictionPolicy) -> None:
         """Change the eviction policy."""
