@@ -1,12 +1,14 @@
 """Regex compilation optimization utilities."""
 
 import re
-from typing import Dict, Pattern
+from typing import Dict, Pattern, Optional
 from functools import lru_cache
 
 
 class RegexCache:
     """Cache for pre-compiled regex patterns."""
+    
+    __slots__ = ('max_patterns', 'cache', '_hits', '_misses')
     
     def __init__(self, max_patterns: int = 100):
         """Initialize regex cache.
@@ -15,9 +17,11 @@ class RegexCache:
             max_patterns: Maximum number of patterns to cache
         """
         self.max_patterns = max_patterns
-        self.cache: Dict[str, Pattern] = {}
+        self.cache: Dict[str, Pattern[str]] = {}
+        self._hits = 0
+        self._misses = 0
     
-    def compile(self, pattern: str, flags: int = 0) -> Pattern:
+    def compile(self, pattern: str, flags: int = 0) -> Pattern[str]:
         """Get compiled pattern from cache or compile new.
         
         Args:
@@ -29,15 +33,25 @@ class RegexCache:
         """
         cache_key = f"{pattern}:{flags}"
         
-        if cache_key not in self.cache:
-            # Compile new pattern if cache not full
-            if len(self.cache) < self.max_patterns:
-                self.cache[cache_key] = re.compile(pattern, flags)
-            else:
-                # Just compile without caching
-                return re.compile(pattern, flags)
+        compiled = self.cache.get(cache_key)
+        if compiled is not None:
+            self._hits += 1
+            return compiled
         
-        return self.cache[cache_key]
+        self._misses += 1
+        # Compile new pattern
+        compiled = re.compile(pattern, flags)
+        
+        # Only cache if not full
+        if len(self.cache) < self.max_patterns:
+            self.cache[cache_key] = compiled
+        
+        return compiled
+    
+    def get_hit_rate(self) -> float:
+        """Get cache hit rate."""
+        total = self._hits + self._misses
+        return self._hits / total if total > 0 else 0.0
     
     def match(self, pattern: str, text: str, flags: int = 0) -> bool:
         """Check if pattern matches text.
@@ -50,10 +64,9 @@ class RegexCache:
         Returns:
             True if pattern matches
         """
-        compiled = self.compile(pattern, flags)
-        return compiled.match(text) is not None
+        return self.compile(pattern, flags).match(text) is not None
     
-    def search(self, pattern: str, text: str, flags: int = 0):
+    def search(self, pattern: str, text: str, flags: int = 0) -> Optional[re.Match[str]]:
         """Search for pattern in text.
         
         Args:
@@ -64,8 +77,7 @@ class RegexCache:
         Returns:
             Match object or None
         """
-        compiled = self.compile(pattern, flags)
-        return compiled.search(text)
+        return self.compile(pattern, flags).search(text)
     
     def findall(self, pattern: str, text: str, flags: int = 0):
         """Find all matches of pattern in text.
@@ -78,12 +90,13 @@ class RegexCache:
         Returns:
             List of matches
         """
-        compiled = self.compile(pattern, flags)
-        return compiled.findall(text)
+        return self.compile(pattern, flags).findall(text)
     
     def clear(self):
         """Clear the cache."""
         self.cache.clear()
+        self._hits = 0
+        self._misses = 0
 
 
 # Global regex cache instance
