@@ -11,14 +11,19 @@ import json
 import warnings
 from dataclasses import dataclass, asdict
 from pathlib import Path
-from typing import Optional, Union, Dict, Any
+from typing import Optional, Union, Dict, Any, FrozenSet
 import torch
 import logging
 
 logger = logging.getLogger(__name__)
 
+# Pre-compute valid device types and precisions for O(1) lookup
+_VALID_DEVICE_TYPES: FrozenSet[str] = frozenset({'cpu', 'cuda', 'mps', 'auto'})
+_VALID_PRECISIONS: FrozenSet[str] = frozenset({'fp32', 'fp16', 'bf16', '8bit', 'auto'})
+_DEFAULT_DEVICE_ORDER = ('cuda', 'mps', 'cpu')
 
-@dataclass
+
+@dataclass(frozen=False, slots=True)
 class DeviceCapabilities:
     """Comprehensive device capability information."""
     device_type: str  # "cuda", "mps", "cpu"
@@ -80,10 +85,8 @@ class DeviceManager:
         try:
             self.CACHE_DIR.mkdir(parents=True, exist_ok=True)
             
-            cache_data = {}
-            for device_type, cap in self._cached_capabilities.items():
-                # Convert to serializable format (avoid torch.device serialization)
-                cache_data[device_type] = {
+            cache_data = {
+                device_type: {
                     'device_type': cap.device_type,
                     'supports_8bit': cap.supports_8bit,
                     'supports_fp16': cap.supports_fp16,
@@ -92,9 +95,11 @@ class DeviceManager:
                     'compute_capability': cap.compute_capability,
                     'device_name': cap.device_name
                 }
+                for device_type, cap in self._cached_capabilities.items()
+            }
             
             with open(self.CACHE_FILE, 'w') as f:
-                json.dump(cache_data, f)
+                json.dump(cache_data, f, separators=(',', ':'))  # Compact JSON
             
             logger.debug(f"Saved device capabilities cache to {self.CACHE_FILE}")
         except Exception as e:
@@ -104,15 +109,14 @@ class DeviceManager:
         """Get optimal device with fallback strategy."""
         # Check environment variable override
         env_device = os.getenv('CODE_EXPLAINER_DEVICE', '').lower()
-        if env_device in ['cpu', 'cuda', 'mps', 'auto']:
+        if env_device in _VALID_DEVICE_TYPES:
             prefer_device = env_device if env_device != 'auto' else prefer_device
 
-        # Default preference order: cuda > mps > cpu
-        device_order = ['cuda', 'mps', 'cpu']
-        if prefer_device and prefer_device in device_order:
-            # Move preferred device to front
-            device_order.remove(prefer_device)
-            device_order.insert(0, prefer_device)
+        # Build device order with preference
+        if prefer_device and prefer_device in _DEFAULT_DEVICE_ORDER:
+            device_order = (prefer_device,) + tuple(d for d in _DEFAULT_DEVICE_ORDER if d != prefer_device)
+        else:
+            device_order = _DEFAULT_DEVICE_ORDER
 
         for device_type in device_order:
             capabilities = self._get_device_capabilities(device_type)
