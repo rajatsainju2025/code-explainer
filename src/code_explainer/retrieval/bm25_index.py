@@ -2,6 +2,8 @@
 
 from typing import Any, List, Optional
 
+import numpy as np
+
 try:
     from rank_bm25 import BM25Okapi
     HAS_BM25 = True
@@ -39,9 +41,15 @@ class BM25Index:
         tokenized_query = list(tokenizer.tokenize(query))
         scores = self.bm25.get_scores(tokenized_query)
 
-        # Get top k indices
-        import numpy as np
-        top_indices = np.argsort(scores)[::-1][:min(k, len(scores))]
+        # Use argpartition for O(n) selection instead of O(n log n) full sort
+        k_actual = min(k, len(scores))
+        if k_actual == len(scores):
+            top_indices = np.argsort(scores)[::-1]
+        else:
+            # argpartition is faster for selecting top-k elements
+            partition_indices = np.argpartition(scores, -k_actual)[-k_actual:]
+            # Sort only the top-k elements
+            top_indices = partition_indices[np.argsort(scores[partition_indices])[::-1]]
         top_scores = scores[top_indices]
 
         return top_scores, top_indices
