@@ -260,27 +260,30 @@ class InputValidator:
 
 class CodeSecurityValidator:
     """Enhanced code security validator with multiple layers."""
+    
+    # Pre-compiled dangerous patterns for faster matching
+    _DANGEROUS_PATTERNS_COMPILED = None
+    _DANGEROUS_PATTERN_MESSAGES = {
+        'import_os': ("Potentially dangerous system import detected", re.compile(r'import\s+os', re.IGNORECASE)),
+        'import_subprocess': ("Potentially dangerous system import detected", re.compile(r'import\s+subprocess', re.IGNORECASE)),
+        'import_sys': ("Potentially dangerous system import detected", re.compile(r'import\s+sys', re.IGNORECASE)),
+        'os_system': ("Potentially dangerous system call detected", re.compile(r'os\.system', re.IGNORECASE)),
+        'subprocess_call': ("Potentially dangerous subprocess call detected", re.compile(r'subprocess\.', re.IGNORECASE)),
+        'eval': ("Potentially dangerous code execution detected", re.compile(r'eval\s*\(')),
+        'exec': ("Potentially dangerous code execution detected", re.compile(r'exec\s*\(')),
+        'dunder_import': ("Potentially dangerous dynamic import detected", re.compile(r'__import__')),
+        'open_file': ("Potentially dangerous file operation detected", re.compile(r'open\s*\(')),
+        'file_builtin': ("Potentially dangerous file operation detected", re.compile(r'file\s*\(')),
+        'import_requests': ("Potentially dangerous network operation detected", re.compile(r'import\s+requests', re.IGNORECASE)),
+        'import_urllib': ("Potentially dangerous network operation detected", re.compile(r'import\s+urllib', re.IGNORECASE)),
+        'urllib_call': ("Potentially dangerous network operation detected", re.compile(r'urllib\.', re.IGNORECASE)),
+        'requests_call': ("Potentially dangerous network operation detected", re.compile(r'requests\.', re.IGNORECASE)),
+        'socket_call': ("Potentially dangerous network operation detected", re.compile(r'socket\.', re.IGNORECASE)),
+        'import_socket': ("Potentially dangerous network operation detected", re.compile(r'import\s+socket', re.IGNORECASE)),
+    }
 
     def __init__(self, strict_mode: bool = False):
         self.strict_mode = strict_mode
-        self.dangerous_patterns = [
-            r'import\s+os',
-            r'import\s+subprocess',
-            r'import\s+sys',
-            r'os\.system',
-            r'subprocess\.',
-            r'eval\s*\(',
-            r'exec\s*\(',
-            r'__import__',
-            r'open\s*\(',
-            r'file\s*\(',
-            r'import\s+requests',
-            r'import\s+urllib',
-            r'urllib\.',
-            r'requests\.',
-            r'socket\.',
-            r'import\s+socket'
-        ]
         self.content_filter = ContentFilter()
         self.input_validator = InputValidator()
 
@@ -294,19 +297,12 @@ class CodeSecurityValidator:
             all_issues.extend(input_issues)
             return False, all_issues
         
-        # Layer 2: Pattern matching
-        for pattern in self.dangerous_patterns:
-            if re.search(pattern, code):
-                if 'open' in pattern:
-                    all_issues.append("Potentially dangerous file operation detected")
-                elif 'import' in pattern and ('os' in pattern or 'subprocess' in pattern or 'sys' in pattern):
-                    all_issues.append("Potentially dangerous system import detected")
-                elif 'eval' in pattern or 'exec' in pattern:
-                    all_issues.append("Potentially dangerous code execution detected")
-                elif 'requests' in pattern or 'urllib' in pattern or 'socket' in pattern:
-                    all_issues.append("Potentially dangerous network operation detected")
-                else:
-                    all_issues.append(f"Potentially dangerous pattern detected: {pattern}")
+        # Layer 2: Pattern matching with pre-compiled patterns (faster)
+        seen_messages = set()  # Avoid duplicate messages
+        for pattern_name, (message, pattern) in self._DANGEROUS_PATTERN_MESSAGES.items():
+            if pattern.search(code) and message not in seen_messages:
+                all_issues.append(message)
+                seen_messages.add(message)
         
         # Layer 3: AST analysis
         try:
