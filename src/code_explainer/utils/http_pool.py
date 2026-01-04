@@ -18,6 +18,8 @@ logger = logging.getLogger(__name__)
 class ConnectionPool:
     """HTTP connection pool with connection reuse and retry logic."""
     
+    __slots__ = ('pool_connections', 'pool_maxsize', 'max_retries', 'backoff_factor', 'session')
+    
     def __init__(self, pool_connections: int = 10, pool_maxsize: int = 10,
                  max_retries: int = 3, backoff_factor: float = 0.3):
         """Initialize connection pool.
@@ -46,7 +48,7 @@ class ConnectionPool:
             total=self.max_retries,
             backoff_factor=self.backoff_factor,
             status_forcelist=[429, 500, 502, 503, 504],
-            allowed_methods=["POST", "GET", "PUT"]
+            allowed_methods=frozenset(["POST", "GET", "PUT"])  # Use frozenset for immutability
         )
         
         adapter = HTTPAdapter(
