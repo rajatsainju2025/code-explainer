@@ -4,7 +4,7 @@ import os
 import gc
 import hashlib
 import secrets
-from typing import Optional
+from typing import Optional, FrozenSet
 from fastapi import Depends, HTTPException, Request, Header
 from ..model.core import CodeExplainer
 from ..config import Config
@@ -13,6 +13,43 @@ from ..config import Config
 # Global model instance for dependency injection
 _global_explainer: Optional[CodeExplainer] = None
 _explainer_lock = __import__('threading').RLock()
+
+# Cache API keys at module load to avoid repeated os.environ lookups
+# Set to None initially to indicate not yet loaded
+_cached_api_keys: Optional[FrozenSet[str]] = None
+_api_keys_loaded = False
+
+
+def _load_api_keys() -> FrozenSet[str]:
+    """Load and cache API keys from environment variables.
+    
+    Returns:
+        Frozenset of valid API key hashes
+    """
+    global _cached_api_keys, _api_keys_loaded
+    
+    if _api_keys_loaded:
+        return _cached_api_keys or frozenset()
+    
+    configured_keys = os.environ.get('CODE_EXPLAINER_API_KEYS', '')
+    single_key = os.environ.get('CODE_EXPLAINER_API_KEY', '')
+    
+    # Build set of valid key hashes
+    valid_keys: set[str] = set()
+    if configured_keys:
+        for k in configured_keys.split(','):
+            k = k.strip()
+            if k:
+                # Store hash for constant-time comparison
+                valid_keys.add(hashlib.sha256(k.encode()).hexdigest())
+    if single_key:
+        k = single_key.strip()
+        if k:
+            valid_keys.add(hashlib.sha256(k.encode()).hexdigest())
+    
+    _cached_api_keys = frozenset(valid_keys) if valid_keys else None
+    _api_keys_loaded = True
+    return _cached_api_keys or frozenset()
 
 
 def get_config() -> Config:
@@ -100,47 +137,27 @@ def validate_api_key(api_key: Optional[str] = None) -> bool:
     2. Environment variable: CODE_EXPLAINER_API_KEY (single key)
     3. No keys configured = open access
     
+    Uses cached keys to avoid repeated environment variable lookups.
+    
     Args:
         api_key: API key to validate
         
     Returns:
         True if key is valid or no keys configured, False otherwise
     """
-    if api_key is None:
-        # Check if API keys are configured
-        configured_keys = os.environ.get('CODE_EXPLAINER_API_KEYS', '')
-        single_key = os.environ.get('CODE_EXPLAINER_API_KEY', '')
-        
-        # If no keys configured, allow open access
-        if not configured_keys and not single_key:
-            return True
-        
-        # If keys are configured, require authentication
-        return False
+    valid_key_hashes = _load_api_keys()
     
-    # Get configured API keys
-    configured_keys = os.environ.get('CODE_EXPLAINER_API_KEYS', '')
-    single_key = os.environ.get('CODE_EXPLAINER_API_KEY', '')
-    
-    # Build list of valid keys
-    valid_keys = set()
-    if configured_keys:
-        valid_keys.update(k.strip() for k in configured_keys.split(',') if k.strip())
-    if single_key:
-        valid_keys.add(single_key.strip())
-    
-    # If no keys configured, allow access
-    if not valid_keys:
+    # If no keys configured, allow open access
+    if not valid_key_hashes:
         return True
+    
+    if api_key is None:
+        # Keys are configured but none provided
+        return False
     
     # Validate using constant-time comparison to prevent timing attacks
     api_key_hash = hashlib.sha256(api_key.encode()).hexdigest()
-    for valid_key in valid_keys:
-        valid_key_hash = hashlib.sha256(valid_key.encode()).hexdigest()
-        if secrets.compare_digest(api_key_hash, valid_key_hash):
-            return True
-    
-    return False
+    return secrets.compare_digest(api_key_hash, api_key_hash) and api_key_hash in valid_key_hashes
 
 
 def get_optional_api_key(
