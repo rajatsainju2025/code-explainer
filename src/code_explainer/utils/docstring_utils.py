@@ -121,6 +121,12 @@ DOCSTRING STANDARDIZATION GUIDELINES
    - Show both normal and edge cases
 """
 
+# Pre-compile validation markers for O(1) lookup
+_ARGS_MARKER = "args:"
+_RETURNS_MARKER = "returns:"
+_EXAMPLE_MARKER = "example"
+
+
 def validate_docstring(docstring: str) -> dict:
     """Validate docstring completeness.
     
@@ -130,27 +136,26 @@ def validate_docstring(docstring: str) -> dict:
     Returns:
         Dictionary with validation results
     """
-    results = {
-        "has_summary": False,
-        "has_description": False,
-        "has_args": False,
-        "has_returns": False,
-        "has_examples": False,
-        "issues": []
-    }
-    
-    lines = docstring.split('\n')
-    
-    # Check for summary
-    if len(lines) > 0 and lines[0].strip():
-        results["has_summary"] = True
-    else:
-        results["issues"].append("Missing summary line")
-    
-    # Check for sections
+    # Pre-compute lowercase once
     full_text = docstring.lower()
-    results["has_args"] = "args:" in full_text
-    results["has_returns"] = "returns:" in full_text
-    results["has_examples"] = "example" in full_text
     
-    return results
+    # Check sections using pre-computed lowercase
+    has_args = _ARGS_MARKER in full_text
+    has_returns = _RETURNS_MARKER in full_text
+    has_examples = _EXAMPLE_MARKER in full_text
+    
+    # Check for summary (first non-empty line)
+    first_line = docstring.split('\n', 1)[0] if docstring else ""
+    has_summary = bool(first_line.strip())
+    
+    # Build issues list only if needed
+    issues = [] if has_summary else ["Missing summary line"]
+    
+    return {
+        "has_summary": has_summary,
+        "has_description": False,
+        "has_args": has_args,
+        "has_returns": has_returns,
+        "has_examples": has_examples,
+        "issues": issues
+    }
