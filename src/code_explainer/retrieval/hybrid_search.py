@@ -91,7 +91,7 @@ class AdvancedHybridSearch:
         if expand_query:
             queries = self.query_expander.expand_with_synonyms(query, synonyms)
             if len(queries) > 1:
-                logger.debug(f"Expanded query '{query}' to {len(queries)} variations")
+                logger.debug("Expanded query '%s' to %d variations", query, len(queries))
         else:
             queries = [query]
 
@@ -138,7 +138,7 @@ class AdvancedHybridSearch:
                 results.append((int(i), similarity))
             return results
         except Exception as e:
-            logger.warning(f"FAISS search failed: {e}")
+            logger.warning("FAISS search failed: %s", e)
             return []
 
     def _bm25_search(self, query: str, k: int) -> List[Tuple[int, float]]:
@@ -150,7 +150,7 @@ class AdvancedHybridSearch:
             scores, indices = self.bm25_index.search(query, k)
             return [(int(i), float(s)) for s, i in zip(scores, indices)]
         except Exception as e:
-            logger.warning(f"BM25 search failed: {e}")
+            logger.warning("BM25 search failed: %s", e)
             return []
 
     def _linear_fusion(self,
