@@ -9,6 +9,12 @@ from .extractors import ConditionExtractors
 from .generators import PropertyGenerators
 from .analyzers import ComplexityAnalyzers
 
+# Pre-cache AST node types for faster isinstance checks
+_ASSIGN_TYPE = ast.Assign
+_CALL_TYPE = ast.Call
+_CONTROL_FLOW_TYPES = (ast.If, ast.While, ast.For)
+_NAME_TYPE = ast.Name
+
 
 class SymbolicAnalyzer(ConditionExtractors, PropertyGenerators, ComplexityAnalyzers):
     """Analyzes code to extract symbolic conditions and generate property tests."""
@@ -20,6 +26,8 @@ class SymbolicAnalyzer(ConditionExtractors, PropertyGenerators, ComplexityAnalyz
 
         # Initialize state
         self.control_flow: List[ast.AST] = []
+        self.variable_assignments: Dict[str, List[ast.AST]] = {}
+        self.function_calls: List[ast.Call] = []
         # Cache for parsed ASTs to avoid reparsing
         self._ast_cache: Dict[str, ast.AST] = {}
 
@@ -61,11 +69,12 @@ class SymbolicAnalyzer(ConditionExtractors, PropertyGenerators, ComplexityAnalyz
 
     def _get_or_parse_ast(self, code: str) -> ast.AST:
         """Get cached AST or parse new one."""
-        # Use first 50 chars as cache key for small codes
-        cache_key = code[:50] if len(code) < 100 else code
+        # Use hash for cache key to handle any code length efficiently
+        cache_key = hash(code) if len(code) > 100 else code
         
-        if cache_key in self._ast_cache:
-            return self._ast_cache[cache_key]
+        cached = self._ast_cache.get(cache_key)
+        if cached is not None:
+            return cached
         
         tree = ast.parse(code)
         
@@ -77,20 +86,25 @@ class SymbolicAnalyzer(ConditionExtractors, PropertyGenerators, ComplexityAnalyz
 
     def _reset_state(self):
         """Reset analyzer state."""
-        self.variable_assignments = {}
-        self.function_calls = []
-        self.control_flow = []
+        self.variable_assignments.clear()
+        self.function_calls.clear()
+        self.control_flow.clear()
 
     def _analyze_ast(self, tree: ast.AST):
-        """Analyze AST to build internal state (optimized with early exit)."""
+        """Analyze AST to build internal state (optimized with type caching)."""
+        var_assigns = self.variable_assignments
+        func_calls = self.function_calls
+        ctrl_flow = self.control_flow
+        
         for node in ast.walk(tree):
-            if isinstance(node, ast.Assign):
+            if isinstance(node, _ASSIGN_TYPE):
                 for target in node.targets:
-                    if isinstance(target, ast.Name):
-                        if target.id not in self.variable_assignments:
-                            self.variable_assignments[target.id] = []
-                        self.variable_assignments[target.id].append(node)
-            elif isinstance(node, ast.Call):
-                self.function_calls.append(node)
-            elif isinstance(node, (ast.If, ast.While, ast.For)):
-                self.control_flow.append(node)
+                    if isinstance(target, _NAME_TYPE):
+                        var_id = target.id
+                        if var_id not in var_assigns:
+                            var_assigns[var_id] = []
+                        var_assigns[var_id].append(node)
+            elif isinstance(node, _CALL_TYPE):
+                func_calls.append(node)
+            elif isinstance(node, _CONTROL_FLOW_TYPES):
+                ctrl_flow.append(node)
