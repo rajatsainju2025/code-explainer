@@ -3,13 +3,20 @@ Data utilities for dataset loading and processing.
 """
 
 from functools import lru_cache
-from typing import Dict, Any, List, Optional, Iterable
+from typing import Dict, Any, List, Optional, Iterable, Iterator
 from pathlib import Path
 import json
+
+# Cache json functions for faster access
+_json_load = json.load
+_json_loads = json.loads
+_json_dump = json.dump
 
 
 class DataLoader:
     """Loads and processes datasets for code explanation."""
+    
+    __slots__ = ('data_dir',)
 
     def __init__(self, data_dir: str = "data"):
         self.data_dir = Path(data_dir)
@@ -23,11 +30,9 @@ class DataLoader:
             raise FileNotFoundError(f"Dataset {dataset_name} not found at {dataset_path}")
 
         with open(dataset_path, 'r') as f:
-            data = json.load(f)
+            return _json_load(f)
 
-        return data
-
-    def iter_dataset(self, dataset_name: str) -> Iterable[Dict[str, Any]]:
+    def iter_dataset(self, dataset_name: str) -> Iterator[Dict[str, Any]]:
         """Stream a dataset item-by-item to reduce peak memory usage.
 
         Supports two formats:
@@ -44,25 +49,21 @@ class DataLoader:
             with open(path, "r") as f:
                 for line in f:
                     line = line.strip()
-                    if not line:
-                        continue
-                    try:
-                        yield json.loads(line)
-                    except Exception:
-                        # Skip malformed lines to keep streaming robust
-                        continue
+                    if line:
+                        try:
+                            yield _json_loads(line)
+                        except (json.JSONDecodeError, ValueError):
+                            # Skip malformed lines to keep streaming robust
+                            continue
         else:
             # Attempt streaming parse with ijson if available
             try:
                 import ijson  # type: ignore
                 with open(path, "rb") as f:
-                    for item in ijson.items(f, "item"):
-                        yield item
-            except Exception:
+                    yield from ijson.items(f, "item")
+            except ImportError:
                 # Fallback: load once, then yield items
-                data = self.load_dataset(dataset_name)
-                for item in data:
-                    yield item
+                yield from self.load_dataset(dataset_name)
 
     def load_train_data(self) -> List[Dict[str, Any]]:
         """Load training data."""
@@ -76,10 +77,10 @@ class DataLoader:
         """Load test data."""
         return self.load_dataset("test")
 
-    def save_dataset(self, dataset_name: str, data: List[Dict[str, Any]]):
+    def save_dataset(self, dataset_name: str, data: List[Dict[str, Any]]) -> None:
         """Save a dataset."""
         dataset_path = self.data_dir / f"{dataset_name}.json"
         self.data_dir.mkdir(exist_ok=True)
 
         with open(dataset_path, 'w') as f:
-            json.dump(data, f, indent=2)
+            _json_dump(data, f, separators=(',', ':'))  # Compact JSON
