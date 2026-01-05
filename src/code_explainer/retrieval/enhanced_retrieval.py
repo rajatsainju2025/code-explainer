@@ -25,12 +25,15 @@ class EnhancedRetrieval:
 
     def _get_embedding(self, text: str) -> np.ndarray:
         """Get embedding with simple caching."""
-        if text not in self._embedding_cache:
-            # Limit cache size
-            if len(self._embedding_cache) > 100:
-                self._embedding_cache.clear()
-            self._embedding_cache[text] = self.model.encode([text])[0]
-        return self._embedding_cache[text]
+        cached = self._embedding_cache.get(text)
+        if cached is not None:
+            return cached
+        # Limit cache size
+        if len(self._embedding_cache) > 100:
+            self._embedding_cache.clear()
+        embedding = self.model.encode([text])[0]
+        self._embedding_cache[text] = embedding
+        return embedding
 
     def apply_reranking(self, query: str, candidates: List[RetrievalCandidate],
                        top_k: int) -> List[RetrievalCandidate]:
@@ -61,7 +64,7 @@ class EnhancedRetrieval:
                 for d in reranked_dicts
             ]
         except Exception as e:
-            logger.warning(f"Reranking failed: {e}")
+            logger.warning("Reranking failed: %s", e)
             return candidates[:top_k]
 
     def apply_mmr(self, query_embedding: np.ndarray,
@@ -100,7 +103,7 @@ class EnhancedRetrieval:
                 for d in mmr_dicts
             ]
         except Exception as e:
-            logger.warning(f"MMR selection failed: {e}")
+            logger.warning("MMR selection failed: %s", e)
             return candidates[:top_k]
 
     def enhance_results(self, query: str, candidates: List[RetrievalCandidate],
