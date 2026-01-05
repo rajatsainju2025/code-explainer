@@ -1,10 +1,10 @@
 """Data models for symbolic analysis."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Dict, List, Set
 
 
-@dataclass
+@dataclass(slots=True)
 class SymbolicCondition:
     """Represents a symbolic condition in code."""
 
@@ -15,7 +15,7 @@ class SymbolicCondition:
     variables: Set[str]
 
 
-@dataclass
+@dataclass(slots=True)
 class PropertyTest:
     """Represents a property-based test."""
 
@@ -26,7 +26,7 @@ class PropertyTest:
     expected_behavior: str
 
 
-@dataclass
+@dataclass(slots=True)
 class SymbolicExplanation:
     """Complete symbolic explanation of code."""
 
