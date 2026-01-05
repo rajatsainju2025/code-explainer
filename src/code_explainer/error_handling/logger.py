@@ -5,13 +5,18 @@ import logging
 import logging.handlers
 import sys
 import traceback
+from collections import deque
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Deque, Dict, List, Optional
+
+# Cache datetime.now for faster access
+_now = datetime.now
+_format_exc = traceback.format_exc
 
 
-@dataclass
+@dataclass(slots=True)
 class LogEntry:
     """Structured log entry."""
     timestamp: datetime
@@ -59,29 +64,27 @@ class StructuredLogger:
             file_handler.setFormatter(formatter)
             self.logger.addHandler(file_handler)
 
-        # Structured log storage
-        self.log_entries: List[LogEntry] = []
-        self.max_entries = 10000
+        # Structured log storage - use deque for O(1) append and automatic trimming
+        self.log_entries: Deque[LogEntry] = deque(maxlen=10000)
 
     def _create_log_entry(self, level: str, message: str,
                          extra_data: Optional[Dict[str, Any]] = None) -> LogEntry:
         """Create a structured log entry."""
         frame = sys._getframe(2)
+        code = frame.f_code
         return LogEntry(
-            timestamp=datetime.now(),
+            timestamp=_now(),
             level=level,
             message=message,
-            module=frame.f_code.co_filename,
-            function=frame.f_code.co_name,
+            module=code.co_filename,
+            function=code.co_name,
             line_number=frame.f_lineno,
             extra_data=extra_data or {}
         )
 
     def _store_entry(self, entry: LogEntry):
         """Store log entry in memory."""
-        self.log_entries.append(entry)
-        if len(self.log_entries) > self.max_entries:
-            self.log_entries = self.log_entries[-self.max_entries:]
+        self.log_entries.append(entry)  # deque with maxlen auto-trims
 
     def info(self, message: str, extra_data: Optional[Dict[str, Any]] = None):
         """Log info message."""
@@ -106,7 +109,7 @@ class StructuredLogger:
         """Log error message."""
         entry = self._create_log_entry("ERROR", message, extra_data)
         if exc_info:
-            entry.exception_info = traceback.format_exc()
+            entry.exception_info = _format_exc()
         self._store_entry(entry)
         self.logger.error(message, exc_info=exc_info, extra=extra_data)
 
@@ -115,13 +118,13 @@ class StructuredLogger:
         """Log critical message."""
         entry = self._create_log_entry("CRITICAL", message, extra_data)
         if exc_info:
-            entry.exception_info = traceback.format_exc()
+            entry.exception_info = _format_exc()
         self._store_entry(entry)
         self.logger.critical(message, exc_info=exc_info, extra=extra_data)
 
     def get_recent_logs(self, hours: int = 24) -> List[LogEntry]:
         """Get recent log entries."""
-        cutoff = datetime.now() - timedelta(hours=hours)
+        cutoff = _now() - timedelta(hours=hours)
         return [entry for entry in self.log_entries
                 if entry.timestamp > cutoff]
 
@@ -130,7 +133,7 @@ class StructuredLogger:
         if format == "json":
             data = [entry.__dict__ for entry in self.log_entries]
             with open(filepath, 'w') as f:
-                json.dump(data, f, indent=2, default=str)
+                json.dump(data, f, separators=(',', ':'), default=str)  # Compact JSON
         elif format == "csv":
             import csv
             with open(filepath, 'w', newline='') as f:
