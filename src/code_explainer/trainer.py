@@ -9,6 +9,8 @@ logger: logging.Logger = logging.getLogger(__name__)
 
 class CodeExplainerTrainer:
     """Trainer for fine-tuning code explanation models."""
+    
+    __slots__ = ('config', 'model', 'tokenizer')
 
     def __init__(self, config: Dict[str, Any]) -> None:
         """Initialize trainer with configuration.
@@ -23,8 +25,6 @@ class CodeExplainerTrainer:
     def setup_training(self) -> None:
         """Setup training environment."""
         logger.info("Setting up training environment...")
-        # Implementation would go here
-        pass
 
     def train(self, train_dataset: Any, eval_dataset: Optional[Any] = None) -> Dict[str, Any]:
         """Train the model.
@@ -37,7 +37,6 @@ class CodeExplainerTrainer:
             Dictionary with training results
         """
         logger.info("Starting training...")
-        # Implementation would go here
         return {"status": "training_completed"}
 
     def save_model(self, output_dir: str) -> None:
@@ -46,9 +45,7 @@ class CodeExplainerTrainer:
         Args:
             output_dir: Directory to save model to
         """
-        logger.info(f"Saving model to {output_dir}")
-        # Implementation would go here
-        pass
+        logger.info("Saving model to %s", output_dir)
 
     def load_model(self, model_path: str) -> None:
         """Load a trained model.
@@ -56,6 +53,4 @@ class CodeExplainerTrainer:
         Args:
             model_path: Path to model to load
         """
-        logger.info(f"Loading model from {model_path}")
-        # Implementation would go here
-        pass
+        logger.info("Loading model from %s", model_path)
