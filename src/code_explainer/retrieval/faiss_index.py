@@ -41,13 +41,14 @@ class FAISSIndex:
             use_ivf: Use IVF index for faster search on large datasets (>10k)
             nlist: Number of clusters for IVF index
         """
-        logger.info(f"Building FAISS index for {len(codes)} code snippets...")
+        num_codes = len(codes)
+        logger.info("Building FAISS index for %d code snippets...", num_codes)
 
         # Use sentence-transformers batch encoding directly (more efficient)
         embeddings = self.model.encode(
             codes, 
             batch_size=self.batch_size,
-            show_progress_bar=len(codes) > 1000,
+            show_progress_bar=num_codes > 1000,
             convert_to_numpy=True,
             normalize_embeddings=True  # Normalize for cosine similarity
         )
@@ -60,15 +61,15 @@ class FAISSIndex:
         self._dimension = embeddings.shape[1]
 
         # Build FAISS index - use IVF for large datasets
-        if use_ivf and len(codes) >= 1000:
+        if use_ivf and num_codes >= 1000:
             # IVF index for faster search on large datasets
             quantizer = faiss.IndexFlatIP(self._dimension)
-            actual_nlist = min(nlist, len(codes) // 10)  # At least 10 items per cluster
+            actual_nlist = min(nlist, num_codes // 10)  # At least 10 items per cluster
             self.index = faiss.IndexIVFFlat(quantizer, self._dimension, actual_nlist, faiss.METRIC_INNER_PRODUCT)
             self.index.train(embeddings)
             self.index.add(embeddings)
             self.index.nprobe = min(10, actual_nlist)  # Search 10 clusters by default
-            logger.info(f"Built IVF index with {actual_nlist} clusters")
+            logger.info("Built IVF index with %d clusters", actual_nlist)
         else:
             # Flat index for smaller datasets or maximum accuracy
             self.index = faiss.IndexFlatIP(self._dimension)  # Use inner product for normalized vectors
@@ -77,17 +78,18 @@ class FAISSIndex:
         # Clear query cache since index changed
         self._query_cache.clear()
         
-        logger.info(f"FAISS index built successfully. Index size: {self.index.ntotal}")
+        logger.info("FAISS index built successfully. Index size: %d", self.index.ntotal)
 
     def search(self, query_code: str, k: int) -> Tuple[np.ndarray, np.ndarray]:
         """Search for similar codes using FAISS."""
         if self.index is None:
             raise ValueError("FAISS index is not loaded.")
 
-        # Check cache for repeated queries
+        # Check cache for repeated queries - use get() for single lookup
         cache_key = (query_code, k)
-        if cache_key in self._query_cache:
-            return self._query_cache[cache_key]
+        cached = self._query_cache.get(cache_key)
+        if cached is not None:
+            return cached
 
         query_embedding = self.model.encode(
             [query_code], 
@@ -132,7 +134,7 @@ class FAISSIndex:
         p = Path(path)
         p.parent.mkdir(parents=True, exist_ok=True)
         faiss.write_index(self.index, str(p))
-        logger.info(f"FAISS index saved to {path}")
+        logger.info("FAISS index saved to %s", path)
 
     def load_index(self, path: str) -> None:
         """Load FAISS index from disk."""
@@ -141,7 +143,7 @@ class FAISSIndex:
             raise FileNotFoundError(f"Index file not found: {path}")
 
         self.index = faiss.read_index(str(p))
-        logger.info(f"FAISS index loaded from {path}. Index size: {self.index.ntotal}")
+        logger.info("FAISS index loaded from %s. Index size: %d", path, self.index.ntotal)
 
     def get_size(self) -> int:
         """Get the number of vectors in the index."""
