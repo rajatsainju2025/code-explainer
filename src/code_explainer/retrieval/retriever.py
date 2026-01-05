@@ -3,11 +3,11 @@
 import gzip
 import json
 import logging
-import time
 import threading
 import hashlib
 from functools import lru_cache
 from pathlib import Path
+from time import perf_counter
 from typing import Any, Dict, List, Optional, Tuple
 from collections import OrderedDict
 
@@ -24,6 +24,9 @@ logger = logging.getLogger(__name__)
 
 # Pre-computed hash for faster key generation
 _HASH_FACTORY = hashlib.md5
+
+# Pre-compute valid methods set for O(1) lookup
+_VALID_METHODS = frozenset({"faiss", "bm25", "hybrid"})
 
 
 class LRUQueryCache:
@@ -136,7 +139,7 @@ class CodeRetriever:
 
     def build_index(self, codes: List[str], save_path: Optional[str] = None) -> None:
         """Build retrieval indices from code snippets."""
-        logger.info(f"Building index for {len(codes)} code snippets...")
+        logger.info("Building index for %d code snippets...", len(codes))
         self.code_corpus = codes
 
         # Build both indices in parallel (more efficient)
@@ -164,7 +167,7 @@ class CodeRetriever:
         with gzip.open(corpus_path, 'wt', encoding='utf-8') as f:
             f.write(json_data)
 
-        logger.debug(f"Indices saved to {path} with compressed corpus")
+        logger.debug("Indices saved to %s with compressed corpus", path)
 
     def load_index(self, path: str) -> None:
         """Load indices from disk, supporting both compressed and uncompressed formats."""
@@ -180,26 +183,26 @@ class CodeRetriever:
             try:
                 with gzip.open(corpus_path_gz, 'rt', encoding='utf-8') as f:
                     self.code_corpus = json.load(f)
-                logger.debug(f"Loaded compressed corpus from {corpus_path_gz}")
+                logger.debug("Loaded compressed corpus from %s", corpus_path_gz)
             except Exception as e:
-                logger.error(f"Failed to load compressed corpus: {e}")
-                raise FileNotFoundError(f"Corpus file corrupted: {corpus_path_gz}")
+                logger.error("Failed to load compressed corpus: %s", e)
+                raise FileNotFoundError(f"Corpus file corrupted: {corpus_path_gz}") from e
         elif corpus_path.exists():
             # Load uncompressed corpus (backward compatibility)
             try:
                 with open(corpus_path, "r") as f:
                     self.code_corpus = json.load(f)
-                logger.debug(f"Loaded uncompressed corpus from {corpus_path}")
+                logger.debug("Loaded uncompressed corpus from %s", corpus_path)
             except Exception as e:
-                logger.error(f"Failed to load uncompressed corpus: {e}")
-                raise FileNotFoundError(f"Corpus file not found: {corpus_path}")
+                logger.error("Failed to load uncompressed corpus: %s", e)
+                raise FileNotFoundError(f"Corpus file not found: {corpus_path}") from e
         else:
             raise FileNotFoundError(f"Corpus file not found (tried {corpus_path_gz} and {corpus_path})")
 
         # Rebuild BM25 index
         self.bm25_index.build_index(self.code_corpus)
 
-        logger.debug(f"Indices loaded from {path}. Corpus size: {len(self.code_corpus)}")
+        logger.debug("Indices loaded from %s. Corpus size: %d", path, len(self.code_corpus))
 
     def retrieve_similar_code(self, query_code: str, k: int = 3,
                              method: str = "faiss", alpha: float = 0.5) -> List[str]:
@@ -208,10 +211,10 @@ class CodeRetriever:
             raise ValueError("Index is not loaded or built")
 
         method = (method or "faiss").lower()
-        if method not in {"faiss", "bm25", "hybrid"}:
+        if method not in _VALID_METHODS:
             raise ValueError("method must be one of: faiss|bm25|hybrid")
 
-        start_time = time.time()
+        start_time = perf_counter()
 
         if method == "faiss":
             _, indices = self.faiss_index.search(query_code, k)
@@ -224,7 +227,7 @@ class CodeRetriever:
             result_indices = [i for i, _ in results]
 
         # Update timing statistics with minimal lock contention
-        response_time = time.time() - start_time
+        response_time = perf_counter() - start_time
         with self._stats_lock:
             self.stats.total_queries += 1
             self.stats.method_usage[method] += 1
@@ -250,13 +253,13 @@ class CodeRetriever:
         
         Results are cached to avoid redundant computations.
         """
-        start_time = time.time()
+        start_time = perf_counter()
 
         if not self.code_corpus:
             raise ValueError("Index/corpus is not loaded or built.")
 
         method = (method or "faiss").lower()
-        if method not in {"faiss", "bm25", "hybrid"}:
+        if method not in _VALID_METHODS:
             raise ValueError("method must be one of: faiss|bm25|hybrid")
 
         # Check query cache first to avoid redundant computation
@@ -268,7 +271,7 @@ class CodeRetriever:
                 with self._stats_lock:
                     self.stats.total_queries += 1
                     self.stats.cache_hits += 1
-                logger.debug(f"Query cache hit for: {query_code[:30]}...")
+                logger.debug("Query cache hit for: %.30s...", query_code)
                 return cached_result
 
         # Update statistics
@@ -329,7 +332,7 @@ class CodeRetriever:
         candidates = candidates[:k]
 
         # Update timing statistics
-        response_time = time.time() - start_time
+        response_time = perf_counter() - start_time
         with self._stats_lock:
             self.stats.total_response_time += response_time
             self.stats.avg_response_time = (
