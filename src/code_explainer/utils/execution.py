@@ -1,12 +1,14 @@
 """Safe code execution utilities."""
 
-import os
-import shlex
 import subprocess
 import sys
 import tempfile
-import textwrap
 from typing import Tuple
+
+# Pre-cache for faster access
+_TEMP_DIR = tempfile.gettempdir()
+_PYTHON_EXE = sys.executable
+_EMPTY_ENV: dict = {}
 
 
 def _safe_exec_subprocess(code: str, timeout_s: float = 1.0, mem_mb: int = 64) -> Tuple[str, str]:
@@ -14,34 +16,41 @@ def _safe_exec_subprocess(code: str, timeout_s: float = 1.0, mem_mb: int = 64) -
     Returns (stdout, stderr) truncated.
     """
     # Wrapper to set resource limits (Unix only)
+    cpu_limit = int(timeout_s)
+    mem_limit = mem_mb * 1024 * 1024
     prelude = (
-        "import sys,resource,os\n"
-        f"resource.setrlimit(resource.RLIMIT_CPU, ({int(timeout_s)}, {int(timeout_s)}))\n"
-        f"resource.setrlimit(resource.RLIMIT_AS, ({mem_mb*1024*1024}, {mem_mb*1024*1024}))\n"
+        f"import sys,resource,os\n"
+        f"resource.setrlimit(resource.RLIMIT_CPU, ({cpu_limit}, {cpu_limit}))\n"
+        f"resource.setrlimit(resource.RLIMIT_AS, ({mem_limit}, {mem_limit}))\n"
         "os.environ.clear()\n"
         "\n"
     )
 
     wrapped = prelude + code
+    actual_timeout = max(timeout_s, 0.1)
+    
     try:
         proc = subprocess.run(
-            [sys.executable, "-c", wrapped],
+            [_PYTHON_EXE, "-c", wrapped],
             input=None,
             capture_output=True,
             text=True,
-            timeout=max(timeout_s, 0.1),
-            cwd=tempfile.gettempdir(),
-            env={},
+            timeout=actual_timeout,
+            cwd=_TEMP_DIR,
+            env=_EMPTY_ENV,
         )
         out = (proc.stdout or "").strip()
         err = (proc.stderr or "").strip()
     except subprocess.TimeoutExpired:
-        out, err = "", "TimeoutExpired"
+        return "", "TimeoutExpired"
     except (subprocess.CalledProcessError, OSError, ValueError) as e:
-        out, err = "", f"ExecutionError: {e}"
+        return "", f"ExecutionError: {e}"
 
-    # Truncate
-    def _trunc(s: str, n: int = 500) -> str:
-        return (s[:n] + "…") if len(s) > n else s
+    # Truncate inline
+    max_len = 500
+    if len(out) > max_len:
+        out = out[:max_len] + "…"
+    if len(err) > max_len:
+        err = err[:max_len] + "…"
 
-    return _trunc(out), _trunc(err)
+    return out, err
