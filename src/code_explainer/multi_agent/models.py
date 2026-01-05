@@ -14,7 +14,7 @@ class AgentRole(Enum):
     VERIFICATION = "verification"  # Test generation, validation
 
 
-@dataclass
+@dataclass(slots=True)
 class AgentMessage:
     """Message passed between agents."""
 
@@ -25,7 +25,7 @@ class AgentMessage:
     timestamp: float
 
 
-@dataclass
+@dataclass(slots=True)
 class ExplanationComponent:
     """A component of the final explanation."""
 
