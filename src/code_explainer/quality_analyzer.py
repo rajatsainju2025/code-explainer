@@ -23,6 +23,8 @@ class IssueLevel(Enum):
 
 class QualityIssue:
     """Represents a code quality issue."""
+    
+    __slots__ = ('level', 'message', 'rule_id', 'line', 'column')
 
     def __init__(self, level, message: str, rule_id: str, line: int, column: int = 0):
         self.level = level
@@ -34,6 +36,8 @@ class QualityIssue:
 
 class CodeQualityAnalyzer:
     """Analyzes code quality and provides suggestions."""
+    
+    __slots__ = ('_ast_cache',)
 
     def __init__(self):
         # Cache for parsed ASTs to avoid reparsing
