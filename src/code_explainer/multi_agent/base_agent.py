@@ -9,9 +9,14 @@ from .models import AgentMessage, AgentRole, ExplanationComponent
 
 logger = logging.getLogger(__name__)
 
+# Cache time.time reference for faster access
+_time = time.time
+
 
 class BaseAgent(ABC):
     """Base class for all code explanation agents."""
+    
+    __slots__ = ('agent_id', 'role', 'inbox', 'knowledge_base')
 
     def __init__(self, agent_id: str, role: AgentRole):
         self.agent_id = agent_id
@@ -38,7 +43,7 @@ class BaseAgent(ABC):
             recipient=recipient,
             content=content,
             message_type=message_type,
-            timestamp=time.time(),
+            timestamp=_time(),
         )
 
     def receive_message(self, message: AgentMessage) -> None:
