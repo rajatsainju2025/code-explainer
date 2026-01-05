@@ -5,9 +5,28 @@ from typing import List, Optional, Set
 
 from .models import SymbolicCondition, PropertyTest
 
+# Pre-cache AST types for O(1) lookup
+_AST_FUNCTIONDEF = ast.FunctionDef
+_AST_IF = ast.If
+_AST_ASSERT = ast.Assert
+_AST_RETURN = ast.Return
+_AST_WHILE = ast.While
+_AST_FOR = ast.For
+_AST_NAME = ast.Name
+_AST_RAISE = ast.Raise
+_AST_LOAD = ast.Load
+_AST_LOOP_TYPES = (_AST_WHILE, _AST_FOR)
+_AST_EARLY_EXIT = (_AST_RAISE, _AST_RETURN)
+
+# Cache ast.walk and ast.unparse for micro-optimization
+_ast_walk = ast.walk
+_ast_unparse = ast.unparse
+
 
 class ConditionExtractors:
     """Methods for extracting various types of conditions from AST."""
+
+    __slots__ = ("variable_assignments", "function_calls")
 
     def __init__(self):
         self.variable_assignments: dict = {}
@@ -17,15 +36,16 @@ class ConditionExtractors:
         """Extract input validation conditions."""
         conditions = []
 
-        for node in ast.walk(tree):
-            if isinstance(node, ast.FunctionDef):
-                # Look for input validation patterns
-                for stmt in node.body[:3]:  # Check first few statements
-                    if isinstance(stmt, ast.If):
+        for node in _ast_walk(tree):
+            if type(node) is _AST_FUNCTIONDEF:
+                # Look for input validation patterns in first 3 statements
+                for stmt in node.body[:3]:
+                    stmt_type = type(stmt)
+                    if stmt_type is _AST_IF:
                         condition = self._extract_condition_from_if(stmt, "input")
                         if condition:
                             conditions.append(condition)
-                    elif isinstance(stmt, ast.Assert):
+                    elif stmt_type is _AST_ASSERT:
                         condition = self._extract_condition_from_assert(stmt, "input")
                         if condition:
                             conditions.append(condition)
@@ -36,12 +56,13 @@ class ConditionExtractors:
         """Extract preconditions from code."""
         conditions = []
 
-        for node in ast.walk(tree):
-            if isinstance(node, ast.Assert):
+        for node in _ast_walk(tree):
+            node_type = type(node)
+            if node_type is _AST_ASSERT:
                 condition = self._extract_condition_from_assert(node, "precondition")
                 if condition:
                     conditions.append(condition)
-            elif isinstance(node, ast.If) and self._is_guard_condition(node):
+            elif node_type is _AST_IF and self._is_guard_condition(node):
                 condition = self._extract_condition_from_if(node, "precondition")
                 if condition:
                     conditions.append(condition)
@@ -52,11 +73,11 @@ class ConditionExtractors:
         """Extract postconditions from return statements and end of functions."""
         conditions = []
 
-        for node in ast.walk(tree):
-            if isinstance(node, ast.FunctionDef):
+        for node in _ast_walk(tree):
+            if type(node) is _AST_FUNCTIONDEF:
                 # Check return statements
-                for stmt in ast.walk(node):
-                    if isinstance(stmt, ast.Return) and stmt.value:
+                for stmt in _ast_walk(node):
+                    if type(stmt) is _AST_RETURN and stmt.value:
                         condition = self._analyze_return_condition(stmt)
                         if condition:
                             conditions.append(condition)
@@ -67,8 +88,8 @@ class ConditionExtractors:
         """Extract loop invariants and class invariants."""
         conditions = []
 
-        for node in ast.walk(tree):
-            if isinstance(node, (ast.While, ast.For)):
+        for node in _ast_walk(tree):
+            if isinstance(node, _AST_LOOP_TYPES):
                 invariant = self._analyze_loop_invariant(node)
                 if invariant:
                     conditions.append(invariant)
@@ -80,7 +101,7 @@ class ConditionExtractors:
     ) -> Optional[SymbolicCondition]:
         """Extract symbolic condition from if statement."""
         try:
-            condition_text = ast.unparse(node.test)
+            condition_text = _ast_unparse(node.test)
             variables = self._extract_variables_from_expr(node.test)
 
             return SymbolicCondition(
@@ -98,7 +119,7 @@ class ConditionExtractors:
     ) -> Optional[SymbolicCondition]:
         """Extract symbolic condition from assert statement."""
         try:
-            condition_text = ast.unparse(node.test)
+            condition_text = _ast_unparse(node.test)
             variables = self._extract_variables_from_expr(node.test)
 
             return SymbolicCondition(
@@ -115,7 +136,7 @@ class ConditionExtractors:
         """Check if if statement is a guard condition."""
         # Simple heuristic: if it raises an exception or returns early
         for stmt in node.body:
-            if isinstance(stmt, (ast.Raise, ast.Return)):
+            if isinstance(stmt, _AST_EARLY_EXIT):
                 return True
         return False
 
@@ -125,7 +146,7 @@ class ConditionExtractors:
             return None
 
         try:
-            return_expr = ast.unparse(node.value)
+            return_expr = _ast_unparse(node.value)
             variables = self._extract_variables_from_expr(node.value)
 
             return SymbolicCondition(
@@ -142,8 +163,8 @@ class ConditionExtractors:
         """Analyze loop to extract invariant."""
         # Simple heuristic: look for variables that maintain relationships
         try:
-            if isinstance(node, ast.While):
-                condition_text = ast.unparse(node.test)
+            if type(node) is _AST_WHILE:
+                condition_text = _ast_unparse(node.test)
                 variables = self._extract_variables_from_expr(node.test)
 
                 return SymbolicCondition(
@@ -159,16 +180,12 @@ class ConditionExtractors:
 
     def _extract_variables_from_expr(self, expr: ast.AST) -> Set[str]:
         """Extract variable names from expression."""
-        variables = set()
-        for node in ast.walk(expr):
-            if isinstance(node, ast.Name):
-                variables.add(node.id)
-        return variables
+        return {node.id for node in _ast_walk(expr) if type(node) is _AST_NAME}
 
     def _get_variable_dependencies(self, expr: ast.AST) -> List[str]:
         """Get variables that this expression depends on."""
-        dependencies = []
-        for node in ast.walk(expr):
-            if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load):
-                dependencies.append(node.id)
-        return dependencies
+        return [
+            node.id
+            for node in _ast_walk(expr)
+            if type(node) is _AST_NAME and type(node.ctx) is _AST_LOAD
+        ]
