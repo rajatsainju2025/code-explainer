@@ -11,6 +11,8 @@ from typing import Optional, Dict, Any
 class CodeExplainerError(Exception):
     """Base exception for all Code Explainer errors."""
     
+    __slots__ = ('message', 'error_code', 'context')
+    
     def __init__(
         self, 
         message: str, 
@@ -23,13 +25,14 @@ class CodeExplainerError(Exception):
         self.context = context or {}
     
     def __str__(self) -> str:
-        error_str = self.message
+        parts = []
         if self.error_code:
-            error_str = f"[{self.error_code}] {error_str}"
+            parts.append(f"[{self.error_code}]")
+        parts.append(self.message)
         if self.context:
             context_str = ", ".join(f"{k}={v}" for k, v in self.context.items())
-            error_str = f"{error_str} (Context: {context_str})"
-        return error_str
+            parts.append(f"(Context: {context_str})")
+        return " ".join(parts)
 
 
 class ConfigurationError(CodeExplainerError):
