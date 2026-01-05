@@ -2,16 +2,24 @@
 
 import ast
 import logging
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from ..base_agent import BaseAgent
 from ..models import AgentMessage, AgentRole, ExplanationComponent
 
 logger = logging.getLogger(__name__)
 
+# Pre-cache AST node types for faster isinstance checks
+_FUNC_DEF_TYPE = ast.FunctionDef
+_CLASS_DEF_TYPE = ast.ClassDef
+_IMPORT_TYPE = ast.Import
+_IMPORT_FROM_TYPE = ast.ImportFrom
+
 
 class StructuralAgent(BaseAgent):
     """Agent specialized in code structure analysis."""
+    
+    __slots__ = ()  # Inherits slots from BaseAgent
 
     def __init__(self):
         super().__init__("structural_agent", AgentRole.STRUCTURAL)
@@ -21,17 +29,21 @@ class StructuralAgent(BaseAgent):
         try:
             tree = ast.parse(code)
 
-            # Extract structural information
-            functions = [node.name for node in ast.walk(tree) if isinstance(node, ast.FunctionDef)]
-            classes = [node.name for node in ast.walk(tree) if isinstance(node, ast.ClassDef)]
-            imports = []
+            # Extract structural information in single pass
+            functions: List[str] = []
+            classes: List[str] = []
+            imports: List[str] = []
 
             for node in ast.walk(tree):
-                if isinstance(node, ast.Import):
-                    imports.extend([alias.name for alias in node.names])
-                elif isinstance(node, ast.ImportFrom):
+                if isinstance(node, _FUNC_DEF_TYPE):
+                    functions.append(node.name)
+                elif isinstance(node, _CLASS_DEF_TYPE):
+                    classes.append(node.name)
+                elif isinstance(node, _IMPORT_TYPE):
+                    imports.extend(alias.name for alias in node.names)
+                elif isinstance(node, _IMPORT_FROM_TYPE):
                     module = node.module or ""
-                    imports.extend([f"{module}.{alias.name}" for alias in node.names])
+                    imports.extend(f"{module}.{alias.name}" for alias in node.names)
 
             # Get complexity metrics using symbolic analyzer
             try:
