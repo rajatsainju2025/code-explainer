@@ -9,9 +9,18 @@ from ..models import AgentMessage, AgentRole, ExplanationComponent
 
 logger = logging.getLogger(__name__)
 
+# Pre-cache AST types for faster checks
+_AST_FOR = ast.For
+_AST_WHILE = ast.While
+_AST_IF = ast.If
+_AST_FUNCTIONDEF = ast.FunctionDef
+_AST_LOOP_TYPES = (_AST_FOR, _AST_WHILE)
+
 
 class VerificationAgent(BaseAgent):
     """Agent specialized in generating tests and verification conditions."""
+
+    __slots__ = ()
 
     def __init__(self):
         super().__init__("verification_agent", AgentRole.VERIFICATION)
@@ -28,39 +37,46 @@ class VerificationAgent(BaseAgent):
                 analyzer = SymbolicAnalyzer()
                 symbolic_analysis = analyzer.analyze_code(code)
 
-                for test in symbolic_analysis.property_tests[:3]:  # Top 3 tests
+                # Use islice-like early termination with enumerate
+                for test in symbolic_analysis.property_tests[:3]:
                     test_suggestions.append(f"- {test.property_description}")
 
+                # Build dicts inline using list comprehension
+                pre = symbolic_analysis.preconditions[:2]
+                post = symbolic_analysis.postconditions[:2]
                 verification_info = {
-                    "preconditions": [cond.expression for cond in symbolic_analysis.preconditions[:2]],
-                    "postconditions": [cond.expression for cond in symbolic_analysis.postconditions[:2]]
+                    "preconditions": [c.expression for c in pre],
+                    "postconditions": [c.expression for c in post]
                 }
             except ImportError:
                 test_suggestions.append("- Basic functionality tests")
                 verification_info = {"preconditions": [], "postconditions": []}
 
-            verification_description = f"""
-**Verification and Testing:**
+            # Build description efficiently
+            tests_str = chr(10).join(test_suggestions)
+            conditions_str = self._format_conditions(verification_info)
+            strategy_str = self._suggest_test_strategy(code)
+
+            verification_description = f"""**Verification and Testing:**
 Property-based tests that could be generated:
-{chr(10).join(test_suggestions)}
+{tests_str}
 
 **Conditions to Verify:**
-{self._format_conditions(verification_info)}
+{conditions_str}
 
 **Test Strategy:**
-{self._suggest_test_strategy(code)}
-"""
+{strategy_str}"""
 
             return ExplanationComponent(
                 agent_id=self.agent_id,
                 component_type="verification",
-                content=verification_description.strip(),
+                content=verification_description,
                 confidence=0.8,
                 metadata={"verification_info": verification_info},
             )
 
         except Exception as e:
-            logger.error(f"Verification analysis failed: {e}")
+            logger.error("Verification analysis failed: %s", e)
             return ExplanationComponent(
                 agent_id=self.agent_id,
                 component_type="verification",
@@ -73,15 +89,13 @@ Property-based tests that could be generated:
         """Format symbolic conditions for verification."""
         conditions = []
 
-        if verification_info.get("preconditions"):
-            conditions.append(
-                "- Preconditions: " + ", ".join(verification_info["preconditions"])
-            )
+        pre = verification_info.get("preconditions")
+        if pre:
+            conditions.append("- Preconditions: " + ", ".join(pre))
 
-        if verification_info.get("postconditions"):
-            conditions.append(
-                "- Postconditions: " + ", ".join(verification_info["postconditions"])
-            )
+        post = verification_info.get("postconditions")
+        if post:
+            conditions.append("- Postconditions: " + ", ".join(post))
 
         return "\n".join(conditions) if conditions else "- No explicit conditions detected"
 
@@ -90,18 +104,28 @@ Property-based tests that could be generated:
         try:
             tree = ast.parse(code)
 
-            has_loops = any(isinstance(node, (ast.For, ast.While)) for node in ast.walk(tree))
-            has_conditions = any(isinstance(node, ast.If) for node in ast.walk(tree))
-            has_functions = any(isinstance(node, ast.FunctionDef) for node in ast.walk(tree))
+            # Single pass through AST to detect all characteristics
+            has_loops = has_conditions = has_functions = False
+            for node in ast.walk(tree):
+                node_type = type(node)
+                if node_type is _AST_FUNCTIONDEF:
+                    has_functions = True
+                elif node_type is _AST_IF:
+                    has_conditions = True
+                elif node_type in (_AST_FOR, _AST_WHILE):
+                    has_loops = True
+
+                # Early exit if all detected
+                if has_functions and has_conditions and has_loops:
+                    break
 
             if has_functions and has_loops and has_conditions:
                 return "Comprehensive testing with edge cases, boundary conditions, and performance tests"
-            elif has_functions and has_conditions:
+            if has_functions and has_conditions:
                 return "Unit testing with focus on conditional branches and edge cases"
-            elif has_functions:
+            if has_functions:
                 return "Basic unit testing with input/output validation"
-            else:
-                return "Simple validation testing"
+            return "Simple validation testing"
 
         except Exception:
             return "Standard testing practices recommended"
