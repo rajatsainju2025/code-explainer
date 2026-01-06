@@ -28,7 +28,7 @@ class CodeExplainerConfigValidationMixin:
             required_sections = ["model", "prompt"]
             for section in required_sections:
                 if section not in cfg_dict:
-                    _logger.warning(f"Configuration missing recommended section '{section}'")
+                    _logger.warning("Configuration missing recommended section '%s'", section)
 
             # Validate model configuration if present
             if "model" in cfg_dict:
@@ -57,7 +57,7 @@ class CodeExplainerConfigValidationMixin:
                     strategy = prompt_cfg["strategy"]
                     valid_strategies = ["vanilla", "ast_augmented", "multi_agent", "intelligent"]
                     if strategy not in valid_strategies:
-                        _logger.warning(f"Prompt strategy '{strategy}' not in recommended strategies: {valid_strategies}")
+                        _logger.warning("Prompt strategy '%s' not in recommended strategies: %s", strategy, valid_strategies)
 
             _logger.debug("Configuration validation passed")
 
