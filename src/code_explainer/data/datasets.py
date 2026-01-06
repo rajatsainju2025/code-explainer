@@ -8,7 +8,7 @@ from typing import Dict, List, Any
 import json
 
 
-@dataclass
+@dataclass(slots=True)
 class DatasetConfig:
     """Configuration for dataset loading."""
     train_file: str = "data/train.json"
