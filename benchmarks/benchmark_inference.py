@@ -93,12 +93,12 @@ class InferenceBenchmark:
             raise RuntimeError("Benchmark not properly initialized. Call setup() first.")
 
         # Warmup runs
-        logger.info(f"Running {warmup_samples} warmup samples...")
+        logger.info("Running %d warmup samples...", warmup_samples)
         for _ in range(warmup_samples):
             _ = self.explainer.explain_code(code, strategy=strategy)
 
         # Benchmark runs with optimized memory tracing
-        logger.info(f"Running {num_samples} benchmark samples...")
+        logger.info("Running %d benchmark samples...", num_samples)
         times = []
         memory_peaks = []
 
@@ -157,7 +157,7 @@ class InferenceBenchmark:
             }
         )
 
-        logger.info(f"Benchmark completed: {mean_time:.3f}s mean, {throughput:.2f} ops/sec")
+        logger.info("Benchmark completed: %.3fs mean, %.2f ops/sec", mean_time, throughput)
         return result
 
     def benchmark_multiple_strategies(
@@ -173,11 +173,11 @@ class InferenceBenchmark:
         results = []
         for strategy in strategies:
             try:
-                logger.info(f"Benchmarking strategy: {strategy}")
+                logger.info("Benchmarking strategy: %s", strategy)
                 result = self.benchmark_explanation(code, strategy, num_samples)
                 results.append(result)
             except (ImportError, RuntimeError, ValueError, TypeError) as e:
-                logger.error(f"Failed to benchmark strategy {strategy}: {e}")
+                logger.error("Failed to benchmark strategy %s: %s", strategy, e)
                 # Create error result
                 results.append(BenchmarkResult(
                     operation=f"explain_code_{strategy}",
@@ -217,7 +217,7 @@ class InferenceBenchmark:
         with open(filepath, 'w') as f:
             json.dump(data, f, indent=2)
 
-        logger.info(f"Results saved to {filepath}")
+        logger.info("Results saved to %s", filepath)
         return filepath
 
     def load_baseline(self, baseline_file: str) -> Dict[str, Any]:
@@ -263,7 +263,7 @@ class InferenceBenchmark:
                 if comparison["regression"]:
                     regressions.append(comparison)
             else:
-                logger.warning(f"No baseline found for operation: {result.operation}")
+                logger.warning("No baseline found for operation: %s", result.operation)
 
         return {
             "comparisons": comparisons,
@@ -279,7 +279,7 @@ class InferenceBenchmark:
                 data = json.load(f)
                 return [(case['name'], case['code']) for case in data.get('test_cases', [])]
         except (FileNotFoundError, json.JSONDecodeError, KeyError) as e:
-            logger.warning(f"Failed to load test cases from {filepath}: {e}")
+            logger.warning("Failed to load test cases from %s: %s", filepath, e)
             return []
 
 def run_comprehensive_benchmark(
@@ -297,7 +297,7 @@ def run_comprehensive_benchmark(
     if test_cases_file:
         test_cases = benchmark.load_test_cases_from_file(test_cases_file)
         if not test_cases:
-            logger.warning(f"No test cases loaded from {test_cases_file}, using defaults")
+            logger.warning("No test cases loaded from %s, using defaults", test_cases_file)
             test_cases = get_default_test_cases()
     else:
         test_cases = get_default_test_cases()
@@ -305,7 +305,7 @@ def run_comprehensive_benchmark(
     all_results = []
 
     for name, code in test_cases:
-        logger.info(f"Benchmarking: {name}")
+        logger.info("Benchmarking: %s", name)
         results = benchmark.benchmark_multiple_strategies(code, num_samples=num_samples)
         all_results.extend(results)
 
@@ -321,10 +321,10 @@ def run_comprehensive_benchmark(
         comparison_file = filepath.with_suffix('.comparison.json')
         with open(comparison_file, 'w') as f:
             json.dump(comparison, f, indent=2)
-        logger.info(f"Comparison saved to {comparison_file}")
+        logger.info("Comparison saved to %s", comparison_file)
 
         if comparison["regression_count"] > 0:
-            logger.warning(f"⚠️  Performance regressions detected: {comparison['regression_count']}")
+            logger.warning("⚠️  Performance regressions detected: %d", comparison['regression_count'])
             for reg in comparison["regressions"]:
                 logger.warning(".1f")
         else:
