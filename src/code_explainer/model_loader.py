@@ -22,7 +22,7 @@ from .device_manager import DeviceManager, DeviceCapabilities
 logger = logging.getLogger(__name__)
 
 
-@dataclass
+@dataclass(slots=True)
 class ModelResources:
     """Container for loaded model resources."""
     model: PreTrainedModel
@@ -34,6 +34,8 @@ class ModelResources:
 
 class ModelLoader:
     """Handles loading and initialization of models and tokenizers."""
+    
+    __slots__ = ('config', 'device_manager', 'device_capabilities', 'device')
 
     def __init__(self, config: ModelConfig):
         """Initialize model loader.
@@ -136,15 +138,15 @@ class ModelLoader:
                     "load_in_8bit": True,
                     "device_map": self.config.device_map or "auto"
                 })
-                logger.debug(f"Loading model with 8-bit quantization from: {path}")
+                logger.debug("Loading model with 8-bit quantization from: %s", path)
             else:
-                logger.warning(f"8-bit quantization not supported on {self.device_capabilities.device_type}, using {recommended_dtype}")
+                logger.warning("8-bit quantization not supported on %s, using %s", self.device_capabilities.device_type, recommended_dtype)
         else:
-            logger.info(f"Loading model with {recommended_dtype} precision on {self.device_capabilities.device_type}")
+            logger.info("Loading model with %s precision on %s", recommended_dtype, self.device_capabilities.device_type)
 
         # Validate device compatibility
         if not self.device_manager.validate_device_compatibility(path, self.device_capabilities.device_type):
-            logger.warning(f"Model {path} may have compatibility issues with {self.device_capabilities.device_type}")
+            logger.warning("Model %s may have compatibility issues with %s", path, self.device_capabilities.device_type)
 
         # Load appropriate model type
         if self.config.arch == "seq2seq":
@@ -162,7 +164,7 @@ class ModelLoader:
             try:
                 model = model.to(self.device)
             except Exception as e:
-                logger.warning(f"Could not move model to device {self.device}: {e}")
+                logger.warning("Could not move model to device %s: %s", self.device, e)
                 # Try OOM fallback if available
                 fallback_device = self.device_manager.handle_oom_error(e, self.device_capabilities.device_type)
                 if fallback_device:
