@@ -65,7 +65,7 @@ async def explain_code(
     request_metrics = metrics_collector.start_request(request_id, "/explain")
     
     try:
-        logger.debug(f"[{request_id}] Processing explanation request")
+        logger.debug("[%s] Processing explanation request", request_id)
 
         # Validate input
         if not request.code.strip():
@@ -99,7 +99,7 @@ async def explain_code(
                     model_name=model_name
                 )
                 metrics_collector.end_request(request_metrics, status_code=200)
-                logger.debug(f"[{request_id}] Served from cache in {processing_time:.4f}s")
+                logger.debug("[%s] Served from cache in %.4fs", request_id, processing_time)
                 return response
             else:
                 metrics_collector.record_cache_miss()
@@ -126,14 +126,14 @@ async def explain_code(
         )
 
         metrics_collector.end_request(request_metrics, status_code=200)
-        logger.debug(f"[{request_id}] Explanation generated in {processing_time:.4f}s")
+        logger.debug("[%s] Explanation generated in %.4fs", request_id, processing_time)
         return response
 
     except HTTPException:
         raise
     except Exception as e:
         metrics_collector.end_request(request_metrics, status_code=500, error=str(e))
-        logger.error(f"[{request_id}] Error processing explanation: {str(e)}")
+        logger.error("[%s] Error processing explanation: %s", request_id, str(e))
         raise HTTPException(status_code=500, detail=f"Explanation failed: {str(e)}")
 
 
@@ -211,7 +211,7 @@ async def explain_code_batch(
         raise
     except Exception as e:
         metrics_collector.end_request(req_metrics, status_code=500, error=str(e))
-        logger.error(f"[{request_id}] Batch explanation failed: {e}")
+        logger.error("[%s] Batch explanation failed: %s", request_id, e)
         raise HTTPException(status_code=500, detail=f"Batch explanation failed: {str(e)}")
 
 

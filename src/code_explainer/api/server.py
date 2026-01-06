@@ -56,7 +56,7 @@ def create_app() -> FastAPI:
     @app.exception_handler(Exception)
     async def global_exception_handler(request, exc):
         """Global exception handler."""
-        logger.error(f"Unhandled exception: {exc}")
+        logger.error("Unhandled exception: %s", exc)
         return JSONResponse(
             status_code=500,
             content={"detail": "Internal server error"}
@@ -96,7 +96,7 @@ def main():
 
     app = create_app()
 
-    logger.info(f"Starting Code Explainer API server on {args.host}:{args.port}")
+    logger.info("Starting Code Explainer API server on %s:%d", args.host, args.port)
     uvicorn.run(
         "code_explainer.api.server:create_app",
         host=args.host,
