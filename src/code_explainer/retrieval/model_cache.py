@@ -41,7 +41,7 @@ class PersistentModelCache:
         self._local_cache: Dict[str, SentenceTransformer] = {}
         self._local_lock = threading.Lock()
         
-        logger.debug(f"Persistent model cache initialized at: {self.cache_dir}")
+        logger.debug("Persistent model cache initialized at: %s", self.cache_dir)
 
     def _get_cache_path(self, model_name: str) -> Path:
         """Get cache file path for a model.
@@ -80,7 +80,7 @@ class PersistentModelCache:
         # Check local in-memory cache first
         with self._local_lock:
             if model_name in self._local_cache:
-                logger.debug(f"Model cache hit (in-memory): {model_name}")
+                logger.debug("Model cache hit (in-memory): %s", model_name)
                 return self._local_cache[model_name]
 
         # Check disk cache
@@ -101,12 +101,12 @@ class PersistentModelCache:
                     with self._local_lock:
                         self._local_cache[model_name] = model
                     
-                    logger.debug(f"Model cache hit (disk): {model_name}")
+                    logger.debug("Model cache hit (disk): %s", model_name)
                     return model
                 finally:
                     flock(lock_file.fileno(), LOCK_UN)
         except Exception as e:
-            logger.warning(f"Failed to load model from cache: {e}")
+            logger.warning("Failed to load model from cache: %s", e)
             return None
 
     def put(self, model_name: str, model: SentenceTransformer) -> bool:
@@ -134,12 +134,12 @@ class PersistentModelCache:
                 try:
                     with open(cache_path, 'wb') as f:
                         pickle.dump(model, f)
-                    logger.debug(f"Model cached to disk: {model_name}")
+                    logger.debug("Model cached to disk: %s", model_name)
                     return True
                 finally:
                     flock(lock_file.fileno(), LOCK_UN)
         except Exception as e:
-            logger.warning(f"Failed to cache model to disk: {e}")
+            logger.warning("Failed to cache model to disk: %s", e)
             # Still return True as in-memory cache is available
             return False
 
@@ -154,7 +154,7 @@ class PersistentModelCache:
                 cache_file.unlink()
             logger.debug("Model cache cleared")
         except Exception as e:
-            logger.warning(f"Failed to clear disk cache: {e}")
+            logger.warning("Failed to clear disk cache: %s", e)
 
     def get_cache_size(self) -> int:
         """Get approximate size of disk cache in bytes.
@@ -167,7 +167,7 @@ class PersistentModelCache:
             for cache_file in self.cache_dir.glob("*.pkl"):
                 total_size += cache_file.stat().st_size
         except Exception as e:
-            logger.warning(f"Failed to calculate cache size: {e}")
+            logger.warning("Failed to calculate cache size: %s", e)
         
         return total_size
 
@@ -188,7 +188,7 @@ class PersistentModelCache:
                 "cache_dir": str(self.cache_dir)
             }
         except Exception as e:
-            logger.warning(f"Failed to get cache info: {e}")
+            logger.warning("Failed to get cache info: %s", e)
             return {
                 "in_memory_models": len(self._local_cache),
                 "disk_models": 0,
@@ -219,7 +219,7 @@ def get_cached_model(model_name: str) -> SentenceTransformer:
         return cached_model
     
     # Load fresh and cache
-    logger.debug(f"Loading model: {model_name}")
+    logger.debug("Loading model: %s", model_name)
     model = SentenceTransformer(model_name)
     
     # Cache for future use
