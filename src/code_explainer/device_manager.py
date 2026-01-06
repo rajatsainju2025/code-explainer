@@ -74,11 +74,11 @@ class DeviceManager:
                         device_name=data.get('device_name')
                     )
                     self._cached_capabilities[device_type] = cap
-                    logger.debug(f"Loaded cached {device_type} capabilities from disk")
+                    logger.debug("Loaded cached %s capabilities from disk", device_type)
                 except Exception as e:
-                    logger.warning(f"Failed to load cached {device_type} capabilities: {e}")
+                    logger.warning("Failed to load cached %s capabilities: %s", device_type, e)
         except Exception as e:
-            logger.warning(f"Failed to load device cache file: {e}")
+            logger.warning("Failed to load device cache file: %s", e)
 
     def _save_cached_capabilities(self) -> None:
         """Save device capabilities to disk cache."""
@@ -101,9 +101,9 @@ class DeviceManager:
             with open(self.CACHE_FILE, 'w') as f:
                 json.dump(cache_data, f, separators=(',', ':'))  # Compact JSON
             
-            logger.debug(f"Saved device capabilities cache to {self.CACHE_FILE}")
+            logger.debug("Saved device capabilities cache to %s", self.CACHE_FILE)
         except Exception as e:
-            logger.warning(f"Failed to save device cache file: {e}")
+            logger.warning("Failed to save device cache file: %s", e)
 
     def get_optimal_device(self, prefer_device: Optional[str] = None) -> DeviceCapabilities:
         """Get optimal device with fallback strategy."""
@@ -121,9 +121,9 @@ class DeviceManager:
         for device_type in device_order:
             capabilities = self._get_device_capabilities(device_type)
             if capabilities:
-                logger.info(f"Selected device: {capabilities.device} ({capabilities.device_type})")
+                logger.info("Selected device: %s (%s)", capabilities.device, capabilities.device_type)
                 if capabilities.memory_gb:
-                    logger.info(f"Available memory: {capabilities.memory_gb:.1f} GB")
+                    logger.info("Available memory: %.1f GB", capabilities.memory_gb)
                 return capabilities
 
         # Fallback to CPU (should always work)
@@ -152,7 +152,7 @@ class DeviceManager:
                 capabilities = self._analyze_cpu_device()
 
         except Exception as e:
-            logger.warning(f"Failed to analyze {device_type} device: {e}")
+            logger.warning("Failed to analyze %s device: %s", device_type, e)
 
         if capabilities:
             self._cached_capabilities[device_type] = capabilities
@@ -279,7 +279,7 @@ class DeviceManager:
             # Some models have issues with MPS
             problematic_models = ['gpt-j', 'gpt-neox']  # Add more as discovered
             if any(model in model_name.lower() for model in problematic_models):
-                logger.warning(f"Model {model_name} may have issues with MPS")
+                logger.warning("Model %s may have issues with MPS", model_name)
                 return False
 
         return True
@@ -292,7 +292,7 @@ class DeviceManager:
             logger.error("OOM fallback disabled, re-raising error")
             raise error
 
-        logger.warning(f"OOM error on {current_device}: {error}")
+        logger.warning("OOM error on %s: %s", current_device, error)
 
         # Try fallback devices
         fallback_order = {
@@ -304,7 +304,7 @@ class DeviceManager:
         for fallback_device in fallback_order:
             capabilities = self._get_device_capabilities(fallback_device)
             if capabilities:
-                logger.info(f"Falling back to {fallback_device}")
+                logger.info("Falling back to %s", fallback_device)
                 return capabilities
 
         logger.error("No fallback device available")
