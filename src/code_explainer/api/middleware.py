@@ -80,7 +80,7 @@ class ErrorHandlingMiddleware(BaseHTTPMiddleware):
         try:
             return await call_next(request)
         except ValueError as e:
-            logger.warning(f"[{request_id}] Validation error: {str(e)}")
+            logger.warning("[%s] Validation error: %s", request_id, str(e))
             return JSONResponse(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 content={
@@ -90,7 +90,7 @@ class ErrorHandlingMiddleware(BaseHTTPMiddleware):
                 }
             )
         except PermissionError as e:
-            logger.warning(f"[{request_id}] Permission denied: {str(e)}")
+            logger.warning("[%s] Permission denied: %s", request_id, str(e))
             return JSONResponse(
                 status_code=status.HTTP_403_FORBIDDEN,
                 content={
@@ -100,7 +100,7 @@ class ErrorHandlingMiddleware(BaseHTTPMiddleware):
                 }
             )
         except FileNotFoundError as e:
-            logger.warning(f"[{request_id}] Resource not found: {str(e)}")
+            logger.warning("[%s] Resource not found: %s", request_id, str(e))
             return JSONResponse(
                 status_code=status.HTTP_404_NOT_FOUND,
                 content={
@@ -111,7 +111,7 @@ class ErrorHandlingMiddleware(BaseHTTPMiddleware):
             )
         except Exception as e:
             logger.error(
-                f"[{request_id}] Unhandled exception: {str(e)}",
+                "[%s] Unhandled exception: %s", request_id, str(e),
                 exc_info=True
             )
             return JSONResponse(
@@ -157,7 +157,7 @@ def setup_cors_middleware(app, allowed_origins=None):
         max_age=3600,  # Cache preflight requests for 1 hour
     )
     
-    logger.info(f"CORS configured with origins: {allowed_origins}")
+    logger.info("CORS configured with origins: %s", allowed_origins)
 
 
 def setup_rate_limiting(app):
@@ -198,7 +198,7 @@ def setup_all_middleware(app):
         app.add_middleware(GZipMiddleware, minimum_size=1024)
         logger.info("GZip compression enabled (min_size=1024 bytes)")
     except Exception as e:  # pragma: no cover
-        logger.warning(f"Failed to enable GZipMiddleware: {e}")
+        logger.warning("Failed to enable GZipMiddleware: %s", e)
 
     # Add logging middleware
     app.add_middleware(LoggingMiddleware)
