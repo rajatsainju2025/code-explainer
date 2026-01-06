@@ -9,7 +9,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-@dataclass
+@dataclass(slots=True)
 class ResearchEvaluationConfig:
     """Configuration for research evaluation."""
     enable_contamination_detection: bool = True
@@ -20,11 +20,13 @@ class ResearchEvaluationConfig:
 
     def __post_init__(self):
         if self.contamination_types is None:
-            self.contamination_types = ["exact", "n_gram", "semantic"]
+            object.__setattr__(self, 'contamination_types', ["exact", "n_gram", "semantic"])
 
 
 class ResearchEvaluationOrchestrator:
     """Orchestrates comprehensive research evaluation of code explanation models."""
+    
+    __slots__ = ('config', 'results')
 
     def __init__(self, config: ResearchEvaluationConfig):
         self.config = config
