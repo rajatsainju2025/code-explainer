@@ -108,9 +108,9 @@ async def startup_event():
         model_path = os.getenv("MODEL_PATH", "./results")
         config_path = os.getenv("CONFIG_PATH", "configs/default.yaml")
         explainer = CodeExplainer(model_path=model_path, config_path=config_path)
-        logger.info(f"Model loaded successfully from {model_path}")
+        logger.info("Model loaded successfully from %s", model_path)
     except Exception as e:
-        logger.error(f"Failed to load model: {e}")
+        logger.error("Failed to load model: %s", e)
         explainer = None
 
 
@@ -130,17 +130,20 @@ async def get_version():
     return {"version": "1.0.0", "name": "Code Explainer API"}
 
 
+# Pre-cached strategies list for O(1) endpoint response
+_CACHED_STRATEGIES = [
+    {"name": "vanilla", "description": "Basic prompt without augmentation"},
+    {"name": "ast_augmented", "description": "Enhanced with AST structure analysis"},
+    {"name": "retrieval_augmented", "description": "Enhanced with docstring and context"},
+    {"name": "execution_trace", "description": "Enhanced with safe execution trace"},
+    {"name": "enhanced_rag", "description": "Enhanced with code similarity retrieval"},
+]
+
+
 @app.get("/strategies", response_model=StrategiesResponse)
 async def get_strategies():
     """Get available prompt strategies."""
-    strategies = [
-        {"name": "vanilla", "description": "Basic prompt without augmentation"},
-        {"name": "ast_augmented", "description": "Enhanced with AST structure analysis"},
-        {"name": "retrieval_augmented", "description": "Enhanced with docstring and context"},
-        {"name": "execution_trace", "description": "Enhanced with safe execution trace"},
-        {"name": "enhanced_rag", "description": "Enhanced with code similarity retrieval"},
-    ]
-    return StrategiesResponse(strategies=strategies)
+    return StrategiesResponse(strategies=_CACHED_STRATEGIES)
 
 
 @app.post("/explain", response_model=ExplainResponse)
@@ -181,7 +184,7 @@ async def explain_code(request: ExplainRequest):
         )
 
     except Exception as e:
-        logger.error(f"Error explaining code: {e}")
+        logger.error("Error explaining code: %s", e)
         raise HTTPException(status_code=500, detail=f"Failed to explain code: {str(e)}")
 
 
@@ -209,7 +212,7 @@ async def analyze_code(request: AnalyzeRequest):
         )
 
     except Exception as e:
-        logger.error(f"Error analyzing code: {e}")
+        logger.error("Error analyzing code: %s", e)
         raise HTTPException(status_code=500, detail=f"Failed to analyze code: {str(e)}")
 
 
