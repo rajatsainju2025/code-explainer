@@ -32,7 +32,7 @@ class ExplanationStyle(Enum):
     REFERENCE = "reference"
 
 
-@dataclass
+@dataclass(slots=True)
 class ExplanationContext:
     """Context for generating explanations."""
     audience: ExplanationAudience
@@ -44,7 +44,7 @@ class ExplanationContext:
     focus_areas: List[str]  # e.g., ["performance", "security", "maintainability"]
 
 
-@dataclass
+@dataclass(slots=True)
 class EnhancedExplanation:
     """Enhanced explanation with structured information."""
     primary_explanation: str
@@ -79,8 +79,14 @@ class ExplanationStrategy(ABC):
         pass
 
 
+# Pre-cached security patterns for O(1) lookup
+_SECURITY_PATTERNS = frozenset({"exec(", "eval(", "shell=True", "pickle.load"})
+
+
 class PatternAwareStrategy(ExplanationStrategy):
     """Strategy that focuses on design patterns and code structure."""
+    
+    __slots__ = ()
 
     def get_strategy_name(self) -> str:
         return "pattern_aware"
@@ -267,6 +273,8 @@ class PatternAwareStrategy(ExplanationStrategy):
 
 class AdaptiveExplanationStrategy(ExplanationStrategy):
     """Strategy that adapts explanation based on code complexity and audience."""
+    
+    __slots__ = ()
 
     def get_strategy_name(self) -> str:
         return "adaptive"
@@ -365,15 +373,23 @@ class AdaptiveExplanationStrategy(ExplanationStrategy):
         )
 
 
+# Pre-created strategy instances for reuse
+_PATTERN_STRATEGY = PatternAwareStrategy()
+_ADAPTIVE_STRATEGY = AdaptiveExplanationStrategy()
+_DEFAULT_STRATEGIES = {
+    "pattern_aware": _PATTERN_STRATEGY,
+    "adaptive": _ADAPTIVE_STRATEGY,
+}
+
+
 class IntelligentExplanationGenerator:
     """Main class for generating intelligent, context-aware explanations."""
+    
+    __slots__ = ('language_detector', 'strategies', 'default_strategy')
 
     def __init__(self):
         self.language_detector = EnhancedLanguageDetector()
-        self.strategies = {
-            "pattern_aware": PatternAwareStrategy(),
-            "adaptive": AdaptiveExplanationStrategy(),
-        }
+        self.strategies = _DEFAULT_STRATEGIES.copy()
         self.default_strategy = "adaptive"
 
     def explain_code(
@@ -408,7 +424,7 @@ class IntelligentExplanationGenerator:
         # Choose strategy
         strategy_name = strategy or self.default_strategy
         if strategy_name not in self.strategies:
-            logger.warning(f"Unknown strategy '{strategy_name}', using default")
+            logger.warning("Unknown strategy '%s', using default", strategy_name)
             strategy_name = self.default_strategy
 
         explanation_strategy = self.strategies[strategy_name]
