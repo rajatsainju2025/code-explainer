@@ -71,7 +71,7 @@ class CodeExplainerUtilitiesMixin:
         value = self._cfg_get_typed(dotted_path, str, default)
 
         if valid_values is not None and value not in valid_values:
-            self.logger.warning(f"Config '{dotted_path}' value '{value}' not in valid values {valid_values}, using default: {default}")
+            self.logger.warning("Config '%s' value '%s' not in valid values %s, using default: %s", dotted_path, value, valid_values, default)
             return default
 
         return value

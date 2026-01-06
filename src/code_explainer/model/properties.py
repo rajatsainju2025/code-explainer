@@ -85,7 +85,7 @@ class CodeExplainerPropertiesMixin:
             self.logger.debug("No model path available for lazy loading")
             return
         
-        self.logger.debug(f"Lazy loading model resources from: {self._model_path}")
+        self.logger.debug("Lazy loading model resources from: %s", self._model_path)
         self._resources = self._initialize_model_resources(self._model_path)
         if self._resources is not None:
             self.logger.debug("Model resources loaded successfully via lazy loading")

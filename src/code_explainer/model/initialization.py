@@ -75,7 +75,7 @@ class CodeExplainerInitializationMixin:
             # Fallback to basic logging setup
             logging.basicConfig(level=logging.INFO)
             logger = logging.getLogger(__name__)
-            logger.warning(f"Failed to setup advanced logging, using basic setup: {e}")
+            logger.warning("Failed to setup advanced logging, using basic setup: %s", e)
             return logger
 
     def _initialize_model_resources(self, model_path: Optional[Union[str, Path]]) -> Optional[ModelResources]:
@@ -92,7 +92,7 @@ class CodeExplainerInitializationMixin:
                 self.logger.debug("No model path provided, deferring model loading until first access")
                 return None
 
-            self.logger.debug(f"Loading model resources from: {model_path}")
+            self.logger.debug("Loading model resources from: %s", model_path)
 
             # Initialize model loader
             self.model_loader = ModelLoader(self.config.model)
@@ -104,7 +104,7 @@ class CodeExplainerInitializationMixin:
             return resources
 
         except Exception as e:
-            self.logger.error(f"Failed to initialize model resources: {e}")
+            self.logger.error("Failed to initialize model resources: %s", e)
             return None
 
     def _initialize_components(self) -> None:
@@ -120,7 +120,7 @@ class CodeExplainerInitializationMixin:
                     cache_dir=cache_dir,
                     max_size=cache_size
                 )
-                self.logger.info(f"Explanation cache initialized with max size: {cache_size}")
+                self.logger.info("Explanation cache initialized with max size: %d", cache_size)
             else:
                 self.explanation_cache = None
                 self.logger.debug("Explanation cache disabled")
@@ -130,7 +130,7 @@ class CodeExplainerInitializationMixin:
             self.advanced_cache = None
 
         except Exception as e:
-            self.logger.warning(f"Failed to initialize some components: {e}")
+            self.logger.warning("Failed to initialize some components: %s", e)
             self.explanation_cache = None
             self.cache_manager = None
             self.advanced_cache = None
