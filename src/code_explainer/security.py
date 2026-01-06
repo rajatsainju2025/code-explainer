@@ -39,18 +39,24 @@ DANGEROUS_PATTERN = re.compile(
 )
 
 
+# Cache time.time for micro-optimization
+_time_time = time.time
+
+
 class RateLimiter:
     """Rate limiter using sliding window algorithm."""
+
+    __slots__ = ("requests_per_minute", "requests", "cleanup_interval", "last_cleanup")
 
     def __init__(self, requests_per_minute: int = 60):
         self.requests_per_minute = requests_per_minute
         self.requests: Dict[str, deque] = defaultdict(deque)
         self.cleanup_interval = 60  # seconds
-        self.last_cleanup = time.time()
+        self.last_cleanup = _time_time()
 
     def is_allowed(self, client_id: str) -> Tuple[bool, Optional[str]]:
         """Check if request is allowed for client."""
-        current_time = time.time()
+        current_time = _time_time()
         
         # Periodic cleanup
         if current_time - self.last_cleanup > self.cleanup_interval:
@@ -75,7 +81,7 @@ class RateLimiter:
 
     def _cleanup_old_requests(self):
         """Remove old client entries to prevent memory leak."""
-        current_time = time.time()
+        current_time = _time_time()
         cutoff_time = current_time - 300  # Keep 5 minutes of history
         
         clients_to_remove = []
@@ -93,11 +99,13 @@ class RateLimiter:
             del self.requests[client_id]
         
         self.last_cleanup = current_time
-        logger.debug(f"Cleaned up rate limiter, removed {len(clients_to_remove)} clients")
+        logger.debug("Cleaned up rate limiter, removed %d clients", len(clients_to_remove))
 
 
 class AuditLogger:
     """Security audit logger with structured events."""
+
+    __slots__ = ("enabled", "log_path")
 
     def __init__(self, log_path: Optional[str] = None, enabled: bool = True):
         self.enabled = enabled
@@ -124,11 +132,11 @@ class AuditLogger:
                 with open(self.log_path, "a") as f:
                     f.write(json.dumps(event) + "\n")
             except Exception as e:
-                logger.error(f"Failed to write audit log: {e}")
+                logger.error("Failed to write audit log: %s", e)
         
         # Also log to standard logger
         log_method = getattr(logger, severity.lower(), logger.info)
-        log_method(f"[AUDIT] {event_type}: {json.dumps(details)}")
+        log_method("[AUDIT] %s: %s", event_type, json.dumps(details))
 
     def log_validation_failure(self, code_hash: str, issues: List[str], client_id: Optional[str] = None):
         """Log security validation failure."""
