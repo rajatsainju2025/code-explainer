@@ -37,11 +37,11 @@ class MultiAgentOrchestrator:
 
         for agent_name, agent in self.agents.items():
             try:
-                logger.info(f"Getting analysis from {agent_name} agent")
+                logger.info("Getting analysis from %s agent", agent_name)
                 component = agent.analyze_code(code, {})
                 components.append(component)
             except Exception as e:
-                logger.error(f"Agent {agent_name} failed: {e}")
+                logger.error("Agent %s failed: %s", agent_name, e)
                 continue
 
         # Synthesize final explanation
