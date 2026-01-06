@@ -33,7 +33,7 @@ class ModelInstanceManager:
         """
         # Fast path: check if already loaded
         if model_key in self._models:
-            logger.debug(f"Using cached model: {model_key}")
+            logger.debug("Using cached model: %s", model_key)
             return self._models[model_key]
         
         # Get or create lock for this model
@@ -48,7 +48,7 @@ class ModelInstanceManager:
             if model_key in self._models:
                 return self._models[model_key]
             
-            logger.info(f"Initializing model: {model_key}")
+            logger.info("Initializing model: %s", model_key)
             model = factory_func(*args, **kwargs)
             self._models[model_key] = model
             return model
@@ -66,7 +66,7 @@ class ModelInstanceManager:
             with self._global_lock:
                 if model_key in self._models:
                     del self._models[model_key]
-                    logger.info(f"Released model: {model_key}")
+                    logger.info("Released model: %s", model_key)
                     return True
         return False
     
@@ -79,7 +79,7 @@ class ModelInstanceManager:
         with self._global_lock:
             count = len(self._models)
             self._models.clear()
-            logger.info(f"Cleared {count} cached models")
+            logger.info("Cleared %d cached models", count)
             return count
     
     def get_stats(self) -> Dict[str, Any]:
