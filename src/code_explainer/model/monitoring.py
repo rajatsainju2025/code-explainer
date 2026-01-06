@@ -45,7 +45,7 @@ class CodeExplainerMonitoringMixin:
             
             return result
         except Exception as e:
-            logger.error(f"Failed to get memory usage: {e}")
+            logger.error("Failed to get memory usage: %s", e)
             return {"error": str(e)}
 
     def get_performance_report(self) -> Dict[str, Any]:
@@ -129,7 +129,7 @@ class CodeExplainerMonitoringMixin:
             return {"error": f"Unsupported quantization: {bits} bits"}
         
         # Placeholder for quantization logic
-        logger.info(f"Quantization to {bits}-bit requested")
+        logger.info("Quantization to %d-bit requested", bits)
         return {
             "success": True,
             "message": f"{bits}-bit quantization enabled",
@@ -146,7 +146,7 @@ class CodeExplainerMonitoringMixin:
             
             return {"success": False, "message": "Model does not support gradient checkpointing"}
         except Exception as e:
-            logger.error(f"Failed to enable gradient checkpointing: {e}")
+            logger.error("Failed to enable gradient checkpointing: %s", e)
             return {"error": str(e)}
 
     def optimize_for_inference(self) -> Dict[str, Any]:
@@ -164,7 +164,7 @@ class CodeExplainerMonitoringMixin:
             
             return {"success": False, "message": "No model loaded"}
         except Exception as e:
-            logger.error(f"Failed to optimize for inference: {e}")
+            logger.error("Failed to optimize for inference: %s", e)
             return {"error": str(e)}
 
     def optimize_tokenizer(self) -> Dict[str, Any]:
@@ -176,7 +176,7 @@ class CodeExplainerMonitoringMixin:
             
             return {"success": False, "message": "No tokenizer loaded"}
         except Exception as e:
-            logger.error(f"Failed to optimize tokenizer: {e}")
+            logger.error("Failed to optimize tokenizer: %s", e)
             return {"error": str(e)}
 
     def explain_code_batch(self, requests: List[Dict[str, Any]]) -> List[str]:
@@ -198,7 +198,7 @@ class CodeExplainerMonitoringMixin:
                 explanation = self.explain_code(code, strategy=strategy)
                 explanations.append(explanation)
             except Exception as e:
-                logger.error(f"Failed to explain code: {e}")
+                logger.error("Failed to explain code: %s", e)
                 explanations.append(f"Error: {str(e)}")
         
         return explanations

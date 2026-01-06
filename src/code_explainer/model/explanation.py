@@ -180,7 +180,7 @@ class CodeExplainerExplanationMixin:
                 )
                 explanations[i] = explanation
             except Exception as e:
-                self.logger.error(f"Failed to explain code at index {i}: {e}")
+                self.logger.error("Failed to explain code at index %d: %s", i, e)
                 explanations[i] = f"Error: {str(e)}"
         
         # Explicit memory cleanup after batch processing
