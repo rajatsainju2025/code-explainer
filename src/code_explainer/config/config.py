@@ -6,7 +6,7 @@ from typing import Dict, Optional
 from omegaconf import MISSING
 
 
-@dataclass
+@dataclass(slots=True)
 class ModelConfig:
     """Model configuration."""
     name: str = MISSING
@@ -24,7 +24,7 @@ class ModelConfig:
     precision: str = "auto"  # auto, fp32, fp16, bf16, 8bit
 
 
-@dataclass
+@dataclass(slots=True)
 class TrainingConfig:
     """Training configuration."""
     output_dir: str = MISSING
@@ -51,7 +51,7 @@ class TrainingConfig:
     remove_unused_columns: bool = True
 
 
-@dataclass
+@dataclass(slots=True)
 class CacheConfig:
     """Cache configuration."""
     enabled: bool = True
@@ -59,7 +59,7 @@ class CacheConfig:
     max_size: int = 1000
 
 
-@dataclass
+@dataclass(slots=True)
 class LoggingConfig:
     """Logging configuration."""
     level: str = "INFO"
@@ -68,7 +68,7 @@ class LoggingConfig:
     date_format: str = "%Y-%m-%d %H:%M:%S"
 
 
-@dataclass
+@dataclass(slots=True)
 class PromptConfig:
     """Prompt configuration."""
     strategy: str = "vanilla"
