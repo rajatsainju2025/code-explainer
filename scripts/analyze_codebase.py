@@ -20,6 +20,8 @@ from collections import defaultdict
 
 class CodebaseAnalyzer:
     """Analyzes the codebase structure and dependencies."""
+    
+    __slots__ = ('root_path', 'modules', 'imports', 'exports', 'file_sizes', 'complexity_scores')
 
     def __init__(self, root_path: str):
         self.root_path = Path(root_path)
