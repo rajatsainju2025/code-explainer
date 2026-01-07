@@ -51,7 +51,7 @@ class ContextAgent(BaseAgent):
             )
 
         except Exception as e:
-            logger.error(f"Context analysis failed: {e}")
+            logger.error("Context analysis failed: %s", e)
             return ExplanationComponent(
                 agent_id=self.agent_id,
                 component_type="context",

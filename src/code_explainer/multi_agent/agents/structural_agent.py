@@ -92,7 +92,7 @@ This code has {complexity_level} complexity.
             )
 
         except Exception as e:
-            logger.error(f"Structural analysis failed: {e}")
+            logger.error("Structural analysis failed: %s", e)
             return ExplanationComponent(
                 agent_id=self.agent_id,
                 component_type="structure",
