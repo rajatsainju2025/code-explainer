@@ -10,7 +10,7 @@ import sys
 logger = logging.getLogger(__name__)
 
 
-@dataclass
+@dataclass(slots=True)
 class MemoryStats:
     """Memory usage statistics."""
     
@@ -23,6 +23,8 @@ class MemoryStats:
 class MemoryProfiler:
     """Profile memory usage during operations."""
     
+    __slots__ = ('_initial_stats', '_enabled')
+
     def __init__(self):
         """Initialize memory profiler."""
         self._initial_stats: Optional[MemoryStats] = None
