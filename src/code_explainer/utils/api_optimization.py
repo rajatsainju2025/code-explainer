@@ -33,7 +33,7 @@ class RequestDeduplicator:
         if key in self._cache:
             result, expiry = self._cache[key]
             if datetime.now() < expiry:
-                logger.debug(f"Cache hit for request {key[:8]}...")
+                logger.debug("Cache hit for request %s...", key[:8])
                 return result
             else:
                 del self._cache[key]
