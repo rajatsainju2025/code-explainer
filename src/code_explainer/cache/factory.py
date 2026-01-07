@@ -36,7 +36,7 @@ class CacheFactory:
     def register_cache_type(cls, name: str, cache_class: Type) -> None:
         """Register a cache implementation."""
         cls._cache_registry[name] = cache_class
-        logger.debug(f"Registered cache type: {name}")
+        logger.debug("Registered cache type: %s", name)
 
     @classmethod
     def create_cache(cls, cache_type: str, **kwargs) -> Any:
@@ -45,7 +45,7 @@ class CacheFactory:
             raise ValueError(f"Unknown cache type: {cache_type}. Available: {list(cls._cache_registry.keys())}")
         
         cache_class = cls._cache_registry[cache_type]
-        logger.debug(f"Creating cache of type: {cache_type}")
+        logger.debug("Creating cache of type: %s", cache_type)
         return cache_class(**kwargs)
 
     @classmethod
