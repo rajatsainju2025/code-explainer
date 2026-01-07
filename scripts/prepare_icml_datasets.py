@@ -51,7 +51,7 @@ class ICMLDatasetPreparer:
                     dataset_path = self.output_dir / dataset_name
                     dataset_path.mkdir(exist_ok=True)
 
-                    logger.info(f"Preparing dataset: {dataset_name}")
+                    logger.info("Preparing dataset: %s", dataset_name)
 
                     if dataset_name == "concode":
                         self._prepare_concode(dataset_config, dataset_path)
@@ -108,10 +108,10 @@ class ICMLDatasetPreparer:
             self._save_split(val_split, output_path / "val.jsonl")
             self._save_split(test_split, output_path / "test.jsonl")
 
-            logger.info(f"ConCode prepared: {len(train_split)} train, {len(val_split)} val, {len(test_split)} test")
+            logger.info("ConCode prepared: %d train, %d val, %d test", len(train_split), len(val_split), len(test_split))
 
         except Exception as e:
-            logger.error(f"Error preparing ConCode: {e}")
+            logger.error("Error preparing ConCode: %s", e)
             self._create_dummy_dataset(output_path, "java")
 
     def _prepare_codexglue(self, config: Dict, output_path: Path):
@@ -139,7 +139,7 @@ class ICMLDatasetPreparer:
                         })
 
                 except Exception as e:
-                    logger.warning(f"Could not load CodeXGLUE for {lang}: {e}")
+                    logger.warning("Could not load CodeXGLUE for %s: %s", lang, e)
 
             if not all_data:
                 logger.warning("No CodeXGLUE data loaded, creating dummy dataset")
@@ -163,10 +163,10 @@ class ICMLDatasetPreparer:
             self._save_split(val_split, output_path / "val.jsonl")
             self._save_split(test_split, output_path / "test.jsonl")
 
-            logger.info(f"CodeXGLUE prepared: {len(train_split)} train, {len(val_split)} val, {len(test_split)} test")
+            logger.info("CodeXGLUE prepared: %d train, %d val, %d test", len(train_split), len(val_split), len(test_split))
 
         except Exception as e:
-            logger.error(f"Error preparing CodeXGLUE: {e}")
+            logger.error("Error preparing CodeXGLUE: %s", e)
             self._create_dummy_dataset(output_path, "multiple")
 
     def _prepare_codesearchnet(self, config: Dict, output_path: Path):
@@ -194,7 +194,7 @@ class ICMLDatasetPreparer:
                             })
 
                 except Exception as e:
-                    logger.warning(f"Could not load CodeSearchNet for {lang}: {e}")
+                    logger.warning("Could not load CodeSearchNet for %s: %s", lang, e)
 
             if not all_data:
                 logger.warning("No CodeSearchNet data loaded, creating dummy dataset")
@@ -218,10 +218,10 @@ class ICMLDatasetPreparer:
             self._save_split(val_split, output_path / "val.jsonl")
             self._save_split(test_split, output_path / "test.jsonl")
 
-            logger.info(f"CodeSearchNet prepared: {len(train_split)} train, {len(val_split)} val, {len(test_split)} test")
+            logger.info("CodeSearchNet prepared: %d train, %d val, %d test", len(train_split), len(val_split), len(test_split))
 
         except Exception as e:
-            logger.error(f"Error preparing CodeSearchNet: {e}")
+            logger.error("Error preparing CodeSearchNet: %s", e)
             self._create_dummy_dataset(output_path, "multiple")
 
     def _prepare_code_docstring_corpus(self, config: Dict, output_path: Path):
@@ -251,7 +251,7 @@ class ICMLDatasetPreparer:
         ] * 100  # Duplicate to create larger validation set
 
         self._save_split(validation_data, output_path / "validation.jsonl")
-        logger.info(f"Code-Docstring Corpus prepared: {len(validation_data)} samples")
+        logger.info("Code-Docstring Corpus prepared: %d samples", len(validation_data))
 
     def _prepare_stackoverflow_qa(self, config: Dict, output_path: Path):
         """Prepare StackOverflow Q&A data for human evaluation."""
@@ -276,11 +276,11 @@ class ICMLDatasetPreparer:
         ] * 500  # Create larger human evaluation set
 
         self._save_split(human_eval_data, output_path / "human_eval.jsonl")
-        logger.info(f"StackOverflow Q&A prepared: {len(human_eval_data)} samples")
+        logger.info("StackOverflow Q&A prepared: %d samples", len(human_eval_data))
 
     def _create_dummy_dataset(self, output_path: Path, language: str):
         """Create a dummy dataset for testing when real data unavailable."""
-        logger.warning(f"Creating dummy dataset for {output_path.name}")
+        logger.warning("Creating dummy dataset for %s", output_path.name)
 
         dummy_data = [
             {
@@ -307,7 +307,7 @@ class ICMLDatasetPreparer:
 
     def _validate_dataset_quality(self, dataset_path: Path, config: Dict):
         """Validate dataset quality and generate statistics."""
-        logger.info(f"Validating dataset quality for {dataset_path.name}")
+        logger.info("Validating dataset quality for %s", dataset_path.name)
 
         stats = {
             'dataset_name': dataset_path.name,
@@ -351,9 +351,9 @@ class ICMLDatasetPreparer:
         with open(dataset_path / 'stats.json', 'w') as f:
             json.dump(stats, f, indent=2)
 
-        logger.info(f"Dataset {dataset_path.name}: {stats['total_samples']} samples, "
-                   f"{len(stats['languages'])} languages, "
-                   f"{len(stats['quality_issues'])} quality issues")
+        logger.info("Dataset %s: %d samples, %d languages, %d quality issues",
+                   dataset_path.name, stats['total_samples'],
+                   len(stats['languages']), len(stats['quality_issues']))
 
     def _generate_dataset_summary(self):
         """Generate overall dataset summary."""
@@ -384,9 +384,9 @@ class ICMLDatasetPreparer:
         with open(self.output_dir / 'dataset_summary.json', 'w') as f:
             json.dump(summary, f, indent=2)
 
-        logger.info(f"Dataset preparation complete: {summary['total_datasets']} datasets, "
-                   f"{summary['total_samples']} total samples, "
-                   f"{len(summary['languages'])} languages")
+        logger.info("Dataset preparation complete: %d datasets, %d total samples, %d languages",
+                   summary['total_datasets'], summary['total_samples'],
+                   len(summary['languages']))
 
 def main():
     parser = argparse.ArgumentParser(description="Prepare ICML datasets")
