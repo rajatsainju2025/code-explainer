@@ -66,6 +66,8 @@ class CacheBase:
         ttl_seconds: Time-to-live for cached items in seconds
         size: Current number of items in cache
     """
+    
+    __slots__ = ('cache_dir', 'max_size', 'ttl_seconds', 'size')
 
     def __init__(self, cache_dir: str = ".cache", max_size: int = 1000, ttl_seconds: Optional[int] = None):
         """Initialize cache with standard parameters."""
@@ -115,6 +117,8 @@ class CacheMetrics:
         evictions: Number of items evicted
         errors: Number of cache errors
     """
+    
+    __slots__ = ('hits', 'misses', 'evictions', 'errors')
 
     def __init__(self):
         self.hits = 0
