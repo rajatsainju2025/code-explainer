@@ -105,6 +105,10 @@ class CodeRetriever:
     Supports FAISS vector search, BM25 lexical search, and hybrid fusion.
     Includes LRU query result caching to avoid redundant computations.
     """
+    
+    __slots__ = ('config', 'model', 'code_corpus', 'faiss_index', 'bm25_index', 
+                 'hybrid_search', 'enhanced_retrieval', 'enable_query_cache', 
+                 'query_cache', 'stats', '_stats_lock')
 
     def __init__(self, model_name: str = "sentence-transformers/all-MiniLM-L6-v2",
                  model: Optional[SentenceTransformer] = None, 
