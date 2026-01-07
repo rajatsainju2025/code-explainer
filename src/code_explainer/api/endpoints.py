@@ -243,7 +243,7 @@ async def health_check(
             retrieval_ready=retrieval_ready
         )
     except Exception as e:
-        logger.error(f"[{request_id}] Health check failed: {str(e)}")
+        logger.error("[%s] Health check failed: %s", request_id, str(e))
         return HealthResponse(
             status="unhealthy",
             version="unknown",
@@ -270,7 +270,7 @@ async def get_metrics(
             model_inference_time=metrics["model_inference_time"]
         )
     except Exception as e:
-        logger.error(f"[{request_id}] Failed to get metrics: {str(e)}")
+        logger.error("[%s] Failed to get metrics: %s", request_id, str(e))
         raise HTTPException(status_code=500, detail=f"Metrics retrieval failed: {str(e)}")
 
 
@@ -297,7 +297,7 @@ async def get_config_info(
             "request_id": request_id
         }
     except Exception as e:
-        logger.error(f"[{request_id}] Failed to get config: {str(e)}")
+        logger.error("[%s] Failed to get config: %s", request_id, str(e))
         raise HTTPException(status_code=500, detail=f"Config retrieval failed: {str(e)}")
 
 
@@ -330,7 +330,7 @@ async def get_version(
         
         return version_info
     except Exception as e:
-        logger.error(f"[{request_id}] Failed to get version info: {str(e)}")
+        logger.error("[%s] Failed to get version info: %s", request_id, str(e))
         raise HTTPException(status_code=500, detail=f"Version info retrieval failed: {str(e)}")
 
 
@@ -347,7 +347,7 @@ async def reload_model(
     Useful for applying configuration changes or updating to a new model version.
     """
     try:
-        logger.info(f"[{request_id}] Model reload requested by authenticated user")
+        logger.info("[%s] Model reload requested by authenticated user", request_id)
         
         def reload_in_background():
             """Perform reload in background to avoid blocking."""
@@ -356,7 +356,7 @@ async def reload_model(
                 reload_code_explainer(config)
                 logger.info("Model reload completed successfully")
             except Exception as e:
-                logger.error(f"Background model reload failed: {str(e)}")
+                logger.error("Background model reload failed: %s", str(e))
         
         # Queue reload in background
         background_tasks.add_task(reload_in_background)
@@ -367,7 +367,7 @@ async def reload_model(
             "message": "Model reload has been initiated in the background. Check logs for completion status."
         }
     except Exception as e:
-        logger.error(f"[{request_id}] Model reload failed: {str(e)}")
+        logger.error("[%s] Model reload failed: %s", request_id, str(e))
         raise HTTPException(status_code=500, detail=f"Model reload failed: {str(e)}")
 
 
@@ -397,7 +397,7 @@ async def prometheus_metrics_endpoint(
         resp.headers["Cache-Control"] = "no-store"
         return resp
     except Exception as e:
-        logger.error(f"[{request_id}] Failed to export Prometheus metrics: {str(e)}")
+        logger.error("[%s] Failed to export Prometheus metrics: %s", request_id, str(e))
         raise HTTPException(
             status_code=500,
             detail=f"Failed to export metrics: {str(e)}"
