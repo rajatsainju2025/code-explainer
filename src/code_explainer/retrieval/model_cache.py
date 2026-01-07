@@ -22,6 +22,8 @@ class PersistentModelCache:
     Uses file-locking to ensure thread-safe and process-safe access to cached models.
     Models are cached in ~/.cache/code-explainer/models/ directory.
     """
+    
+    __slots__ = ('cache_dir', '_lock_dir', '_local_cache', '_local_lock')
 
     def __init__(self, cache_dir: Optional[str] = None):
         """Initialize persistent model cache.
