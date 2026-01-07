@@ -80,7 +80,7 @@ class PromptConfig:
     max_explanation_length: int = 300
 
 
-@dataclass
+@dataclass(slots=True)
 class DataConfig:
     """Data configuration for training/eval files and dataset options."""
     train_file: Optional[str] = "data/train.json"
@@ -92,7 +92,7 @@ class DataConfig:
     hub_split: str = "train"
 
 
-@dataclass
+@dataclass(slots=True)
 class Config:
     """Root configuration."""
     model: ModelConfig = field(default_factory=ModelConfig)
