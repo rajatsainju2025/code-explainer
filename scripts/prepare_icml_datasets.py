@@ -30,6 +30,8 @@ logger = logging.getLogger(__name__)
 
 class ICMLDatasetPreparer:
     """Prepares datasets for ICML experiments with quality validation."""
+    
+    __slots__ = ('config_path', 'output_dir', 'config')
 
     def __init__(self, config_path: str, output_dir: str = "data"):
         self.config_path = config_path
