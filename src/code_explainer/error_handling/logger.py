@@ -31,6 +31,8 @@ class LogEntry:
 
 class StructuredLogger:
     """Enhanced logger with structured logging capabilities."""
+    
+    __slots__ = ('name', 'logger', 'log_entries')
 
     def __init__(self, name: str, log_level: str = "INFO",
                  log_file: Optional[Path] = None,
