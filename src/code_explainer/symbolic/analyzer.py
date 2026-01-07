@@ -18,6 +18,8 @@ _NAME_TYPE = ast.Name
 
 class SymbolicAnalyzer(ConditionExtractors, PropertyGenerators, ComplexityAnalyzers):
     """Analyzes code to extract symbolic conditions and generate property tests."""
+    
+    __slots__ = ('control_flow', 'variable_assignments', 'function_calls', '_ast_cache')
 
     def __init__(self):
         ConditionExtractors.__init__(self)
