@@ -66,7 +66,7 @@ class ConnectionPool:
         try:
             yield self.session
         except Exception as e:
-            logger.error(f"Session error: {e}")
+            logger.error("Session error: %s", e)
             raise
     
     def close(self):
