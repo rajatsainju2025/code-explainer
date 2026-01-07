@@ -9,7 +9,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-@dataclass
+@dataclass(slots=True)
 class Metrics:
     """Container for performance metrics."""
     name: str
@@ -55,6 +55,8 @@ class Metrics:
 
 class PerformanceMonitor:
     """Monitor performance metrics across the system."""
+    
+    __slots__ = ('metrics',)
     
     def __init__(self):
         """Initialize monitor."""
