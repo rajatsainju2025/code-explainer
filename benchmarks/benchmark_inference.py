@@ -60,8 +60,8 @@ class BenchmarkResult:
         }
 
 class InferenceBenchmark:
-    """Comprehensive inference benchmarking suite."""
-
+    """Comprehensive inference benchmarking suite."""    
+    __slots__ = ('model_path', 'config_path', 'explainer', 'results_dir')
     def __init__(self, model_path: Optional[str] = None, config_path: Optional[str] = None):
         self.model_path = model_path
         self.config_path = config_path
