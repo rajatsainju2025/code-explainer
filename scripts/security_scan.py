@@ -22,6 +22,8 @@ logger = logging.getLogger(__name__)
 
 class SecurityScanner:
     """Comprehensive security scanner for the codebase."""
+    
+    __slots__ = ('project_root', 'results')
 
     def __init__(self, project_root: Path):
         self.project_root = project_root
