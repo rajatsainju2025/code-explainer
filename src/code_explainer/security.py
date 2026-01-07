@@ -173,6 +173,8 @@ class AuditLogger:
 
 class ContentFilter:
     """Filter for detecting sensitive content in code with compiled regex patterns."""
+    
+    __slots__ = ('sensitive_pattern_strings', 'compiled_patterns')
 
     def __init__(self):
         # Define pattern strings
@@ -225,6 +227,8 @@ class ContentFilter:
 
 class InputValidator:
     """Advanced input validation."""
+    
+    __slots__ = ('max_length', 'allowed_imports')
 
     def __init__(self, max_length: int = 10000, allowed_imports: Optional[Set[str]] = None):
         self.max_length = max_length
@@ -348,6 +352,8 @@ class CodeSecurityValidator:
 
 class SafeCodeExecutor:
     """Enhanced safe code execution with timeout and sandboxing."""
+    
+    __slots__ = ('timeout', 'audit_logger')
 
     def __init__(self, timeout: int = 30, audit_logger: Optional[AuditLogger] = None):
         self.timeout = timeout
