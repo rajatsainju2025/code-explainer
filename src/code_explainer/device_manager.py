@@ -3,17 +3,25 @@ Device Management and Auto-Detection Utilities
 
 This module provides unified device detection, capability assessment, and
 configuration management for PyTorch models across CPU, CUDA, and MPS devices.
-Includes persistent caching of device capabilities to avoid repeated probes.
+
+Optimized for:
+- Lazy torch import for faster initial load
+- Persistent caching to avoid repeated device probes
+- Environment variable configuration
+- Thread-safe singleton pattern
 """
 
 import os
 import json
 import warnings
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional, Union, Dict, Any, FrozenSet
-import torch
+from typing import Optional, Union, Dict, Any, FrozenSet, TYPE_CHECKING
 import logging
+import threading
+
+if TYPE_CHECKING:
+    import torch
 
 logger = logging.getLogger(__name__)
 
@@ -22,18 +30,59 @@ _VALID_DEVICE_TYPES: FrozenSet[str] = frozenset({'cpu', 'cuda', 'mps', 'auto'})
 _VALID_PRECISIONS: FrozenSet[str] = frozenset({'fp32', 'fp16', 'bf16', '8bit', 'auto'})
 _DEFAULT_DEVICE_ORDER = ('cuda', 'mps', 'cpu')
 
+# Singleton instance and lock for thread safety
+_device_manager_instance: Optional["DeviceManager"] = None
+_device_manager_lock = threading.Lock()
 
-@dataclass(frozen=False, slots=True)
+# Lazy torch import
+_torch = None
+
+def _get_torch():
+    """Lazily import torch to speed up module loading."""
+    global _torch
+    if _torch is None:
+        import torch as _t
+        _torch = _t
+    return _torch
+
+
+@dataclass(frozen=False)
 class DeviceCapabilities:
-    """Comprehensive device capability information."""
+    """Comprehensive device capability information.
+    
+    Note: Using regular dataclass instead of slots=True for compatibility
+    with older Python versions and serialization.
+    """
     device_type: str  # "cuda", "mps", "cpu"
-    device: torch.device
+    device: Any  # torch.device
     supports_8bit: bool = False
     supports_fp16: bool = False
     supports_bf16: bool = False
     memory_gb: Optional[float] = None
     compute_capability: Optional[str] = None  # For CUDA devices
     device_name: Optional[str] = None
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for serialization."""
+        return {
+            'device_type': self.device_type,
+            'supports_8bit': self.supports_8bit,
+            'supports_fp16': self.supports_fp16,
+            'supports_bf16': self.supports_bf16,
+            'memory_gb': self.memory_gb,
+            'compute_capability': self.compute_capability,
+            'device_name': self.device_name
+        }
+
+
+def get_device_manager() -> "DeviceManager":
+    """Get the singleton DeviceManager instance (thread-safe)."""
+    global _device_manager_instance
+    if _device_manager_instance is None:
+        with _device_manager_lock:
+            if _device_manager_instance is None:
+                _device_manager_instance = DeviceManager()
+    return _device_manager_instance
 
 
 class DeviceManager:
@@ -41,6 +90,8 @@ class DeviceManager:
     
     Caches device capabilities to ~/.cache/code-explainer/device_cache.json
     to avoid repeated CUDA/MPS probes in subsequent runs.
+    
+    Use get_device_manager() for singleton access.
     """
 
     CACHE_DIR = Path.home() / ".cache" / "code-explainer"
@@ -48,12 +99,26 @@ class DeviceManager:
 
     def __init__(self):
         self._cached_capabilities: Dict[str, DeviceCapabilities] = {}
-        self._load_cached_capabilities()
+        self._lock = threading.Lock()
+        self._cache_loaded = False
+
+    def _ensure_cache_loaded(self) -> None:
+        """Lazily load cached capabilities on first access."""
+        if self._cache_loaded:
+            return
+        
+        with self._lock:
+            if self._cache_loaded:
+                return
+            self._load_cached_capabilities()
+            self._cache_loaded = True
 
     def _load_cached_capabilities(self) -> None:
         """Load cached device capabilities from disk if available."""
         if not self.CACHE_FILE.exists():
             return
+        
+        torch = _get_torch()
         
         try:
             with open(self.CACHE_FILE, 'r') as f:
@@ -77,7 +142,7 @@ class DeviceManager:
                     logger.debug("Loaded cached %s capabilities from disk", device_type)
                 except Exception as e:
                     logger.warning("Failed to load cached %s capabilities: %s", device_type, e)
-        except Exception as e:
+        except (OSError, json.JSONDecodeError) as e:
             logger.warning("Failed to load device cache file: %s", e)
 
     def _save_cached_capabilities(self) -> None:
@@ -86,15 +151,7 @@ class DeviceManager:
             self.CACHE_DIR.mkdir(parents=True, exist_ok=True)
             
             cache_data = {
-                device_type: {
-                    'device_type': cap.device_type,
-                    'supports_8bit': cap.supports_8bit,
-                    'supports_fp16': cap.supports_fp16,
-                    'supports_bf16': cap.supports_bf16,
-                    'memory_gb': cap.memory_gb,
-                    'compute_capability': cap.compute_capability,
-                    'device_name': cap.device_name
-                }
+                device_type: cap.to_dict()
                 for device_type, cap in self._cached_capabilities.items()
             }
             
@@ -102,11 +159,13 @@ class DeviceManager:
                 json.dump(cache_data, f, separators=(',', ':'))  # Compact JSON
             
             logger.debug("Saved device capabilities cache to %s", self.CACHE_FILE)
-        except Exception as e:
+        except (OSError, PermissionError) as e:
             logger.warning("Failed to save device cache file: %s", e)
 
     def get_optimal_device(self, prefer_device: Optional[str] = None) -> DeviceCapabilities:
         """Get optimal device with fallback strategy."""
+        self._ensure_cache_loaded()
+        
         # Check environment variable override
         env_device = os.getenv('CODE_EXPLAINER_DEVICE', '').lower()
         if env_device in _VALID_DEVICE_TYPES:
@@ -116,9 +175,7 @@ class DeviceManager:
         if prefer_device and prefer_device in _DEFAULT_DEVICE_ORDER:
             device_order = (prefer_device,) + tuple(d for d in _DEFAULT_DEVICE_ORDER if d != prefer_device)
         else:
-            device_order = _DEFAULT_DEVICE_ORDER
-
-        for device_type in device_order:
+            device_order = _DEFAULT_DEVICE_ORDER        for device_type in device_order:
             capabilities = self._get_device_capabilities(device_type)
             if capabilities:
                 logger.info("Selected device: %s (%s)", capabilities.device, capabilities.device_type)
