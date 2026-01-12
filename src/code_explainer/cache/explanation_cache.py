@@ -211,91 +211,120 @@ class ExplanationCache(BaseCache):
                     'timestamp': current_time
                 })
 
-                # Cleanup if cache is too large
-                self._cleanup_if_needed()
+                # Cleanup if cache is too large (async-friendly)
+                if len(self._index) > self.config.max_size:
+                    self._schedule_cleanup()
                 
                 # Queue index write for batched flushing
                 self._queue_index_write(cache_key, "update")
 
             except Exception:
                 pass  # Silent failure for caching
+    
+    def _schedule_cleanup(self) -> None:
+        """Schedule cleanup without blocking the main operation."""
+        # Mark cleanup needed, actual cleanup happens on next flush or explicit call
+        self._cleanup_pending = True
 
     def flush(self) -> None:
         """Flush all pending index updates to disk."""
         with self._lock:
             with self._write_behind_lock:
                 self._flush_pending_writes_unsafe()
+                
+                # Perform deferred cleanup if needed
+                if getattr(self, '_cleanup_pending', False):
+                    self._cleanup_if_needed()
+                    self._cleanup_pending = False
 
     def _remove_entry(self, cache_key: str) -> None:
         """Remove a cache entry."""
         cache_file = self.cache_dir / f"{cache_key}.txt"
         try:
             cache_file.unlink(missing_ok=True)
-        except Exception:
+        except (OSError, PermissionError):
             pass
 
-        if cache_key in self._index:
-            del self._index[cache_key]
-
+        self._index.pop(cache_key, None)
         self._memory_cache.put(cache_key, None)  # Mark as removed
 
     def _cleanup_if_needed(self) -> None:
-        """Remove least recently used entries if cache is too large."""
-        if len(self._index) <= self.config.max_size:
+        """Remove least recently used entries if cache is too large.
+        
+        Uses heapq.nsmallest for O(n log k) efficiency.
+        """
+        index_size = len(self._index)
+        if index_size <= self.config.max_size:
             return
 
-        # Use heapq.nsmallest for O(n log k) instead of full sort O(n log n)
-        current_time = time.time()
-        num_to_remove = len(self._index) - self.config.max_size + 1
+        # Calculate how many to remove (with buffer to avoid frequent cleanups)
+        num_to_remove = index_size - int(self.config.max_size * 0.9)  # Keep 90% capacity
+        if num_to_remove <= 0:
+            return
         
-        # Generator expression to avoid creating full list
-        scored_entries = (
+        current_time = time.time()
+        
+        # Use heapq.nsmallest for O(n log k) instead of full sort O(n log n)
+        scored_entries = [
             (calculate_cache_score(entry, current_time), key)
             for key, entry in self._index.items()
-        )
+        ]
         
         # Get only the entries we need to remove
         to_remove = heapq.nsmallest(num_to_remove, scored_entries)
         
+        # Batch file deletions
         for _, key in to_remove:
             cache_file = self.cache_dir / f"{key}.txt"
             try:
                 cache_file.unlink(missing_ok=True)
-            except Exception:
+            except (OSError, PermissionError):
                 pass
             self._index.pop(key, None)
-            self._queue_index_write(key, "cleanup")
         
-        # Index save happens via write-behind queue
+        # Single index save after all removals
+        self._save_index(force=True)
 
     def clear(self) -> None:
         """Clear all cached explanations."""
-        try:
-            for cache_file in self.cache_dir.glob("*.txt"):
-                cache_file.unlink(missing_ok=True)
-            self._index.clear()
-            self._memory_cache.clear()
-            self._save_index()
-        except Exception:
-            pass
+        with self._lock:
+            try:
+                for cache_file in self.cache_dir.glob("*.txt"):
+                    try:
+                        cache_file.unlink(missing_ok=True)
+                    except (OSError, PermissionError):
+                        pass
+                self._index.clear()
+                self._memory_cache.clear()
+                self._pending_writes_queue.clear()
+                self._save_index(force=True)
+            except Exception:
+                pass
 
     def size(self) -> int:
         """Get the number of cached explanations."""
         return len(self._index)
 
     def stats(self) -> CacheStats:
-        """Get cache statistics."""
+        """Get cache statistics with hit rate."""
         if not self._index:
             return CacheStats()
 
-        total_access = sum(entry.get("access_count", 0) for entry in self._index.values())
-        strategies = list(set(entry.get("strategy", "") for entry in self._index.values()))
-        models = list(set(entry.get("model_name", "") for entry in self._index.values()))
+        # Efficient single-pass statistics gathering
+        total_access = 0
+        strategies_set = set()
+        models_set = set()
+        
+        for entry in self._index.values():
+            total_access += entry.get("access_count", 0)
+            strategies_set.add(entry.get("strategy", ""))
+            models_set.add(entry.get("model_name", ""))
 
         return CacheStats(
             size=len(self._index),
             total_access_count=total_access,
             avg_access_count=total_access / len(self._index) if self._index else 0,
-            strategies=strategies,
-            models=models
+            strategies=list(strategies_set),
+            models=list(models_set),
+            hit_rate=self.get_hit_rate()
         )
