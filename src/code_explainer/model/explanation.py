@@ -2,7 +2,7 @@
 
 import gc
 import logging
-from typing import Any, List, Optional, Dict, TYPE_CHECKING
+from typing import Any, List, Optional, Dict, TYPE_CHECKING, cast
 import torch
 
 from ..exceptions import ValidationError, ModelError, ConfigurationError
@@ -11,6 +11,9 @@ from ..utils import prompt_for_language
 
 if TYPE_CHECKING:
     from transformers import PreTrainedModel, PreTrainedTokenizerBase
+
+# Pre-allocate empty tensors for common operations
+_EMPTY_DICT: Dict[str, Any] = {}
 
 
 class CodeExplainerExplanationMixin:
@@ -52,26 +55,26 @@ class CodeExplainerExplanationMixin:
                                                           ["vanilla", "ast_augmented", "multi_agent", "intelligent"])
         model_name: str = getattr(self, 'model_name', 'unknown')
 
-        # Check cache first
-        if self.explanation_cache is not None:
-            cached_explanation = self.explanation_cache.get(code, used_strategy, model_name)
+        # Check cache first (hot path optimization)
+        cache = self.explanation_cache
+        if cache is not None:
+            cached_explanation = cache.get(code, used_strategy, model_name)
             if cached_explanation is not None:
                 self.logger.info("Using cached explanation")
                 return cached_explanation
 
         # Ensure model and tokenizer are loaded
-        if self.tokenizer is None or self.model is None:
-            raise ModelError("Model and tokenizer must be initialized before generating explanations")
-
         tok: "PreTrainedTokenizerBase" = self.tokenizer
         mdl: "PreTrainedModel" = self.model
+        if tok is None or mdl is None:
+            raise ModelError("Model and tokenizer must be initialized before generating explanations")
 
         # Language-aware prompt with optional strategy override
         base_cfg = self._config_to_dict(self.config)
         if strategy is not None:
             # Override strategy in a copy of config dict
             cfg = dict(base_cfg)
-            prompt_cfg = dict(cfg.get("prompt", {}))
+            prompt_cfg = dict(cfg.get("prompt", _EMPTY_DICT))
             prompt_cfg["strategy"] = strategy
             cfg["prompt"] = prompt_cfg
             prompt = prompt_for_language(cfg, code)
@@ -99,22 +102,18 @@ class CodeExplainerExplanationMixin:
                     ids = [1, 2, 3]
             else:
                 ids = [1, 2, 3]
-            input_ids = torch.tensor([ids], dtype=torch.long).to(device)
+            input_ids = torch.tensor([ids], dtype=torch.long, device=device)
             attention_mask = torch.ones_like(input_ids)
             inputs = {"input_ids": input_ids, "attention_mask": attention_mask}
 
-        # Generate explanation (use inference_mode if available for speed)
-        try:
-            inference_ctx = torch.inference_mode()  # type: ignore[attr-defined]
-        except Exception:  # pragma: no cover
-            inference_ctx = torch.no_grad()
-
-        with inference_ctx:
+        # Generate explanation (use inference_mode for better performance)
+        with torch.inference_mode():
             gen_max = int(max_length) if max_length is not None else 512
+            input_len = inputs["input_ids"].shape[1]
             outputs = mdl.generate(
                 input_ids=inputs["input_ids"],
                 attention_mask=inputs.get("attention_mask"),
-                max_length=min(gen_max, inputs["input_ids"].shape[1] + 150),
+                max_length=min(gen_max, input_len + 150),
                 temperature=self._cfg_get_float("model.temperature", 0.7),
                 top_p=self._cfg_get_float("model.top_p", 0.9),
                 top_k=self._cfg_get_int("model.top_k", 50),
@@ -135,11 +134,10 @@ class CodeExplainerExplanationMixin:
                 first_seq = outputs
 
         generated_text = tok.decode(first_seq, skip_special_tokens=True)  # type: ignore[arg-type]
-        explanation = generated_text[len(prompt) :].strip()
-        if not explanation:
-            explanation = generated_text
+        prompt_len = len(prompt)
+        explanation = generated_text[prompt_len:].strip() if len(generated_text) > prompt_len else generated_text
 
-        # Minimal augmentation: ensure function name and recursion hints appear in the output
+        # Minimal augmentation: ensure function name and recursion hints appear
         try:
             explanation = self._augment_explanation_with_code_facts(code, explanation)
         except Exception:
@@ -147,14 +145,14 @@ class CodeExplainerExplanationMixin:
             pass
 
         # Cache the explanation
-        if self.explanation_cache is not None:
-            self.explanation_cache.put(code, used_strategy, model_name, explanation)
+        if cache is not None:
+            cache.put(code, used_strategy, model_name, explanation)
 
         return explanation
 
     def explain_code_batch(
         self,
-    requests: List[Dict[str, Any]]
+        requests: List[Dict[str, Any]]
     ) -> List[str]:
         """Generate explanations for a batch of code snippets with optimized processing.
 
@@ -170,7 +168,7 @@ class CodeExplainerExplanationMixin:
         num_requests = len(validated_requests.requests)
         explanations: List[str] = [""] * num_requests
         
-        # Process in batches to reduce per-item overhead
+        # Process each request
         for i, req in enumerate(validated_requests.requests):
             try:
                 explanation = self.explain_code(
