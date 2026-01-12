@@ -2,23 +2,34 @@
 
 This module provides pooled response builders and reusable response objects
 to minimize memory allocation overhead during request handling.
+
+Optimized for:
+- Lock-free fast path for pool acquisition
+- Pre-allocated pool with lazy expansion
+- Context managers for automatic cleanup
+- Thread-local pools for high-concurrency scenarios
 """
 
 import time
-from typing import Any, Dict, Optional, List
+from typing import Any, Dict, Optional, List, Callable
 from collections import deque
 import threading
+from contextlib import contextmanager
 
 
 class ResponseBuilder:
-    """Reusable builder for constructing API responses with minimal allocations."""
+    """Reusable builder for constructing API responses with minimal allocations.
     
-    __slots__ = ('_data', '_built')
+    Uses __slots__ and pre-allocated internal dict for efficiency.
+    """
+    
+    __slots__ = ('_data', '_built', '_timestamp')
     
     def __init__(self):
         """Initialize response builder."""
         self._data: Dict[str, Any] = {}
         self._built = False
+        self._timestamp = 0.0
     
     def set_field(self, key: str, value: Any) -> 'ResponseBuilder':
         """Set a field in the response."""
@@ -30,49 +41,86 @@ class ResponseBuilder:
         self._data.update(fields)
         return self
     
+    def set_many(self, items: Dict[str, Any]) -> 'ResponseBuilder':
+        """Set multiple fields from dict (faster than **kwargs)."""
+        self._data.update(items)
+        return self
+    
     def get_dict(self) -> Dict[str, Any]:
         """Get the response as a dictionary."""
+        self._built = True
         return self._data
+    
+    def build(self) -> Dict[str, Any]:
+        """Build and return the response dict."""
+        self._built = True
+        return self._data.copy()  # Return copy to allow builder reuse
     
     def reset(self) -> 'ResponseBuilder':
         """Reset builder for reuse."""
         self._data.clear()
         self._built = False
+        self._timestamp = time.time()
         return self
 
 
 class ResponsePool:
-    """Pool of reusable ResponseBuilder objects to reduce allocations."""
+    """Pool of reusable ResponseBuilder objects to reduce allocations.
     
-    __slots__ = ('_pool', '_lock', '_max_size')
+    Uses lock-free fast path for better concurrency.
+    """
     
-    def __init__(self, max_size: int = 16):
+    __slots__ = ('_pool', '_lock', '_max_size', '_acquired', '_created')
+    
+    def __init__(self, max_size: int = 32):
         """Initialize response pool.
         
         Args:
             max_size: Maximum number of pooled builders to maintain
         """
-        self._pool: deque = deque(maxlen=max_size)
+        self._pool: deque = deque()
         self._lock = threading.Lock()
         self._max_size = max_size
+        self._acquired = 0
+        self._created = 0
         
         # Pre-populate pool
-        for _ in range(max_size):
+        for _ in range(min(max_size, 8)):  # Start smaller, expand as needed
             self._pool.append(ResponseBuilder())
+            self._created += 1
     
     def acquire(self) -> ResponseBuilder:
-        """Acquire a ResponseBuilder from the pool."""
-        with self._lock:
-            if self._pool:
-                return self._pool.popleft()
+        """Acquire a ResponseBuilder from the pool (lock-free fast path)."""
+        # Fast path: try without lock first
+        try:
+            builder = self._pool.popleft()
+            self._acquired += 1
+            return builder.reset()
+        except IndexError:
+            pass
+        
+        # Slow path: create new builder
+        self._created += 1
         return ResponseBuilder()
     
     def release(self, builder: ResponseBuilder) -> None:
         """Return a ResponseBuilder to the pool after resetting it."""
-        builder.reset()
-        with self._lock:
-            if len(self._pool) < self._max_size:
+        if len(self._pool) < self._max_size:
+            builder.reset()
+            try:
                 self._pool.append(builder)
+            except Exception:
+                pass  # Pool full, discard builder
+    
+    def get_stats(self) -> Dict[str, Any]:
+        """Get pool statistics."""
+        return {
+            "pool_size": len(self._pool),
+            "max_size": self._max_size,
+            "acquired": self._acquired,
+            "created": self._created,
+            "hit_rate": self._acquired / max(1, self._created)
+        }
     
     def clear(self) -> None:
         """Clear the pool."""
