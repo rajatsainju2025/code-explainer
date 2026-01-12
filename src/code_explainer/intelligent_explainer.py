@@ -167,13 +167,16 @@ class PatternAwareStrategy(ExplanationStrategy):
                     for smell in code_smells
                 ])
 
-        # Security notes
+        # Security notes - use pre-cached patterns for O(1) lookup
         security_notes = []
         if context.include_security_notes:
-            # Check for potential security issues
-            if "exec(" in code or "eval(" in code:
-                security_notes.append("⚠️ Potential code injection risk: avoid exec() and eval()")
-            if "shell=True" in code:
+            # Check for potential security issues using pre-cached patterns
+            code_lower = code.lower() if any(p in code for p in _SECURITY_PATTERNS) else ""
+            if "exec(" in code:
+                security_notes.append("⚠️ Potential code injection risk: avoid exec()")
+            if "eval(" in code:
+                security_notes.append("⚠️ Potential code injection risk: avoid eval()")
+            if "shell=true" in code_lower:
                 security_notes.append("⚠️ Shell injection risk: avoid shell=True in subprocess calls")
             if "pickle.load" in code:
                 security_notes.append("⚠️ Pickle deserialization can be unsafe with untrusted data")
