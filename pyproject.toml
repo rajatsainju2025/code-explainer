@@ -4,7 +4,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
 name = "code-explainer"
-version = "0.3.0"
+version = "0.4.0"
 description = "An efficient LLM-powered tool for explaining code snippets"
 authors = ["Rajat Sainju <your.email@example.com>"]
 readme = "README.md"
@@ -53,6 +53,7 @@ pydantic = ">=2.0.0,<3.0.0"
 fastapi = ">=0.100.0,<1.0.0"
 uvicorn = ">=0.22.0,<1.0.0"
 orjson = ">=3.9.15,<4.0.0" # fast JSON serialization for FastAPI
+xxhash = ">=3.0.0,<4.0.0" # 6x faster hashing for cache keys
 uvloop = {version = ">=0.19.0,<1.0.0", markers = "platform_system != 'Windows'"}
 
 [tool.poetry.extras]
