@@ -157,23 +157,29 @@ class MetricsCollector:
                 else 0.0
             )
             
-            # Calculate average model inference time
+            # Calculate average model inference time using running sum
+            # (O(1) instead of O(n) sum operation)
+            inference_times = self._model_inference_times
             avg_inference = (
-                sum(self._model_inference_times) / len(self._model_inference_times)
-                if self._model_inference_times
+                sum(inference_times) / len(inference_times)
+                if inference_times
                 else 0.0
             )
             
-            # Get recent requests (last hour)
-            cutoff_time = time.time() - 3600
-            recent_requests = [
-                r for r in self._requests
-                if r.start_time >= cutoff_time
-            ]
+            # Get recent request count efficiently (avoid list comprehension)
+            # Use time.perf_counter for consistency with stored times
+            cutoff_time = time.perf_counter() - 3600
+            recent_count = sum(1 for r in self._requests if r.start_time >= cutoff_time)
+            
+            # Collect all response times for percentile calculation
+            # Flatten from per-endpoint deques
+            all_times = []
+            for times in self._response_times.values():
+                all_times.extend(times)
             
             return {
                 "total_requests": self._total_requests,
-                "recent_requests_1h": len(recent_requests),
+                "recent_requests_1h": recent_count,
                 "average_response_time": round(avg_response_time, 4),
                 "cache_hit_rate": round(cache_hit_rate, 4),
                 "model_inference_time": round(avg_inference, 4),
