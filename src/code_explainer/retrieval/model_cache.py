@@ -1,16 +1,31 @@
-"""Cross-process model cache for SentenceTransformer models."""
+"""Cross-process model cache for SentenceTransformer models.
+
+Optimized with:
+- xxhash for fast cache key generation
+- Lazy file I/O
+- Thread-safe singleton pattern
+"""
 
 import json
 import logging
 import os
 import pickle
-import hashlib
 import threading
 from pathlib import Path
 from typing import Dict, Optional, Any
 from fcntl import flock, LOCK_SH, LOCK_EX, LOCK_UN
 
 from sentence_transformers import SentenceTransformer
+
+# Use xxhash if available (6x faster than hashlib.md5)
+try:
+    import xxhash
+    def _fast_hash(data: str) -> str:
+        return xxhash.xxh64(data.encode()).hexdigest()
+except ImportError:
+    import hashlib
+    def _fast_hash(data: str) -> str:
+        return hashlib.md5(data.encode()).hexdigest()
 
 logger = logging.getLogger(__name__)
 
@@ -54,8 +69,8 @@ class PersistentModelCache:
         Returns:
             Path to the cache file
         """
-        # Create a safe filename from model name
-        safe_name = hashlib.md5(model_name.encode()).hexdigest()
+        # Create a safe filename from model name using fast hash
+        safe_name = _fast_hash(model_name)
         return self.cache_dir / f"{safe_name}.pkl"
 
     def _get_lock_path(self, model_name: str) -> Path:
@@ -67,7 +82,7 @@ class PersistentModelCache:
         Returns:
             Path to the lock file
         """
-        safe_name = hashlib.md5(model_name.encode()).hexdigest()
+        safe_name = _fast_hash(model_name)
         return self._lock_dir / f"{safe_name}.lock"
 
     def get(self, model_name: str) -> Optional[SentenceTransformer]:
