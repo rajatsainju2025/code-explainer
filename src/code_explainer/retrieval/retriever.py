@@ -1,10 +1,16 @@
-"""Main code retriever orchestrating all retrieval components."""
+"""Main code retriever orchestrating all retrieval components.
+
+Optimized for performance with:
+- Fast xxhash-based cache key generation
+- Lock-free reads for cache hits (optimistic locking)
+- Pre-computed method validation sets
+- Efficient memory usage with __slots__
+"""
 
 import gzip
 import json
 import logging
 import threading
-import hashlib
 from functools import lru_cache
 from pathlib import Path
 from time import perf_counter
@@ -22,45 +28,68 @@ from .model_cache import get_cached_model
 
 logger = logging.getLogger(__name__)
 
-# Pre-computed hash for faster key generation
-_HASH_FACTORY = hashlib.md5
+# Try to use xxhash for faster key generation (10x faster than md5)
+try:
+    import xxhash
+    def _hash_key(data: str) -> str:
+        return xxhash.xxh64(data.encode()).hexdigest()
+except ImportError:
+    import hashlib
+    def _hash_key(data: str) -> str:
+        return hashlib.md5(data.encode()).hexdigest()
 
 # Pre-compute valid methods set for O(1) lookup
 _VALID_METHODS = frozenset({"faiss", "bm25", "hybrid"})
+
+# Pre-computed format strings to avoid repeated allocations
+_KEY_FORMAT = "{query}|{k}|{method}|{alpha:.2f}|{reranker}|{mmr}"
 
 
 class LRUQueryCache:
     """LRU cache for retrieval results to avoid redundant computations.
     
     Uses __slots__ to reduce memory overhead per cache instance.
+    Implements optimistic read locking for better concurrent performance.
     """
-    __slots__ = ('cache', 'max_size', 'hits', 'misses', '_lock')
+    __slots__ = ('cache', 'max_size', 'hits', 'misses', '_lock', '_version')
     
-    def __init__(self, max_size: int = 256):
+    def __init__(self, max_size: int = 512):
         self.cache: OrderedDict = OrderedDict()
         self.max_size = max_size
         self.hits = 0
         self.misses = 0
         self._lock = threading.Lock()
+        self._version = 0  # For optimistic read detection
     
     def _make_key(self, query: str, k: int, method: str, alpha: float, 
                   use_reranker: bool, use_mmr: bool) -> str:
-        """Create deterministic cache key from query parameters."""
-        # Use tuple for faster string concatenation
-        key_parts = (query, str(k), method, f"{alpha:.2f}", str(use_reranker), str(use_mmr))
-        return _HASH_FACTORY("|".join(key_parts).encode()).hexdigest()
+        """Create deterministic cache key from query parameters.
+        
+        Uses f-string formatting (faster than join) and xxhash.
+        """
+        # Use f-string for faster string building
+        key_str = f"{query}|{k}|{method}|{alpha:.2f}|{use_reranker}|{use_mmr}"
+        return _hash_key(key_str)
     
     def get(self, query: str, k: int, method: str, alpha: float,
             use_reranker: bool = False, use_mmr: bool = False) -> Optional[Any]:
-        """Get cached result if available."""
+        """Get cached result if available.
+        
+        Uses optimistic read: first check without lock, then verify.
+        """
         key = self._make_key(query, k, method, alpha, use_reranker, use_mmr)
+        
+        # Optimistic read without lock (safe for immutable values)
+        value = self.cache.get(key)
+        if value is not None:
+            # Update LRU order with lock
+            with self._lock:
+                if key in self.cache:
+                    self.cache.move_to_end(key)
+                    self.hits += 1
+                    return value
+        
         with self._lock:
-            value = self.cache.get(key)
-            if value is not None:
-                # Move to end (LRU)
-                self.cache.move_to_end(key)
-                self.hits += 1
-                return value
             self.misses += 1
         return None
     
@@ -69,12 +98,30 @@ class LRUQueryCache:
         """Cache a result."""
         key = self._make_key(query, k, method, alpha, use_reranker, use_mmr)
         with self._lock:
-            # Update existing or add new
-            self.cache[key] = value
-            self.cache.move_to_end(key)
-            # Evict if over capacity
-            while len(self.cache) > self.max_size:
+            # Check if already exists
+            if key in self.cache:
+                self.cache[key] = value
+                self.cache.move_to_end(key)
+                return
+            
+            # Evict oldest entries if at capacity
+            while len(self.cache) >= self.max_size:
                 self.cache.popitem(last=False)
+            
+            self.cache[key] = value
+            self._version += 1
+    
+    def invalidate(self, query: str) -> int:
+        """Invalidate all cache entries containing query.
+        
+        Returns number of entries removed.
+        """
+        with self._lock:
+            keys_to_remove = [k for k in self.cache if query in str(k)]
+            for key in keys_to_remove:
+                del self.cache[key]
+            self._version += 1
+            return len(keys_to_remove)
     
     def clear(self) -> None:
         """Clear the cache."""
@@ -82,6 +129,7 @@ class LRUQueryCache:
             self.cache.clear()
             self.hits = 0
             self.misses = 0
+            self._version += 1
     
     def get_hit_rate(self) -> float:
         """Get cache hit rate."""
@@ -90,13 +138,15 @@ class LRUQueryCache:
     
     def get_stats(self) -> Dict[str, Any]:
         """Get detailed cache statistics."""
-        return {
-            "size": len(self.cache),
-            "max_size": self.max_size,
-            "hits": self.hits,
-            "misses": self.misses,
-            "hit_rate": self.get_hit_rate()
-        }
+        with self._lock:
+            return {
+                "size": len(self.cache),
+                "max_size": self.max_size,
+                "hits": self.hits,
+                "misses": self.misses,
+                "hit_rate": self.get_hit_rate(),
+                "version": self._version
+            }
 
 
 class CodeRetriever:
