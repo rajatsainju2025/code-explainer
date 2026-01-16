@@ -74,8 +74,6 @@ class ErrorHandler:
 
         return False
 
-        return False
-
     def wrap_async(self, func: Callable[..., Awaitable[T]]) -> Callable[..., Awaitable[T]]:
         """Decorator to wrap async functions with error handling."""
         @functools.wraps(func)
