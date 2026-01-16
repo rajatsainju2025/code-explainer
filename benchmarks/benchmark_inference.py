@@ -117,7 +117,7 @@ class InferenceBenchmark:
 
             elapsed = end_time - start_time
             times.append(elapsed)
-            logger.debug(".3f")
+            logger.debug("Sample %d: %.3fs", i, elapsed)
 
         # Get final memory stats
         current, peak = tracemalloc.get_traced_memory()
