@@ -175,7 +175,9 @@ class DeviceManager:
         if prefer_device and prefer_device in _DEFAULT_DEVICE_ORDER:
             device_order = (prefer_device,) + tuple(d for d in _DEFAULT_DEVICE_ORDER if d != prefer_device)
         else:
-            device_order = _DEFAULT_DEVICE_ORDER        for device_type in device_order:
+            device_order = _DEFAULT_DEVICE_ORDER
+        
+        for device_type in device_order:
             capabilities = self._get_device_capabilities(device_type)
             if capabilities:
                 logger.info("Selected device: %s (%s)", capabilities.device, capabilities.device_type)
