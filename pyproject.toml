@@ -60,8 +60,8 @@ uvloop = {version = ">=0.19.0,<1.0.0", markers = "platform_system != 'Windows'"}
 rag = ["sentence-transformers", "faiss-cpu", "rank-bm25", "scikit-learn"]
 metrics = ["sacrebleu", "rouge-score", "bert-score", "codebleu"]
 monitoring = ["wandb", "tensorboard"]
-perf = ["orjson"]
-all = ["sentence-transformers", "faiss-cpu", "rank-bm25", "scikit-learn", "sacrebleu", "rouge-score", "bert-score", "codebleu", "wandb", "tensorboard", "orjson", "uvloop"]
+perf = ["orjson", "ijson"]
+all = ["sentence-transformers", "faiss-cpu", "rank-bm25", "scikit-learn", "sacrebleu", "rouge-score", "bert-score", "codebleu", "wandb", "tensorboard", "orjson", "uvloop", "ijson"]
 
 [tool.poetry.group.rag]
 optional = true
