@@ -1,8 +1,15 @@
-"""Data models for multi-agent system."""
+"""Data models for multi-agent system.
+
+Optimized with:
+- __slots__ for memory efficiency
+- Proper type hints throughout
+- Enum for type-safe agent roles
+"""
+from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Dict, List
+from typing import Any, Dict
 
 
 class AgentRole(Enum):
