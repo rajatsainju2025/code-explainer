@@ -1,7 +1,15 @@
-"""Pydantic models for API endpoints."""
+"""Pydantic models for API endpoints.
 
-from typing import List, Dict, Any, Optional
-from pydantic import BaseModel, Field, ConfigDict
+Optimized with:
+- ConfigDict for performance configuration
+- Field constraints for validation
+- Optional frozen models for caching
+"""
+from __future__ import annotations
+
+from typing import Any, Dict, List, Optional
+
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class CodeExplanationRequest(BaseModel):
