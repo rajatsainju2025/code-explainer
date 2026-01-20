@@ -1,18 +1,25 @@
-"""Data models for symbolic analysis."""
+"""Data models for symbolic analysis.
+
+Optimized with:
+- __future__ annotations for deferred evaluation
+- __slots__ for memory efficiency
+- FrozenSet for immutable variable sets
+"""
+from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Set
+from typing import Any, Dict, FrozenSet, List
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, frozen=True)
 class SymbolicCondition:
-    """Represents a symbolic condition in code."""
+    """Represents a symbolic condition in code (immutable)."""
 
     condition_type: str  # 'input', 'precondition', 'postcondition', 'invariant'
     expression: str
     line_number: int
     confidence: float
-    variables: Set[str]
+    variables: FrozenSet[str]
 
 
 @dataclass(slots=True)

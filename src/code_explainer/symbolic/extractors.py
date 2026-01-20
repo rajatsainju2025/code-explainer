@@ -1,7 +1,7 @@
 """Condition extraction methods for symbolic analysis."""
 
 import ast
-from typing import List, Optional, Set
+from typing import FrozenSet, List, Optional
 
 from .models import SymbolicCondition, PropertyTest
 
@@ -178,9 +178,9 @@ class ConditionExtractors:
             pass
         return None
 
-    def _extract_variables_from_expr(self, expr: ast.AST) -> Set[str]:
-        """Extract variable names from expression."""
-        return {node.id for node in _ast_walk(expr) if type(node) is _AST_NAME}
+    def _extract_variables_from_expr(self, expr: ast.AST) -> FrozenSet[str]:
+        """Extract variable names from expression (returns immutable frozenset)."""
+        return frozenset(node.id for node in _ast_walk(expr) if type(node) is _AST_NAME)
 
     def _get_variable_dependencies(self, expr: ast.AST) -> List[str]:
         """Get variables that this expression depends on."""
