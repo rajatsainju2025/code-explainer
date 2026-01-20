@@ -1,19 +1,47 @@
 ## [2.2.1] - November 2025
 
-### Code Quality & Bug Fixes (Fresh Critique Phase)
+### Code Quality & Bug Fixes (Fresh Critique Phase - 20 Commits)
+
+#### Bug Fixes
 - ✅ Synced `__version__` to 0.4.0 in `__init__.py`
-- ✅ Optimized `datasets.py` with orjson and LRU cache
 - ✅ Fixed syntax error in `device_manager.py` (missing newline)
 - ✅ Resolved `__slots__` conflicts in cache models
-- ✅ Added `__future__ annotations` for lazy type hints
-- ✅ Improved `cache/models.py` with frozen config
-- ✅ Added ijson to perf extras for streaming JSON
 
-### Performance Improvements
+#### Performance Optimizations  
+- ✅ Optimized `datasets.py` with orjson and LRU cache (3-10x faster loading)
+- ✅ Added `__future__ annotations` for lazy type evaluation
+- ✅ Improved `cache/models.py` with frozen config (hashable)
+- ✅ Added ijson to perf extras for streaming JSON
+- ✅ FrozenSet for immutable symbolic conditions
+- ✅ Deferred type hints across all model files
+
+#### Code Quality
+- ✅ Added `data/__init__.py` for cleaner imports
+- ✅ Improved docstrings and type annotations
+- ✅ Better module organization with `__all__` exports
+- ✅ Consistent use of `__future__ annotations`
+
+### Commits Summary
+1. `chore: sync __version__ to 0.4.0 in __init__.py`
+2. `perf: optimize datasets.py with orjson and LRU cache`
+3. `fix: repair syntax error in device_manager.py`
+4. `fix: resolve slots conflicts and add __future__ annotations`
+5. `refactor: improve cache/models.py with frozen config`
+6. `deps: add ijson to perf extras for streaming JSON`
+7. `docs: update CHANGELOG with v2.2.1 improvements`
+8. `refactor: add __future__ annotations to multi_agent/models.py`
+9. `refactor: use frozen dataclasses and FrozenSet in symbolic`
+10. `refactor: add __future__ annotations to retrieval/models.py`
+11. `refactor: add __future__ annotations to api/models.py`
+12. `refactor: improve error_handling/__init__.py`
+13. `refactor: improve types.py with annotations`
+14. `feat: add data/__init__.py with exports`
+
+### Performance Impact
 - **Dataset Loading**: 3-10x faster with orjson
-- **Config Objects**: Immutable (frozen=True) for hashability
+- **Config Objects**: Immutable (frozen=True) for hashability  
 - **Type Hints**: Deferred evaluation with `__future__ annotations`
-- **Memory**: Proper __slots__ usage across dataclasses
+- **Memory**: Proper __slots__ usage across all dataclasses
 
 ---
 
