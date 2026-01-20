@@ -5,7 +5,7 @@ from typing import Any, Dict, Optional
 from datetime import datetime
 
 
-@dataclass(slots=True)
+@dataclass
 class CacheEntry:
     """Base cache entry structure."""
     key: str
@@ -19,7 +19,6 @@ class CacheEntry:
 @dataclass
 class ExplanationEntry(CacheEntry):
     """Cache entry for code explanations."""
-    __slots__ = ('code', 'strategy', 'model_name', 'compressed', 'code_length')
     code: str = ""
     strategy: str = ""
     model_name: str = ""
@@ -30,7 +29,6 @@ class ExplanationEntry(CacheEntry):
 @dataclass
 class EmbeddingEntry(CacheEntry):
     """Cache entry for code embeddings."""
-    __slots__ = ('code', 'model_name')
     code: str = ""
     model_name: str = ""
 

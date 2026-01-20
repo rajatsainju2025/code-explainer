@@ -10,6 +10,7 @@ Optimized for:
 - Environment variable configuration
 - Thread-safe singleton pattern
 """
+from __future__ import annotations
 
 import os
 import json
