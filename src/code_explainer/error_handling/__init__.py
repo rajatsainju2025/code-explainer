@@ -1,4 +1,11 @@
-"""Error handling module."""
+"""Error handling module.
+
+Provides structured logging, exception hierarchy, and error recovery.
+"""
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Optional
 
 from .error_handler import ErrorHandler
 from .exceptions import (
@@ -10,24 +17,27 @@ from .exceptions import (
     ValidationError,
 )
 from .logger import LogEntry, StructuredLogger
-from pathlib import Path
-from typing import Optional
 
 
-def setup_logging(log_level: str = "INFO", log_file: Optional[Path] = None):
+def setup_logging(
+    log_level: str = "INFO", 
+    log_file: Optional[Path | str] = None
+) -> StructuredLogger:
     """Set up structured logging for the application.
     
     Args:
         log_level: Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
         log_file: Optional path to log file
+        
+    Returns:
+        Configured StructuredLogger instance
     """
-    logger = StructuredLogger(
+    return StructuredLogger(
         "code_explainer",
         log_level=log_level,
         log_file=log_file,
         console_output=True
     )
-    return logger
 
 
 __all__ = [
