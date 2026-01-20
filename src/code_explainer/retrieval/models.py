@@ -1,7 +1,14 @@
-"""Data models for retrieval system."""
+"""Data models for retrieval system.
+
+Optimized with:
+- __future__ annotations for deferred type evaluation
+- __slots__ for memory efficiency  
+- frozen=True for immutable config
+"""
+from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 
 @dataclass(slots=True)
@@ -18,7 +25,7 @@ class RetrievalCandidate:
 
 @dataclass(slots=True, frozen=True)
 class RetrievalConfig:
-    """Configuration for retrieval behavior (immutable)."""
+    """Configuration for retrieval behavior (immutable for hashability)."""
     model_name: str = "sentence-transformers/all-MiniLM-L6-v2"
     batch_size: int = 32
     faiss_index_type: str = "IndexFlatL2"
@@ -30,7 +37,7 @@ class RetrievalConfig:
 
 
 # Pre-create default method usage dict to avoid repeated lambda calls
-_DEFAULT_METHOD_USAGE = {"faiss": 0, "bm25": 0, "hybrid": 0}
+_DEFAULT_METHOD_USAGE: Dict[str, int] = {"faiss": 0, "bm25": 0, "hybrid": 0}
 
 
 @dataclass(slots=True)
