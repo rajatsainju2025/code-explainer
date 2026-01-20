@@ -1,13 +1,20 @@
-"""Type hints and annotations for Code Explainer."""
+"""Type hints and annotations for Code Explainer.
 
-from typing import Literal, Protocol, Union
+Provides:
+- Type aliases for common patterns
+- Protocol definitions for duck typing
+- Literal types for constrained values
+"""
+from __future__ import annotations
+
 from collections.abc import Sequence
+from typing import Literal, Protocol, Union
 
 try:
     from typing import TypeAlias
 except ImportError:
     # Python < 3.10
-    TypeAlias = type
+    TypeAlias = type  # type: ignore[misc,assignment]
 
 # Strategy type aliases
 StrategyName: TypeAlias = Literal[
