@@ -13,13 +13,22 @@ Optimized for:
 from __future__ import annotations
 
 import os
-import json
 import warnings
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional, Union, Dict, Any, FrozenSet, TYPE_CHECKING
 import logging
 import threading
+
+# Use orjson for faster JSON operations if available, fallback to stdlib
+try:
+    import orjson
+    def json_loads(s): return orjson.loads(s)
+    def json_dumps(obj): return orjson.dumps(obj, option=orjson.OPT_INDENT_2).decode()
+except ImportError:
+    import json
+    json_loads = json.loads
+    def json_dumps(obj): return json.dumps(obj, separators=(',', ':'))
 
 if TYPE_CHECKING:
     import torch
@@ -122,8 +131,7 @@ class DeviceManager:
         torch = _get_torch()
         
         try:
-            with open(self.CACHE_FILE, 'r') as f:
-                cache_data = json.load(f)
+            cache_data = json_loads(self.CACHE_FILE.read_bytes())
             
             for device_type, data in cache_data.items():
                 try:
@@ -143,7 +151,7 @@ class DeviceManager:
                     logger.debug("Loaded cached %s capabilities from disk", device_type)
                 except Exception as e:
                     logger.warning("Failed to load cached %s capabilities: %s", device_type, e)
-        except (OSError, json.JSONDecodeError) as e:
+        except (OSError, ValueError) as e:
             logger.warning("Failed to load device cache file: %s", e)
 
     def _save_cached_capabilities(self) -> None:
@@ -156,9 +164,7 @@ class DeviceManager:
                 for device_type, cap in self._cached_capabilities.items()
             }
             
-            with open(self.CACHE_FILE, 'w') as f:
-                json.dump(cache_data, f, separators=(',', ':'))  # Compact JSON
-            
+            self.CACHE_FILE.write_text(json_dumps(cache_data))
             logger.debug("Saved device capabilities cache to %s", self.CACHE_FILE)
         except (OSError, PermissionError) as e:
             logger.warning("Failed to save device cache file: %s", e)
