@@ -78,12 +78,9 @@ class CodeExplainer(
     config: Any
     logger: Any
     model_loader: Optional["ModelLoader"]
-    _resources: Optional[Any]
     _injected_model: Optional[PreTrainedModel]
     _injected_tokenizer: Optional[PreTrainedTokenizerBase]
     explanation_cache: Optional["ExplanationCache"]
-    symbolic_analyzer: "SymbolicAnalyzer"
-    multi_agent_orchestrator: "MultiAgentOrchestrator"
     cache_manager: Optional[Any]
     advanced_cache: Optional[Any]
 

@@ -8,10 +8,10 @@ Optimized with:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 
-@dataclass(slots=True)
+@dataclass
 class RetrievalCandidate:
     """A candidate result from retrieval."""
     content: str
