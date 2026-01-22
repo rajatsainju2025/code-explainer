@@ -1,11 +1,19 @@
 """Explanation cache implementation."""
 
-import json
 import time
 import threading
-import heapq
-from typing import Any, Dict, Optional, List, Tuple
+from typing import Any, Dict, Optional
 from collections import deque
+
+# Use orjson for faster JSON operations if available
+try:
+    import orjson
+    def json_loads(s): return orjson.loads(s)
+    def json_dumps(obj): return orjson.dumps(obj, option=orjson.OPT_INDENT_2).decode()
+except ImportError:
+    import json
+    json_loads = json.loads
+    def json_dumps(obj): return json.dumps(obj, separators=(',', ':'))
 
 from .base_cache import BaseCache, MemoryCache
 from .models import CacheConfig, CacheStats
@@ -63,8 +71,8 @@ class ExplanationCache(BaseCache):
         data = safe_file_operation("load", self._index_file, "r")
         if data:
             try:
-                return json.loads(data)
-            except json.JSONDecodeError:
+                return json_loads(data)
+            except (ValueError, TypeError):
                 pass
         return {}
 
@@ -118,7 +126,7 @@ class ExplanationCache(BaseCache):
             force: Force immediate save, even if no pending writes queued
         """
         # Use compact JSON for smaller file size
-        data = json.dumps(self._index, separators=(',', ':'))
+        data = json_dumps(self._index)
         safe_file_operation("save", self._index_file, "w", data)
 
     def get(self, code: str, strategy: str, model_name: str) -> Optional[str]:

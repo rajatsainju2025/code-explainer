@@ -22,7 +22,7 @@ try:
 except ImportError:
     import hashlib
     def _fast_hash(data: str) -> str:
-        return hashlib.md5(data.encode()).hexdigest()
+        return hashlib.md5(data.encode(), usedforsecurity=False).hexdigest()
 
 # Cache time functions for micro-optimization
 _monotonic = time.monotonic
