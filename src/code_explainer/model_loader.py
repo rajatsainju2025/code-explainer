@@ -130,7 +130,10 @@ class ModelLoader:
         )
 
         # Prepare model loading arguments
-        model_kwargs: Dict[str, Any] = {"torch_dtype": recommended_dtype}
+        model_kwargs: Dict[str, Any] = {
+            "torch_dtype": recommended_dtype,
+            "low_cpu_mem_usage": True,  # Enable memory-efficient loading
+        }
 
         if use_8bit and self.device_capabilities.supports_8bit:
             if self.device_capabilities.device_type not in ("cpu", "mps"):
@@ -148,31 +151,33 @@ class ModelLoader:
         if not self.device_manager.validate_device_compatibility(path, self.device_capabilities.device_type):
             logger.warning("Model %s may have compatibility issues with %s", path, self.device_capabilities.device_type)
 
-        # Load appropriate model type
-        if self.config.arch == "seq2seq":
-            model = AutoModelForSeq2SeqLM.from_pretrained(path, **model_kwargs)
-        else:
-            model = AutoModelForCausalLM.from_pretrained(path, **model_kwargs)
-            if getattr(model.config, "pad_token_id", None) is None:
-                # Use the tokenizer's pad_token_id if available
-                pad_token_id = getattr(tokenizer, 'pad_token_id', None)
-                if isinstance(pad_token_id, int):
-                    model.config.pad_token_id = pad_token_id
+        # Load model with torch.no_grad for reduced memory overhead
+        with torch.no_grad():
+            # Load appropriate model type
+            if self.config.arch == "seq2seq":
+                model = AutoModelForSeq2SeqLM.from_pretrained(path, **model_kwargs)
+            else:
+                model = AutoModelForCausalLM.from_pretrained(path, **model_kwargs)
+                if getattr(model.config, "pad_token_id", None) is None:
+                    # Use the tokenizer's pad_token_id if available
+                    pad_token_id = getattr(tokenizer, 'pad_token_id', None)
+                    if isinstance(pad_token_id, int):
+                        model.config.pad_token_id = pad_token_id
 
-        # Move model to device if not using 8-bit quantization
-        if not use_8bit or not self.device_capabilities.supports_8bit:
-            try:
-                model = model.to(self.device)
-            except Exception as e:
-                logger.warning("Could not move model to device %s: %s", self.device, e)
-                # Try OOM fallback if available
-                fallback_device = self.device_manager.handle_oom_error(e, self.device_capabilities.device_type)
-                if fallback_device:
-                    self.device_capabilities = fallback_device
-                    self.device = fallback_device.device
+            # Move model to device if not using 8-bit quantization
+            if not use_8bit or not self.device_capabilities.supports_8bit:
+                try:
                     model = model.to(self.device)
-                else:
-                    raise
+                except Exception as e:
+                    logger.warning("Could not move model to device %s: %s", self.device, e)
+                    # Try OOM fallback if available
+                    fallback_device = self.device_manager.handle_oom_error(e, self.device_capabilities.device_type)
+                    if fallback_device:
+                        self.device_capabilities = fallback_device
+                        self.device = fallback_device.device
+                        model = model.to(self.device)
+                    else:
+                        raise
 
         model.eval()
         return model
