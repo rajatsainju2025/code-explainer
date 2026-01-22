@@ -80,15 +80,13 @@ async def explain_code(
 
         # Check cache first and return early on hit (avoids model compute)
         cached = None
-        if hasattr(explainer, 'explanation_cache') and explainer.explanation_cache:
-            try:
-                cached = explainer.explanation_cache.get(
-                    request.code,
-                    request.strategy or "vanilla",
-                    model_name
-                )
-            except (OSError, ValueError, KeyError):
-                cached = None
+        cache = getattr(explainer, 'explanation_cache', None)
+        if cache is not None:
+            cached = cache.get(
+                request.code,
+                request.strategy or "vanilla",
+                model_name
+            )
             if cached is not None:
                 metrics_collector.record_cache_hit()
                 processing_time = time.time() - request_metrics.start_time

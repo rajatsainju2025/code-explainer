@@ -37,8 +37,12 @@ class RequestIDMiddleware(BaseHTTPMiddleware):
 class LoggingMiddleware(BaseHTTPMiddleware):
     """Enhanced middleware for structured request/response logging with timing."""
     
-    # Skip logging for these paths to reduce noise
-    _SKIP_PATHS = frozenset({'/health', '/metrics', '/favicon.ico'})
+    # Skip logging for these paths to reduce noise (frozenset for O(1) lookup)
+    _SKIP_PATHS = frozenset({'/health', '/metrics', '/favicon.ico', '/docs', '/redoc', '/openapi.json'})
+    
+    # Cache perf_counter function reference for faster access
+    __slots__ = ()
+    _perf_counter = time.perf_counter
 
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         # Skip logging for health checks and metrics (high frequency, low value)
@@ -47,27 +51,28 @@ class LoggingMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
         
         request_id = getattr(request.state, 'request_id', 'unknown')
-        start_time = time.perf_counter()  # More precise than time.time()
+        start_time = self._perf_counter()  # More precise than time.time()
         
-        # Log incoming request
-        client_host = request.client.host if request.client else 'unknown'
-        logger.info("[%s] %s %s from %s", request_id, request.method, path, client_host)
+        # Log incoming request (only if not skipped)
+        if logger.isEnabledFor(logging.INFO):
+            client_host = request.client.host if request.client else 'unknown'
+            logger.info(\"[%s] %s %s from %s\", request_id, request.method, path, client_host)
 
         try:
             response = await call_next(request)
-            duration = time.perf_counter() - start_time
+            duration = self._perf_counter() - start_time
             
             # Log response with timing
-            logger.info("[%s] %s completed in %.4fs", request_id, response.status_code, duration)
+            if logger.isEnabledFor(logging.INFO):\n                logger.info(\"[%s] %s completed in %.4fs\", request_id, response.status_code, duration)
             
             # Add timing headers
-            response.headers[_HEADER_RESPONSE_TIME] = f"{duration:.4f}"
-            response.headers[_HEADER_SERVER_TIMING] = f"app;dur={duration*1000:.1f}"
+            response.headers[_HEADER_RESPONSE_TIME] = f\"{duration:.4f}\"
+            response.headers[_HEADER_SERVER_TIMING] = f\"app;dur={duration*1000:.1f}\"
             
             return response
         except Exception as e:
-            duration = time.perf_counter() - start_time
-            logger.error("[%s] Request failed after %.4fs: %s", request_id, duration, str(e), exc_info=True)
+            duration = self._perf_counter() - start_time
+            logger.error(\"[%s] Request failed after %.4fs: %s\", request_id, duration, str(e), exc_info=True)
             raise
 
 
