@@ -28,7 +28,7 @@ class ASTInfo:
     complexity_hints: Tuple[str, ...] = ()
 
 
-@lru_cache(maxsize=1024)
+@lru_cache(maxsize=2048)
 def _parse_ast_cached(code: str) -> Optional[ast.Module]:
     """Parse code to AST with caching to avoid redundant parsing."""
     try:
@@ -37,7 +37,7 @@ def _parse_ast_cached(code: str) -> Optional[ast.Module]:
         return None
 
 
-@lru_cache(maxsize=512)
+@lru_cache(maxsize=1024)
 def analyze_code_comprehensive(code: str) -> ASTInfo:
     """Single-pass comprehensive AST analysis.
     

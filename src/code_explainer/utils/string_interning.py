@@ -38,7 +38,7 @@ class StringInterningPool:
             return self._interned[string]
     
     def intern_many(self, strings: List[str]) -> List[str]:
-        """Intern multiple strings.
+        """Intern multiple strings efficiently with batch locking.
         
         Args:
             strings: List of strings to intern
@@ -46,7 +46,18 @@ class StringInterningPool:
         Returns:
             List of interned strings
         """
-        return [self.intern(s) for s in strings]
+        if not strings:
+            return []
+        
+        result = []
+        with self._lock:
+            for s in strings:
+                if s not in self._interned:
+                    self._interned[s] = s
+                    self._stats['unique_strings'] += 1
+                result.append(self._interned[s])
+                self._stats['total_strings'] += 1
+        return result
     
     def get_stats(self) -> Dict[str, int]:
         """Get interning statistics."""
