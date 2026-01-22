@@ -18,14 +18,21 @@ from typing import Any, Dict, List, Optional, Union
 
 # Lazy YAML import for faster startup
 _yaml = None
+_yaml_loader = None
 
 def _get_yaml():
-    """Lazily import yaml module."""
-    global _yaml
+    """Lazily import yaml module and determine best loader."""
+    global _yaml, _yaml_loader
     if _yaml is None:
         import yaml
         _yaml = yaml
-    return _yaml
+        # Use C-based loader if available (5-10x faster)
+        try:
+            from yaml import CSafeLoader
+            _yaml_loader = CSafeLoader
+        except ImportError:
+            _yaml_loader = yaml.SafeLoader
+    return _yaml, _yaml_loader
 
 # Pre-compiled regex for environment variable interpolation
 _ENV_VAR_PATTERN = re.compile(r'\$\{([A-Z_][A-Z0-9_]*)\}')
@@ -70,10 +77,11 @@ def load_config(config_path: Union[str, Path], interpolate_env: bool = True) -> 
 
     suffix = config_path.suffix.lower()
     
-    with open(config_path, "r") as f:
+    with open(config_path, "r", encoding="utf-8") as f:
         if suffix in {".yaml", ".yml"}:
-            yaml_mod = _get_yaml()
-            config = yaml_mod.safe_load(f)
+            yaml_mod, yaml_loader = _get_yaml()
+            # Use fast C-based loader if available
+            config = yaml_mod.load(f, Loader=yaml_loader)
         elif suffix == ".json":
             config = json.load(f)
         else:

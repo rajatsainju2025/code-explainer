@@ -51,10 +51,11 @@ def _build_rag_context(own_docs: List[str], import_docs: List[str]) -> str:
     if own_docs:
         # Limit to 6 own docs, pre-slice
         limited_docs = own_docs[:6] if len(own_docs) > 6 else own_docs
-        parts.append("Own docstrings:\n- " + "\n- ".join(limited_docs))
+        parts.append(\"Own docstrings:\\n- \" + \"\\n- \".join(limited_docs))
     if import_docs:
-        parts.append("Imports docs:\n- " + "\n- ".join(import_docs))
-    return "\n".join(parts) if parts else ""
+        # Limit import docs to 8 items for performance
+        limited_imports = import_docs[:8] if len(import_docs) > 8 else import_docs\n        parts.append(\"Imports docs:\\n- \" + \"\\n- \".join(limited_imports))
+    return \"\\n\".join(parts) if parts else \"\"
 
 
 def _build_exec_trace(out: str, err: str) -> str:
