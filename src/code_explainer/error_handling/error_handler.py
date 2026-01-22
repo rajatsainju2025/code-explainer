@@ -16,6 +16,9 @@ T = TypeVar('T')
 _time = time.time
 _perf_counter = time.perf_counter
 
+# Pre-allocated empty dict for default contexts
+_EMPTY_CONTEXT: Dict[str, Any] = {}
+
 
 class ErrorHandler:
     """Centralized error handling and recovery coordinator."""
@@ -38,7 +41,7 @@ class ErrorHandler:
                     attempt_recovery: bool = True) -> bool:
         """Handle an error with optional recovery."""
         error_type = type(error).__name__
-        context = context or {}
+        context = context if context is not None else _EMPTY_CONTEXT
 
         # Increment error count
         with self._lock:

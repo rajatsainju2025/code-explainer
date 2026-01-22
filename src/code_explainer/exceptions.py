@@ -20,7 +20,7 @@ class CodeExplainerError(Exception):
     Uses lazy string formatting and __slots__ for efficiency.
     """
     
-    __slots__ = ('message', 'error_code', '_context', '_str_cached')
+    __slots__ = ('message', 'error_code', '_context')
     
     # Default HTTP status code for API responses
     http_status: ClassVar[int] = 500
@@ -36,7 +36,6 @@ class CodeExplainerError(Exception):
         self.message = message
         self.error_code = error_code
         self._context = context  # Use private to allow lazy initialization
-        self._str_cached: Optional[str] = None  # Cache formatted string
     
     @property
     def context(self) -> Dict[str, Any]:
@@ -47,9 +46,10 @@ class CodeExplainerError(Exception):
     
     def __str__(self) -> str:
         """Lazy string formatting - only format when actually printed."""
-        if self._str_cached is not None:
-            return self._str_cached
-        
+        if not self.error_code and not self._context:
+            # Fast path: just return message
+            return self.message
+            
         parts = []
         if self.error_code:
             parts.append(f"[{self.error_code}]")
@@ -63,8 +63,7 @@ class CodeExplainerError(Exception):
             )
             parts.append(f"(Context: {context_str})")
         
-        self._str_cached = " ".join(parts)
-        return self._str_cached
+        return " ".join(parts)
     
     def __reduce__(self):
         """Support pickling for multiprocessing."""
