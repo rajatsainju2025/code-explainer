@@ -1,6 +1,7 @@
 """Multi-agent orchestrator for collaborative code explanation."""
 
 import logging
+import concurrent.futures
 from typing import Dict, List, Generator, Tuple
 
 from .agents.context_agent import ContextAgent
@@ -29,20 +30,28 @@ class MultiAgentOrchestrator:
         self.message_queue: List[AgentMessage] = []
 
     def explain_code_collaborative(self, code: str) -> str:
-        """Generate collaborative explanation using multiple agents."""
+        """Generate collaborative explanation using multiple agents (with parallelization)."""
         logger.info("Starting multi-agent collaborative explanation")
 
-        # Get analysis from each agent
+        # Analyze with all agents in parallel for faster processing
         components: List[ExplanationComponent] = []
-
-        for agent_name, agent in self.agents.items():
+        
+        def analyze_with_agent(agent_tuple: Tuple[str, BaseAgent]) -> ExplanationComponent:
+            agent_name, agent = agent_tuple
             try:
                 logger.info("Getting analysis from %s agent", agent_name)
-                component = agent.analyze_code(code, {})
-                components.append(component)
+                return agent.analyze_code(code, {})
             except Exception as e:
                 logger.error("Agent %s failed: %s", agent_name, e)
-                continue
+                return None
+        
+        # Use thread pool to run agents in parallel (I/O bound operations)
+        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+            futures = [executor.submit(analyze_with_agent, item) for item in self.agents.items()]
+            for future in concurrent.futures.as_completed(futures):
+                result = future.result()
+                if result is not None:
+                    components.append(result)
 
         # Synthesize final explanation
         return self._synthesize_explanation(components)
@@ -55,28 +64,28 @@ class MultiAgentOrchestrator:
         # Sort using pre-computed priority map (avoids lambda function overhead)
         components.sort(key=lambda x: (_TYPE_PRIORITY.get(x.component_type, 5), -x.confidence))
 
-        # Build explanation parts efficiently
+        # Use list comprehension for high-confidence components (faster than generator for small lists)
+        confident_parts = [
+            component.content
+            for component in components
+            if component.confidence > 0.5
+        ]
+
+        # Build explanation parts efficiently with f-strings
         parts = [
             "# Multi-Agent Code Explanation",
             "",
             "This explanation was generated collaboratively by multiple specialized AI agents:",
             "",
-        ]
-
-        # Use generator to process only confident components (memory efficient)
-        for component in components:
-            if component.confidence > 0.5:
-                parts.append(component.content)
-                parts.append("")
-
-        parts.extend([
+            *confident_parts,  # Unpack confident components directly
+            "",
             "---",
             "",
             "**Collaboration Summary:**",
             f"This analysis combined insights from {len(components)} specialized agents, "
             f"providing a comprehensive view of the code from multiple perspectives: "
             f"structural analysis, semantic understanding, contextual information, and verification strategies.",
-        ])
+        ]
 
         return "\n".join(parts)
 
