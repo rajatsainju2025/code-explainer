@@ -86,10 +86,11 @@ class CodeExplainerExplanationMixin:
         inputs: Dict[str, torch.Tensor]
         try:
             # Preferred fast path
-            tokenized = tok(prompt, return_tensors="pt")  # type: ignore[call-arg]
+            tokenized = tok(prompt, return_tensors="pt", padding=False, truncation=True, max_length=max_length or 512)  # type: ignore[call-arg]
             # Some mocks may not return a dict-like; guard accordingly
             if hasattr(tokenized, "items"):
-                inputs = {k: v.to(device) for k, v in tokenized.items()}  # type: ignore[attr-defined]
+                # More efficient: move tensors to device in single operation
+                inputs = {k: v.to(device, non_blocking=True) for k, v in tokenized.items()}  # type: ignore[attr-defined]
             else:
                 raise ValidationError("Tokenizer returned non-dict output")
         except (AttributeError, TypeError, RuntimeError):
@@ -110,10 +111,12 @@ class CodeExplainerExplanationMixin:
         with torch.inference_mode():
             gen_max = int(max_length) if max_length is not None else 512
             input_len = inputs["input_ids"].shape[1]
+            # Optimize max_new_tokens instead of max_length for better efficiency
+            max_new_tokens = min(150, gen_max - input_len) if gen_max > input_len else 150
             outputs = mdl.generate(
                 input_ids=inputs["input_ids"],
                 attention_mask=inputs.get("attention_mask"),
-                max_length=min(gen_max, input_len + 150),
+                max_new_tokens=max_new_tokens,  # More efficient than max_length
                 temperature=self._cfg_get_float("model.temperature", 0.7),
                 top_p=self._cfg_get_float("model.top_p", 0.9),
                 top_k=self._cfg_get_int("model.top_k", 50),
@@ -121,6 +124,7 @@ class CodeExplainerExplanationMixin:
                 pad_token_id=getattr(tok, "eos_token_id", None),
                 no_repeat_ngram_size=2,
                 early_stopping=True,
+                use_cache=True,  # Enable KV cache for faster generation
             )
 
         # Handle different return shapes for backward compatibility
