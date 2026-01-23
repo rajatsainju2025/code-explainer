@@ -42,9 +42,15 @@ class CodeExplanationRequest(BaseModel):
     @field_validator('code')
     @classmethod
     def validate_code_not_empty(cls, v: str) -> str:
-        # Fast path: check first and last char for whitespace-only detection
-        if not v or (v[0].isspace() and v[-1].isspace() and not v.strip()):
-            raise ValidationError('Code cannot be empty or whitespace only', field_name='code')
+        # Ultra-fast path: single character check
+        if len(v) == 0:
+            raise ValidationError('Code cannot be empty', field_name='code')
+        # Fast path: check first char for non-whitespace
+        if not v[0].isspace():
+            return v  # Likely valid, skip expensive strip()
+        # Slow path: full whitespace check only when needed
+        if not v.strip():
+            raise ValidationError('Code cannot be whitespace only', field_name='code')
         return v
 
     @field_validator('strategy')
@@ -81,19 +87,27 @@ class BatchCodeExplanationRequest(BaseModel):
                 field_value=f'{codes_len} codes'
             )
         
-        # Single-pass validation with early termination
+        # Single-pass validation with fast paths and early termination
+        max_len = _MAX_CODE_LENGTH
         for i, code in enumerate(v):
+            # Fast path: length check first (cheapest operation)
             code_len = len(code)
-            if code_len == 0 or not code.strip():
+            if code_len == 0:
                 raise ValidationError(
-                    f'Code at index {i} cannot be empty or whitespace only',
+                    f'Code at index {i} cannot be empty',
                     field_name=f'codes[{i}]'
                 )
-            if code_len > _MAX_CODE_LENGTH:
+            if code_len > max_len:
                 raise ValidationError(
-                    f'Code at index {i} exceeds maximum length of {_MAX_CODE_LENGTH} characters',
+                    f'Code at index {i} exceeds maximum length of {max_len} characters',
                     field_name=f'codes[{i}]',
                     field_value=f'{code_len} chars'
+                )
+            # Only check for whitespace if first char is whitespace (fast path)
+            if code[0].isspace() and not code.strip():
+                raise ValidationError(
+                    f'Code at index {i} cannot be whitespace only',
+                    field_name=f'codes[{i}]'
                 )
         
         return v
