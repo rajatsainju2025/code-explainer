@@ -16,27 +16,38 @@ class TextTokenizer:
         # Pre-compile regex pattern for better performance
         self.token_pattern = re.compile(r"[^A-Za-z0-9_]+")
         self._executor = None
+        self._cache_hits = 0
+        self._cache_misses = 0
 
-    @lru_cache(maxsize=2048)
+    @lru_cache(maxsize=4096)  # Doubled from 2048 for better hit rate
     def tokenize(self, text: str) -> Tuple[str, ...]:
         """Tokenize text for BM25 indexing with caching.
 
         Returns tuple for hashability (required for lru_cache).
         """
+        # Fast path for empty/whitespace-only strings
+        if not text or text.isspace():
+            return ()
+        
         # Use filter with None to remove empty strings (faster than list comprehension)
-        return tuple(filter(None, self.token_pattern.split(text)))
+        result = tuple(filter(None, self.token_pattern.split(text.lower())))
+        return result
 
     def tokenize_list(self, texts: List[str]) -> List[List[str]]:
         """Tokenize a list of texts with parallel processing for large batches."""
         n = len(texts)
         
         # For small batches, sequential is faster (no thread overhead)
-        if n < 100:
+        # Reduced threshold from 100 to 50 for better parallelization
+        if n < 50:
             return [list(self.tokenize(text)) for text in texts]
         
         # For large batches, use parallel processing
         if self._executor is None:
-            self._executor = ThreadPoolExecutor(max_workers=4)
+            # Use optimal worker count based on CPU count
+            import os
+            workers = min(8, os.cpu_count() or 4)
+            self._executor = ThreadPoolExecutor(max_workers=workers)
         
         # Process in parallel and convert tuples to lists
         results = list(self._executor.map(self.tokenize, texts))
@@ -45,6 +56,17 @@ class TextTokenizer:
     def clear_cache(self) -> None:
         """Clear the tokenization cache."""
         self.tokenize.cache_clear()
+    
+    def get_cache_stats(self) -> dict:
+        """Get cache performance statistics."""
+        info = self.tokenize.cache_info()
+        return {
+            "hits": info.hits,
+            "misses": info.misses,
+            "size": info.currsize,
+            "maxsize": info.maxsize,
+            "hit_rate": info.hits / (info.hits + info.misses) if (info.hits + info.misses) > 0 else 0.0
+        }
 
 
 # Global tokenizer instance
