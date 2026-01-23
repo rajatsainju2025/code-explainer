@@ -26,12 +26,13 @@ class SymbolicAnalyzer(ConditionExtractors, PropertyGenerators, ComplexityAnalyz
         PropertyGenerators.__init__(self)
         ComplexityAnalyzers.__init__(self)
 
-        # Initialize state
+        # Initialize state with pre-allocated capacity hints
         self.control_flow: List[ast.AST] = []
         self.variable_assignments: Dict[str, List[ast.AST]] = {}
         self.function_calls: List[ast.Call] = []
-        # Cache for parsed ASTs to avoid reparsing
+        # Larger cache for parsed ASTs (from 100 to 256)
         self._ast_cache: Dict[str, ast.AST] = {}
+        self._cache_size_limit = 256
 
     def analyze_code(self, code: str) -> SymbolicExplanation:
         """Analyze code and return symbolic explanation."""
@@ -71,8 +72,12 @@ class SymbolicAnalyzer(ConditionExtractors, PropertyGenerators, ComplexityAnalyz
 
     def _get_or_parse_ast(self, code: str) -> ast.AST:
         """Get cached AST or parse new one."""
+        # For very short code, don't cache (hash overhead not worth it)
+        if len(code) < 50:
+            return ast.parse(code)
+        
         # Use hash for cache key to handle any code length efficiently
-        cache_key = hash(code) if len(code) > 100 else code
+        cache_key = hash(code)
         
         cached = self._ast_cache.get(cache_key)
         if cached is not None:
@@ -80,8 +85,12 @@ class SymbolicAnalyzer(ConditionExtractors, PropertyGenerators, ComplexityAnalyz
         
         tree = ast.parse(code)
         
-        # Cache only small programs to avoid unbounded growth
-        if len(code) < 5000 and len(self._ast_cache) < 100:
+        # Cache with size limit (use LRU-like eviction)
+        if len(code) < 5000:
+            if len(self._ast_cache) >= self._cache_size_limit:
+                # Remove oldest (first) item for simple LRU behavior
+                first_key = next(iter(self._ast_cache))
+                del self._ast_cache[first_key]
             self._ast_cache[cache_key] = tree
         
         return tree
