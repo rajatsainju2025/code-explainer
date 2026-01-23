@@ -1,10 +1,18 @@
 """Request deduplication to avoid redundant processing of identical concurrent requests."""
 
-import hashlib
 import time
 import threading
 from typing import Any, Dict, Optional, Callable, Tuple
 from collections import OrderedDict
+
+try:
+    import xxhash
+    def fast_hash(data: bytes) -> str:
+        return xxhash.xxh64(data).hexdigest()
+except ImportError:
+    import hashlib
+    def fast_hash(data: bytes) -> str:
+        return hashlib.md5(data).hexdigest()
 
 
 class RequestDeduplicator:
@@ -28,18 +36,18 @@ class RequestDeduplicator:
     def _make_request_hash(self, endpoint: str, **kwargs) -> str:
         """Create hash of request parameters."""
         # Build canonical request representation
-        params_str = f"{endpoint}:"
+        parts = [endpoint]
         for key in sorted(kwargs.keys()):
             value = kwargs[key]
             if isinstance(value, (list, dict)):
                 # For unhashable types, use JSON representation
-                import json
-                value_str = json.dumps(value, separators=(',', ':'), sort_keys=True)
+                import orjson
+                value_str = orjson.dumps(value, option=orjson.OPT_SORT_KEYS).decode()
             else:
                 value_str = str(value)
-            params_str += f"{key}={value_str};"
+            parts.append(f"{key}={value_str}")
         
-        return hashlib.md5(params_str.encode()).hexdigest()
+        return fast_hash('|'.join(parts).encode())
     
     def should_deduplicate(self, endpoint: str, **kwargs) -> Tuple[bool, Optional[str]]:
         """Check if request should be deduplicated.
@@ -181,7 +189,7 @@ class CodeExplanationDeduplicator(RequestDeduplicator):
         """
         return self.should_deduplicate(
             endpoint='explain',
-            code_hash=hashlib.md5(code.encode()).hexdigest(),  # Hash code for key uniqueness
+            code_hash=fast_hash(code.encode()),  # Use faster hash
             strategy=strategy,
             max_length=max_length
         )
@@ -211,11 +219,11 @@ class BatchRequestDeduplicator(RequestDeduplicator):
         Returns:
             Tuple of (should_compute, request_id)
         """
-        import json
+        import orjson
         # Create hash of codes list for uniqueness
-        codes_hash = hashlib.md5(
-            json.dumps(codes, separators=(',', ':')).encode()
-        ).hexdigest()
+        codes_hash = fast_hash(
+            orjson.dumps(codes, option=orjson.OPT_SORT_KEYS)
+        )
         
         return self.should_deduplicate(
             endpoint='explain/batch',
