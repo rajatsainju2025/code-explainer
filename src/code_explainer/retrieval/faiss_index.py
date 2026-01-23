@@ -33,7 +33,7 @@ class FAISSIndex:
         self.index: Optional[Any] = None
         self._dimension: Optional[int] = None
         self._query_cache: OrderedDict = OrderedDict()  # LRU cache
-        self._cache_max_size = 200  # Increased from 100
+        self._cache_max_size = 256  # Increased from 200 for better hit rate
 
     def build_index(self, codes: List[str], use_ivf: bool = False, nlist: int = 100) -> None:
         """Build FAISS index from code snippets.
@@ -44,7 +44,12 @@ class FAISSIndex:
             nlist: Number of clusters for IVF index
         """
         num_codes = len(codes)
-        logger.info("Building FAISS index for %d code snippets...", num_codes)
+        
+        # Adaptive IVF threshold - use IVF for datasets > 5k instead of 1k
+        if use_ivf is None:
+            use_ivf = num_codes >= 5000
+        
+        logger.info("Building FAISS index for %d code snippets (IVF: %s)...", num_codes, use_ivf)
 
         # Use sentence-transformers batch encoding directly (more efficient)
         embeddings = self.model.encode(
@@ -66,12 +71,17 @@ class FAISSIndex:
         if use_ivf and num_codes >= 1000:
             # IVF index for faster search on large datasets
             quantizer = faiss.IndexFlatIP(self._dimension)
-            actual_nlist = min(nlist, num_codes // 10)  # At least 10 items per cluster
+            # Use sqrt rule: nlist = sqrt(num_codes) for optimal clustering
+            optimal_nlist = int(np.sqrt(num_codes))
+            actual_nlist = min(max(optimal_nlist, 50), num_codes // 10)  # Between 50 and num_codes/10
+            
             self.index = faiss.IndexIVFFlat(quantizer, self._dimension, actual_nlist, faiss.METRIC_INNER_PRODUCT)
             self.index.train(embeddings)
             self.index.add(embeddings)
-            self.index.nprobe = min(10, actual_nlist)  # Search 10 clusters by default
-            logger.info("Built IVF index with %d clusters", actual_nlist)
+            
+            # Adaptive nprobe: search more clusters for better recall on larger datasets
+            self.index.nprobe = min(max(10, actual_nlist // 20), 50)  # Between 10 and 50
+            logger.info("Built IVF index with %d clusters (nprobe: %d)", actual_nlist, self.index.nprobe)
         else:
             # Flat index for smaller datasets or maximum accuracy
             self.index = faiss.IndexFlatIP(self._dimension)  # Use inner product for normalized vectors
