@@ -142,10 +142,10 @@ async def explain_code_batch(
     request_id: str = Depends(get_request_id),
     api_key: Optional[str] = Depends(get_optional_api_key)
 ) -> Dict[str, Any]:
-    """Batch code explanation endpoint.
+    """Batch code explanation endpoint with optimized chunking.
 
     Expected payload:
-    {"codes": ["code1", "code2", ...], "max_length": 512, "strategy": "vanilla"}
+    {"codes": ["code1", "code2", ...], "max_length": 512, "strategy": "vanilla", "batch_size": 8}
     """
     metrics_collector = get_metrics_collector()
     req_metrics = metrics_collector.start_request(request_id, "/explain/batch")
@@ -157,6 +157,7 @@ async def explain_code_batch(
 
         max_length = payload.get("max_length")
         strategy = payload.get("strategy") or "vanilla"
+        batch_size = payload.get("batch_size") or 8  # Configurable chunk size for memory efficiency
         
         # Cache model name for reuse
         model_name = _get_model_name(explainer)
@@ -181,17 +182,23 @@ async def explain_code_batch(
                 results.append(None)  # Placeholder
                 to_compute.append((idx, code))
 
-        # Compute missing explanations concurrently using asyncio.gather
-        # for true parallelism instead of sequential await
+        # Compute missing explanations in chunks to avoid memory spikes
         async def compute_batch():
-            """Compute all missing explanations concurrently."""
-            tasks = [
-                run_in_threadpool(explainer.explain_code, code, max_length, strategy)
-                for idx, code in to_compute
-            ]
-            computed_results = await asyncio.gather(*tasks)
-            for (idx, _), explanation in zip(to_compute, computed_results):
-                results[idx] = explanation
+            """Compute missing explanations in configurable chunks."""
+            # Process in chunks to manage memory better
+            for i in range(0, len(to_compute), batch_size):
+                chunk = to_compute[i:i + batch_size]
+                tasks = [
+                    run_in_threadpool(explainer.explain_code, code, max_length, strategy)
+                    for idx, code in chunk
+                ]
+                chunk_results = await asyncio.gather(*tasks, return_exceptions=True)
+                for (idx, _), explanation in zip(chunk, chunk_results):
+                    # Handle exceptions gracefully
+                    if isinstance(explanation, Exception):
+                        results[idx] = f"Error: {str(explanation)}"
+                    else:
+                        results[idx] = explanation
 
         if to_compute:
             await compute_batch()
@@ -203,7 +210,8 @@ async def explain_code_batch(
             "count": len(results),
             "processing_time": round(processing_time, 4),
             "strategy": strategy,
-            "model_name": model_name
+            "model_name": model_name,
+            "batch_size": batch_size
         }
     except HTTPException:
         raise
