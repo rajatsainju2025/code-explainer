@@ -10,7 +10,7 @@ Optimized with:
 """
 
 import time
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 from collections import OrderedDict
 import threading
 
@@ -206,7 +206,7 @@ class QueryDeduplicator:
     def __init__(self):
         """Initialize query deduplicator."""
         self._pending_queries: Dict[str, threading.Event] = {}
-        self._results_cache: Dict[str, any] = {}
+        self._results_cache: Dict[str, Any] = {}
         self._lock = threading.RLock()
     
     def register_query(self, query_id: str) -> bool:
@@ -223,7 +223,7 @@ class QueryDeduplicator:
             self._pending_queries[query_id] = threading.Event()
             return True  # First instance, compute it
     
-    def mark_complete(self, query_id: str, result: any) -> None:
+    def mark_complete(self, query_id: str, result: Any) -> None:
         """Mark query as complete and store result.
         
         Args:
@@ -235,7 +235,7 @@ class QueryDeduplicator:
             if query_id in self._pending_queries:
                 self._pending_queries[query_id].set()
     
-    def wait_result(self, query_id: str, timeout: float = 30.0) -> Optional[any]:
+    def wait_result(self, query_id: str, timeout: float = 30.0) -> Optional[Any]:
         """Wait for query result from another thread.
         
         Args:

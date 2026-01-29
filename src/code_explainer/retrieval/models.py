@@ -23,7 +23,7 @@ class RetrievalCandidate:
     metadata: Dict[str, Any] = field(default_factory=dict)
 
 
-@dataclass(slots=True, frozen=True)
+@dataclass(frozen=True)
 class RetrievalConfig:
     """Configuration for retrieval behavior (immutable for hashability)."""
     model_name: str = "sentence-transformers/all-MiniLM-L6-v2"
@@ -40,7 +40,7 @@ class RetrievalConfig:
 _DEFAULT_METHOD_USAGE: Dict[str, int] = {"faiss": 0, "bm25": 0, "hybrid": 0}
 
 
-@dataclass(slots=True)
+@dataclass
 class RetrievalStats:
     """Statistics for retrieval operations."""
     total_queries: int = 0
@@ -58,7 +58,7 @@ class RetrievalStats:
         return self.cache_hits / total if total > 0 else 0.0
 
 
-@dataclass(slots=True)
+@dataclass
 class SearchResult:
     """Result of a search operation."""
     query: str

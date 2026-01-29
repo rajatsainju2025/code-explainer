@@ -22,7 +22,7 @@ from .device_manager import DeviceManager, DeviceCapabilities
 logger = logging.getLogger(__name__)
 
 
-@dataclass(slots=True)
+@dataclass
 class ModelResources:
     """Container for loaded model resources."""
     model: PreTrainedModel

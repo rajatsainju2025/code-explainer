@@ -38,7 +38,7 @@ class EmbeddingEntry(CacheEntry):
     model_name: str = ""
 
 
-@dataclass(slots=True)
+@dataclass
 class CacheStats:
     """Cache statistics."""
     size: int = 0
@@ -54,7 +54,7 @@ class CacheStats:
         return getattr(self, key)
 
 
-@dataclass(slots=True, frozen=True)
+@dataclass(frozen=True)
 class CacheConfig:
     """Configuration for cache behavior (immutable for hashability)."""
     cache_dir: str = ".cache"

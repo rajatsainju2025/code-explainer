@@ -1,5 +1,6 @@
 """Explanation cache implementation."""
 
+import heapq
 import time
 import threading
 from typing import Any, Dict, Optional
