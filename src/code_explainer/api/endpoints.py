@@ -196,9 +196,9 @@ async def explain_code_batch(
                 for (idx, _), explanation in zip(chunk, chunk_results):
                     # Handle exceptions gracefully
                     if isinstance(explanation, Exception):
-                        results[idx] = f"Error: {str(explanation)}"
+                        results.append(f"Error: {str(explanation)}")
                     else:
-                        results[idx] = explanation
+                        results.append(explanation)
 
         if to_compute:
             await compute_batch()
@@ -236,9 +236,9 @@ async def health_check(
         
         # Check retrieval service readiness
         retrieval_ready = False
-        if hasattr(explainer, 'retrieval_service') and explainer.retrieval_service:
+        if hasattr(explainer, 'retriever') and explainer.retriever:
             try:
-                retrieval_ready = explainer.retrieval_service.is_ready()
+                retrieval_ready = explainer.retriever.is_ready()
             except (AttributeError, RuntimeError, ConnectionError):
                 retrieval_ready = False
 
@@ -331,8 +331,11 @@ async def get_version(
         
         # Add CUDA info if available
         if torch.cuda.is_available():
-            version_info["cuda_version"] = torch.version.cuda
-            version_info["cudnn_version"] = torch.backends.cudnn.version()
+            cuda_ver = getattr(torch.version, 'cuda', None)
+            if cuda_ver:
+                version_info["cuda_version"] = cuda_ver
+            if torch.backends.cudnn.is_available():
+                version_info["cudnn_version"] = torch.backends.cudnn.version()
         
         return version_info
     except Exception as e:
@@ -411,8 +414,5 @@ async def prometheus_metrics_endpoint(
 
 def _get_retrieval_cache_stats() -> Dict[str, Any]:
     """Get retrieval cache statistics for monitoring."""
-    try:
-        from .model_cache import get_model_cache_info
-        return get_model_cache_info()
-    except Exception:
-        return {"error": "cache_stats_unavailable"}
+    # Remove unused import reference
+    return {"status": "cache_stats_not_implemented"}
