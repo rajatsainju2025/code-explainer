@@ -6,12 +6,14 @@ Optimized for:
 - Pre-allocated result dictionaries
 - Context manager support for cleaner code
 - Lazy psutil initialization for faster startup
+- Async-aware profiling support
 """
 
+import asyncio
 from typing import Dict, Any, Callable, Optional, List
 import time
 import functools
-from contextlib import contextmanager
+from contextlib import contextmanager, asynccontextmanager
 import os
 
 # Use perf_counter for high-precision timing
@@ -71,6 +73,38 @@ class PerformanceProfiler:
         Usage:
             with profiler.profile("my_operation") as metrics:
                 # code to profile
+            print(metrics)  # Access timing metrics
+        """
+        start_time = _perf_counter()
+        start_memory = self._get_memory_usage()
+        result = {}
+        
+        try:
+            yield result
+            result["success"] = True
+        except Exception as e:
+            result["success"] = False
+            result["error"] = str(e)
+            raise
+        finally:
+            end_time = _perf_counter()
+            end_memory = self._get_memory_usage()
+            
+            result["execution_time"] = end_time - start_time
+            result["memory_usage_start"] = start_memory
+            result["memory_usage_end"] = end_memory
+            result["memory_delta"] = end_memory - start_memory
+            
+            # Store in metrics
+            self.metrics[name] = result
+    
+    @asynccontextmanager
+    async def profile_async(self, name: str = "default"):
+        """Async context manager for profiling async code blocks.
+        
+        Usage:
+            async with profiler.profile_async("my_operation") as metrics:
+                await async_operation()
             print(metrics)  # Access timing metrics
         """
         start_time = _perf_counter()
