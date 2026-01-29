@@ -35,7 +35,7 @@ class ErrorHandler:
                                   strategy: Callable):
         """Register a recovery strategy for an error type."""
         self.recovery_strategies[error_type] = strategy
-        self.logger.info("Registered recovery strategy for %s", error_type)
+        self.logger.info(f"Registered recovery strategy for {error_type}")
 
     def handle_error(self, error: Exception, context: Optional[Dict[str, Any]] = None,
                     attempt_recovery: bool = True) -> bool:
@@ -50,8 +50,7 @@ class ErrorHandler:
 
         # Log the error
         self.logger.error(
-            "Error occurred: %s",
-            error,
+            f"Error occurred: {error}",
             extra_data={
                 "error_type": error_type,
                 "error_count": error_count,
@@ -64,14 +63,13 @@ class ErrorHandler:
             strategy = self.recovery_strategies.get(error_type)
             if strategy is not None:
                 try:
-                    self.logger.info("Attempting recovery for %s", error_type)
+                    self.logger.info(f"Attempting recovery for {error_type}")
                     strategy(error, context)
-                    self.logger.info("Recovery successful for %s", error_type)
+                    self.logger.info(f"Recovery successful for {error_type}")
                     return True
                 except Exception as recovery_error:
                     self.logger.error(
-                        "Recovery failed for %s: %s",
-                        error_type, recovery_error,
+                        f"Recovery failed for {error_type}: {recovery_error}",
                         extra_data={"original_error": str(error)}
                     )
 
@@ -114,11 +112,11 @@ class ErrorHandler:
         """Context manager for error handling with operation context."""
         start_time = _perf_counter()
         try:
-            self.logger.debug("Starting operation: %s", operation,
+            self.logger.debug(f"Starting operation: {operation}",
                             extra_data=context)
             yield
             duration = _perf_counter() - start_time
-            self.logger.info("Operation completed: %s", operation,
+            self.logger.info(f"Operation completed: {operation}",
                            extra_data={"duration": duration, **context})
         except Exception as e:
             duration = _perf_counter() - start_time
