@@ -172,7 +172,7 @@ class CodeRetriever:
             enable_query_cache: Whether to cache query results
             query_cache_size: Maximum number of cached queries
         """
-        self.config = RetrievalConfig(model_name=model_name)
+        self.config = RetrievalConfig()
         # Use provided model or get from persistent cache
         self.model = model if model is not None else get_cached_model(model_name)
 
