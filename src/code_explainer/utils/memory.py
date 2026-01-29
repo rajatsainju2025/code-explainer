@@ -15,9 +15,14 @@ import platform
 
 # Detect platform once at module load (cache results)
 _PLATFORM = platform.system()
-_IS_LINUX = _PLATFORM == \"Linux\"
-_IS_MACOS = _PLATFORM == \"Darwin\"
-_IS_WINDOWS = _PLATFORM == \"Windows\"\n\n# Cache psutil module reference if available (avoid repeated imports)\n_psutil = None\n\ndef _get_psutil():\n    \"\"\"Lazily import and cache psutil module.\"\"\"\n    global _psutil\n    if _psutil is None:\n        try:\n            import psutil\n            _psutil = psutil\n        except ImportError:\n            _psutil = False  # Mark as unavailable\n    return _psutil if _psutil is not False else None
+_IS_LINUX = _PLATFORM == "Linux"
+_IS_MACOS = _PLATFORM == "Darwin"
+_IS_WINDOWS = _PLATFORM == "Windows"
+
+# Cache psutil module reference if available (avoid repeated imports)
+_psutil = None
+
+def _get_psutil():\n    \"\"\"Lazily import and cache psutil module.\"\"\"\n    global _psutil\n    if _psutil is None:\n        try:\n            import psutil\n            _psutil = psutil\n        except ImportError:\n            _psutil = False  # Mark as unavailable\n    return _psutil if _psutil is not False else None
 
 
 class LazyLoader:

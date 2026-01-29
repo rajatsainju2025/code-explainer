@@ -91,7 +91,7 @@ class ResponsePool:
     
     def acquire(self) -> ResponseBuilder:
         """Acquire a ResponseBuilder from the pool (lock-free fast path)."""
-        # Fast path: try without lock first
+        # Fast path: try without lock first (thread-safe with deque)
         try:
             builder = self._pool.popleft()
             self._acquired += 1
@@ -99,9 +99,16 @@ class ResponsePool:
         except IndexError:
             pass
         
-        # Slow path: create new builder
-        self._created += 1
-        return ResponseBuilder()
+        # Slow path: create new builder only if needed
+        with self._lock:
+            # Check again in case another thread added one
+            try:
+                builder = self._pool.popleft()
+                self._acquired += 1
+                return builder.reset()
+            except IndexError:
+                self._created += 1
+                return ResponseBuilder()
     
     def release(self, builder: ResponseBuilder) -> None:
         """Return a ResponseBuilder to the pool after resetting it."""
