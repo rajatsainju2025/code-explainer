@@ -17,7 +17,7 @@ _FUNCTION_TYPES = (ast.FunctionDef, ast.AsyncFunctionDef)
 _IMPORT_TYPES = (ast.Import, ast.ImportFrom)
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class ASTInfo:
     """Immutable container for AST analysis results."""
     functions: Tuple[str, ...]
