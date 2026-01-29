@@ -129,23 +129,26 @@ class ModelLoader:
             self.device_capabilities
         )
 
-        # Prepare model loading arguments
+        # Prepare model loading arguments with memory optimization
         model_kwargs: Dict[str, Any] = {
             "torch_dtype": recommended_dtype,
             "low_cpu_mem_usage": True,  # Enable memory-efficient loading
         }
 
+        # Add 8-bit quantization only if supported
         if use_8bit and self.device_capabilities.supports_8bit:
             if self.device_capabilities.device_type not in ("cpu", "mps"):
                 model_kwargs.update({
                     "load_in_8bit": True,
                     "device_map": self.config.device_map or "auto"
                 })
-                logger.debug("Loading model with 8-bit quantization from: %s", path)
+                logger.info("Loading model with 8-bit quantization from: %s", path)
             else:
-                logger.warning("8-bit quantization not supported on %s, using %s", self.device_capabilities.device_type, recommended_dtype)
+                logger.info("8-bit quantization not supported on %s, using %s precision", 
+                          self.device_capabilities.device_type, recommended_dtype)
         else:
-            logger.info("Loading model with %s precision on %s", recommended_dtype, self.device_capabilities.device_type)
+            logger.info("Loading model with %s precision on %s", 
+                       recommended_dtype, self.device_capabilities.device_type)
 
         # Validate device compatibility
         if not self.device_manager.validate_device_compatibility(path, self.device_capabilities.device_type):
