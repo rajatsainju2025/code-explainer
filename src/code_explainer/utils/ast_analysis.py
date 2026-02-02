@@ -5,16 +5,25 @@ Optimized for performance with:
 - Tuple-based node type checking (faster than multiple isinstance)
 - Pre-cached AST trees to avoid redundant parsing
 - Efficient string building with join patterns
+- String interning for common prefixes
 """
 
 import ast
 from dataclasses import dataclass
 from functools import lru_cache
 from typing import Any, List, Optional, Tuple, Union, cast
+import sys
 
 # Pre-define node type tuples for faster isinstance checks
 _FUNCTION_TYPES = (ast.FunctionDef, ast.AsyncFunctionDef)
 _IMPORT_TYPES = (ast.Import, ast.ImportFrom)
+
+# Intern commonly used string prefixes to reduce memory
+_MODULE_DOC = sys.intern("Module doc: ")
+_FUNCTION_DOC = sys.intern("Function ")
+_CLASS_DOC = sys.intern("Class ")
+_DOC_SUFFIX = sys.intern(" doc: ")
+_RECURSIVE_PREFIX = sys.intern("recursive:")
 
 
 @dataclass(frozen=True)
@@ -59,7 +68,7 @@ def analyze_code_comprehensive(code: str) -> ASTInfo:
     # Get module docstring
     mod_doc = ast.get_docstring(tree)
     if mod_doc:
-        docs.append(f"Module doc: {mod_doc.strip()[:200]}")
+        docs.append(f"{_MODULE_DOC}{mod_doc.strip()[:200]}")
     
     # Single-pass traversal extracting all information
     for node in ast.walk(tree):
@@ -74,7 +83,7 @@ def analyze_code_comprehensive(code: str) -> ASTInfo:
             # Extract docstring
             doc = ast.get_docstring(fn)
             if doc:
-                docs.append(f"Function {fn.name} doc: {doc.strip()[:150]}")
+                docs.append(f"{_FUNCTION_DOC}{fn.name}{_DOC_SUFFIX}{doc.strip()[:150]}")
             
             # Detect recursion (function calls itself)
             if not has_recursion:
@@ -82,7 +91,7 @@ def analyze_code_comprehensive(code: str) -> ASTInfo:
                     if isinstance(child, ast.Call):
                         if isinstance(child.func, ast.Name) and child.func.id == fn.name:
                             has_recursion = True
-                            complexity_hints.append(f"recursive:{fn.name}")
+                            complexity_hints.append(f"{_RECURSIVE_PREFIX}{fn.name}")
                             break
         
         # Class handling
@@ -91,7 +100,7 @@ def analyze_code_comprehensive(code: str) -> ASTInfo:
             classes.append(cls.name)
             doc = ast.get_docstring(cls)
             if doc:
-                docs.append(f"Class {cls.name} doc: {doc.strip()[:150]}")
+                docs.append(f"{_CLASS_DOC}{cls.name}{_DOC_SUFFIX}{doc.strip()[:150]}")
         
         # Import handling (combined Import + ImportFrom)
         elif node_type is ast.Import:

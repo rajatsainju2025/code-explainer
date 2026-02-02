@@ -1,5 +1,10 @@
 """
 Data utilities for dataset loading and processing.
+
+Optimized with:
+- Cached JSON function references
+- Compact JSON serialization
+- Streaming support for large datasets
 """
 
 from functools import lru_cache
@@ -7,12 +12,21 @@ from typing import Dict, Any, List, Optional, Iterable, Iterator
 from pathlib import Path
 import json
 
-# Cache json functions for faster access
-_json_load = json.load
-_json_loads = json.loads
-_json_dump = json.dump
-
-
+# Cache json functions for faster access and use orjson if available
+try:
+    import orjson
+    def _json_load(f):
+        return orjson.loads(f.read())
+    def _json_loads(s):
+        return orjson.loads(s)
+    def _json_dump(data, f, **kwargs):
+        f.write(orjson.dumps(data).decode())
+    _HAS_ORJSON = True
+except ImportError:
+    _json_load = json.load
+    _json_loads = json.loads
+    _json_dump = json.dump
+    _HAS_ORJSON = False
 class DataLoader:
     """Loads and processes datasets for code explanation."""
     
