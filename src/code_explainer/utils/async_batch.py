@@ -2,6 +2,11 @@
 
 This module provides optimized batch processing for async operations
 to reduce event loop overhead and improve concurrency.
+
+Optimized with:
+- Task result pooling to reduce object allocations
+- Pre-allocated deque for task queueing
+- Lock-free stats tracking where possible
 """
 
 import asyncio
@@ -11,15 +16,49 @@ from collections import deque
 import threading
 import time
 
+# Pool of reusable TaskResult objects
+_RESULT_POOL: deque = deque(maxlen=200)
+_RESULT_POOL_LOCK = threading.Lock()
+
+
+def _acquire_result(task_id: str, success: bool, result: Any = None, 
+                   error: Optional[Exception] = None, execution_time: float = 0.0) -> 'TaskResult':
+    """Acquire TaskResult from pool or create new."""
+    with _RESULT_POOL_LOCK:
+        if _RESULT_POOL:
+            task_result = _RESULT_POOL.popleft()
+            task_result.task_id = task_id
+            task_result.success = success
+            task_result.result = result
+            task_result.error = error
+            task_result.execution_time = execution_time
+            return task_result
+    return TaskResult(task_id, success, result, error, execution_time)
+
+
+def _release_result(task_result: 'TaskResult') -> None:
+    """Return TaskResult to pool."""
+    with _RESULT_POOL_LOCK:
+        if len(_RESULT_POOL) < 200:
+            task_result.result = None
+            task_result.error = None
+            _RESULT_POOL.append(task_result)
+
 
 @dataclass
 class TaskResult:
-    """Result of a batch task execution."""
+    """Result of a batch task execution (mutable for pooling)."""
     task_id: str
     success: bool
     result: Any = None
     error: Optional[Exception] = None
     execution_time: float = 0.0
+    
+    def reset(self):
+        """Reset for reuse."""
+        self.result = None
+        self.error = None
+        self.execution_time = 0.0
 
 
 class BatchTaskExecutor:
@@ -81,7 +120,7 @@ class BatchTaskExecutor:
             )
         except asyncio.TimeoutError:
             results = [
-                TaskResult(
+                _acquire_result(
                     task_id=f"task_{i}",
                     success=False,
                     error=asyncio.TimeoutError("Batch execution timeout")
