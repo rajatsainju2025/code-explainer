@@ -79,9 +79,11 @@ class BM25Index:
         # Use argpartition for O(n) selection instead of O(n log n) full sort
         # This is significantly faster for large corpora when k << n
         partition_indices = _np_argpartition(scores, -k_actual)[-k_actual:]
-        # Sort only the top-k elements
-        top_indices = partition_indices[_np_argsort(scores[partition_indices])[::-1]]
-        top_scores = scores[top_indices]
+        # Sort only the top-k elements using in-place operations
+        top_k_scores = scores[partition_indices]  # View, not copy
+        sorted_order = _np_argsort(top_k_scores)[::-1]
+        top_indices = partition_indices[sorted_order]
+        top_scores = top_k_scores[sorted_order]
 
         return top_scores, top_indices
 

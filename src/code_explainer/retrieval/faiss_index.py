@@ -22,7 +22,8 @@ class FAISSIndex:
     """Manages FAISS index for vector similarity search."""
     
     # Use __slots__ to reduce memory overhead
-    __slots__ = ('model', 'batch_size', 'index', '_dimension', '_query_cache', '_cache_max_size')
+    __slots__ = ('model', 'batch_size', 'index', '_dimension', '_query_cache', 
+                 '_cache_max_size', '_embedding_buffer')
 
     def __init__(self, model: SentenceTransformer, batch_size: int = 32):
         if not HAS_FAISS:
@@ -34,6 +35,7 @@ class FAISSIndex:
         self._dimension: Optional[int] = None
         self._query_cache: OrderedDict = OrderedDict()  # LRU cache
         self._cache_max_size = 256  # Increased from 200 for better hit rate
+        self._embedding_buffer: Optional[np.ndarray] = None  # Reusable buffer
 
     def build_index(self, codes: List[str], use_ivf: bool = False, nlist: int = 100) -> None:
         """Build FAISS index from code snippets.
@@ -66,6 +68,9 @@ class FAISSIndex:
 
         # Store dimension for later use
         self._dimension = embeddings.shape[1]
+        
+        # Pre-allocate embedding buffer for search operations
+        self._embedding_buffer = np.zeros((1, self._dimension), dtype=np.float32)
 
         # Build FAISS index - use IVF for large datasets
         if use_ivf and num_codes >= 1000:
