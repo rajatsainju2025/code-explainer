@@ -77,32 +77,40 @@ class ErrorHandler:
 
     def wrap_async(self, func: Callable[..., Awaitable[T]]) -> Callable[..., Awaitable[T]]:
         """Decorator to wrap async functions with error handling."""
+        func_name = func.__name__  # Cache function name
+        
         @functools.wraps(func)
         async def wrapper(*args, **kwargs):
             try:
                 return await func(*args, **kwargs)
             except Exception as e:
+                # Build context efficiently
                 context = {
-                    "function": func.__name__,
+                    "function": func_name,
                     "args_count": len(args),
-                    "kwargs_keys": list(kwargs.keys())
                 }
+                if kwargs:
+                    context["kwargs_keys"] = list(kwargs.keys())
                 self.handle_error(e, context)
                 raise
         return wrapper
 
     def wrap_sync(self, func: Callable[..., T]) -> Callable[..., T]:
         """Decorator to wrap sync functions with error handling."""
+        func_name = func.__name__  # Cache function name
+        
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
             try:
                 return func(*args, **kwargs)
             except Exception as e:
+                # Build context efficiently
                 context = {
-                    "function": func.__name__,
+                    "function": func_name,
                     "args_count": len(args),
-                    "kwargs_keys": list(kwargs.keys())
                 }
+                if kwargs:
+                    context["kwargs_keys"] = list(kwargs.keys())
                 self.handle_error(e, context)
                 raise
         return wrapper
