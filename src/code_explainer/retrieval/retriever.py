@@ -393,18 +393,21 @@ class CodeRetriever:
                 self.stats.total_response_time / self.stats.total_queries
             )
 
-        # Convert to dict format for backward compatibility
+        # Convert to dict format for backward compatibility (use tuple unpacking for efficiency)
         result = [
             {
-                "content": c.content,
-                "index": c.index,
-                "initial_score": c.initial_score,
-                "method": c.method,
-                "rerank_score": c.rerank_score,
-                "final_score": c.final_score,
-                **c.metadata
+                "content": content,
+                "index": index,
+                "initial_score": initial_score,
+                "method": method,
+                "rerank_score": rerank_score,
+                "final_score": final_score,
+                **metadata
             }
-            for c in candidates
+            for content, index, initial_score, method, rerank_score, final_score, metadata in (
+                (c.content, c.index, c.initial_score, c.method, c.rerank_score, c.final_score, c.metadata)
+                for c in candidates
+            )
         ]
 
         # Cache the result

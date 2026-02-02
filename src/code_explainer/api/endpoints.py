@@ -41,15 +41,24 @@ router = APIRouter()
 
 # Cache for frequently accessed attributes to reduce getattr overhead
 _MODEL_NAME_CACHE: Dict[CodeExplainer, str] = {}
-_MODEL_NAME_CACHE_LOCK = __import__('threading').RLock()
+_MODEL_DEVICE_CACHE: Dict[CodeExplainer, str] = {}
+_CACHE_LOCK = __import__('threading').RLock()
 
 
 def _get_model_name(explainer: CodeExplainer) -> str:
     """Get model name from explainer with caching to avoid repeated getattr calls."""
-    with _MODEL_NAME_CACHE_LOCK:
+    with _CACHE_LOCK:
         if explainer not in _MODEL_NAME_CACHE:
             _MODEL_NAME_CACHE[explainer] = getattr(explainer, 'model_name', 'unknown')
         return _MODEL_NAME_CACHE[explainer]
+
+
+def _get_model_device(explainer: CodeExplainer) -> str:
+    """Get model device with caching."""
+    with _CACHE_LOCK:
+        if explainer not in _MODEL_DEVICE_CACHE:
+            _MODEL_DEVICE_CACHE[explainer] = str(getattr(explainer, 'device', 'cpu'))
+        return _MODEL_DEVICE_CACHE[explainer]
 
 
 @router.post("/explain", response_model=CodeExplanationResponse)
