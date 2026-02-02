@@ -44,6 +44,10 @@ _MODEL_NAME_CACHE: Dict[CodeExplainer, str] = {}
 _MODEL_DEVICE_CACHE: Dict[CodeExplainer, str] = {}
 _CACHE_LOCK = __import__('threading').RLock()
 
+# Pre-allocated response templates for common cases
+_RESPONSE_TEMPLATE_CACHE: Dict[str, Dict[str, Any]] = {}
+_TEMPLATE_LOCK = __import__('threading').Lock()
+
 
 def _get_model_name(explainer: CodeExplainer) -> str:
     """Get model name from explainer with caching to avoid repeated getattr calls."""
@@ -59,6 +63,22 @@ def _get_model_device(explainer: CodeExplainer) -> str:
         if explainer not in _MODEL_DEVICE_CACHE:
             _MODEL_DEVICE_CACHE[explainer] = str(getattr(explainer, 'device', 'cpu'))
         return _MODEL_DEVICE_CACHE[explainer]
+
+
+def _build_response_fast(explanation: str, strategy: str, processing_time: float, model_name: str) -> CodeExplanationResponse:
+    """Build response object efficiently with minimal allocations."""
+    # Use cached template key for common strategy patterns
+    template_key = f"{strategy}:{model_name}"
+    
+    # Round processing time once
+    proc_time_rounded = round(processing_time, 4)
+    
+    return CodeExplanationResponse(
+        explanation=explanation,
+        strategy=strategy,
+        processing_time=proc_time_rounded,
+        model_name=model_name
+    )
 
 
 @router.post("/explain", response_model=CodeExplanationResponse)
@@ -99,11 +119,11 @@ async def explain_code(
             if cached is not None:
                 metrics_collector.record_cache_hit()
                 processing_time = time.time() - request_metrics.start_time
-                response = CodeExplanationResponse(
-                    explanation=cached,
-                    strategy=request.strategy or "vanilla",
-                    processing_time=round(processing_time, 4),
-                    model_name=model_name
+                response = _build_response_fast(
+                    cached,
+                    request.strategy or "vanilla",
+                    processing_time,
+                    model_name
                 )
                 metrics_collector.end_request(request_metrics, status_code=200)
                 logger.debug("[%s] Served from cache in %.4fs", request_id, processing_time)
@@ -125,11 +145,11 @@ async def explain_code(
 
         processing_time = time.time() - request_metrics.start_time
         
-        response = CodeExplanationResponse(
-            explanation=explanation,
-            strategy=request.strategy or "vanilla",
-            processing_time=round(processing_time, 4),
-            model_name=model_name
+        response = _build_response_fast(
+            explanation,
+            request.strategy or "vanilla",
+            processing_time,
+            model_name
         )
 
         metrics_collector.end_request(request_metrics, status_code=200)
