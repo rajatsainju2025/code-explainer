@@ -5,11 +5,16 @@ Optimized for performance with:
 - Model configuration for performance (validate_default=False)
 - Efficient batch validation with early termination
 - Cached error messages to avoid repeated string formatting
+- Singleton fast validator for compiled pattern reuse
 """
 
 from typing import List, Optional, Literal, ClassVar
 from pydantic import BaseModel, Field, field_validator, ConfigDict
 from .exceptions import ValidationError
+from .utils.fast_validator import FastPathValidator
+
+# Singleton fast validator
+_FAST_VALIDATOR = FastPathValidator()
 
 # Pre-computed sets for constant-time validation
 _ALLOWED_STRATEGIES = frozenset({"vanilla", "ast_augmented", "retrieval_augmented", "execution_trace", "multi_agent", "intelligent"})
