@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Optional, Union
 import logging
+import weakref
 
 import torch
 from transformers import (
@@ -20,6 +21,9 @@ from .error_handling import ModelError, ConfigurationError, ResourceError
 from .device_manager import DeviceManager, DeviceCapabilities
 
 logger = logging.getLogger(__name__)
+
+# Global weak reference cache for model instances
+_MODEL_INSTANCE_CACHE: weakref.WeakValueDictionary = weakref.WeakValueDictionary()
 
 
 @dataclass
@@ -69,9 +73,27 @@ class ModelLoader:
             ModelError: For other loading errors
         """
         path = str(model_path or self.config.name)
+        
+        # Check weak reference cache for existing model instance
+        cache_key = f"{path}:{self.config.arch}:{self.device}"
+        if cache_key in _MODEL_INSTANCE_CACHE:
+            logger.debug("Reusing cached model instance for: %s", path)
+            cached_model = _MODEL_INSTANCE_CACHE[cache_key]
+            tokenizer = self._load_tokenizer(path)
+            return ModelResources(
+                model=cached_model,
+                tokenizer=tokenizer,
+                device=self.device,
+                model_type=self.config.arch,
+                device_capabilities=self.device_capabilities
+            )
+        
         try:
             tokenizer = self._load_tokenizer(path)
             model = self._load_model(path, tokenizer)
+            
+            # Store in weak reference cache
+            _MODEL_INSTANCE_CACHE[cache_key] = model
 
             return ModelResources(
                 model=model,
