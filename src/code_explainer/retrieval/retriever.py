@@ -50,8 +50,9 @@ class LRUQueryCache:
     
     Uses __slots__ to reduce memory overhead per cache instance.
     Implements optimistic read locking for better concurrent performance.
+    Optimized with pre-computed string templates for faster key generation.
     """
-    __slots__ = ('cache', 'max_size', 'hits', 'misses', '_lock', '_version')
+    __slots__ = ('cache', 'max_size', 'hits', 'misses', '_lock', '_version', '_key_cache')
     
     def __init__(self, max_size: int = 512):
         self.cache: OrderedDict = OrderedDict()
@@ -60,16 +61,31 @@ class LRUQueryCache:
         self.misses = 0
         self._lock = threading.Lock()
         self._version = 0  # For optimistic read detection
+        self._key_cache: Dict[Tuple, str] = {}  # Cache generated keys
     
     def _make_key(self, query: str, k: int, method: str, alpha: float, 
                   use_reranker: bool, use_mmr: bool) -> str:
         """Create deterministic cache key from query parameters.
         
         Uses f-string formatting (faster than join) and xxhash.
+        Caches computed keys for frequently repeated queries.
         """
+        # Create a tuple for key lookup (immutable, hashable)
+        key_params = (query, k, method, alpha, use_reranker, use_mmr)
+        
+        # Check key cache first (faster for repeated queries)
+        if key_params in self._key_cache:
+            return self._key_cache[key_params]
+        
         # Use f-string for faster string building
         key_str = f"{query}|{k}|{method}|{alpha:.2f}|{use_reranker}|{use_mmr}"
-        return _hash_key(key_str)
+        hashed_key = _hash_key(key_str)
+        
+        # Cache if not full (limit to 1000 entries)
+        if len(self._key_cache) < 1000:
+            self._key_cache[key_params] = hashed_key
+        
+        return hashed_key
     
     def get(self, query: str, k: int, method: str, alpha: float,
             use_reranker: bool = False, use_mmr: bool = False) -> Optional[Any]:

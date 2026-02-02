@@ -25,7 +25,7 @@ class EvictionPolicy(Enum):
 
 class CacheEntry:
     """Enhanced cache entry with eviction metadata (optimized with __slots__)."""
-    __slots__ = ('key', 'value', 'created_at', 'last_accessed', 'access_count', 'ttl', 'size')
+    __slots__ = ('key', 'value', 'created_at', 'last_accessed', 'access_count', 'ttl', '_size')
     
     def __init__(self, key: str, value: Any, ttl: Optional[float] = None):
         self.key = key
@@ -34,12 +34,16 @@ class CacheEntry:
         self.last_accessed = self.created_at
         self.access_count = 0
         self.ttl = ttl
-        self.size = self._calculate_size()
+        self._size: Optional[int] = None  # Lazy calculation
 
-    def _calculate_size(self) -> int:
-        """Calculate approximate memory size of the entry."""
-        # Rough estimation - can be enhanced for more accuracy
-        return len(str(self.value)) + len(self.key) + 100  # overhead
+    @property
+    def size(self) -> int:
+        """Calculate approximate memory size lazily."""
+        if self._size is None:
+            # Rough estimation - optimized for speed
+            value_size = len(str(self.value)) if not isinstance(self.value, (int, float, bool)) else 8
+            self._size = value_size + len(self.key) + 80  # reduced overhead estimate
+        return self._size
 
     def is_expired(self) -> bool:
         """Check if entry has expired."""
