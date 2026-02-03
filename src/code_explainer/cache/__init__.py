@@ -9,7 +9,6 @@ from .utils import (calculate_cache_score, compress_data, decompress_data,
                    ensure_directory, generate_cache_key, is_expired, safe_file_operation)
 
 __all__ = [
-    "AdvancedMemoryCache",
     "AsyncCacheMixin",
     "BaseCache",
     "CacheConfig",
