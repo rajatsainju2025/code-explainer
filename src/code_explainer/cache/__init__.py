@@ -1,6 +1,6 @@
 """Cache module for code explanations and embeddings."""
 
-from .base_cache import (BaseCache, MemoryCache, AdvancedMemoryCache, AsyncCacheMixin,
+from .base_cache import (BaseCache, MemoryCache, AsyncCacheMixin,
                         EvictionPolicy, CacheEntry)
 from .embedding_cache import EmbeddingCache
 from .explanation_cache import ExplanationCache
