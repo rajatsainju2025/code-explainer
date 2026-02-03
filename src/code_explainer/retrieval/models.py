@@ -56,13 +56,3 @@ class RetrievalStats:
         """Calculate cache hit rate."""
         total = self.cache_hits + self.cache_misses
         return self.cache_hits / total if total > 0 else 0.0
-
-
-@dataclass
-class SearchResult:
-    """Result of a search operation."""
-    query: str
-    method: str
-    candidates: List[RetrievalCandidate]
-    response_time: float
-    total_candidates: int

@@ -33,7 +33,6 @@ except ImportError:
 
 from ..model.core import CodeExplainer
 from ..config import Config
-from ..utils.response_pooling import acquire_response_builder, release_response_builder
 
 logger = logging.getLogger(__name__)
 
@@ -43,10 +42,6 @@ router = APIRouter()
 _MODEL_NAME_CACHE: Dict[CodeExplainer, str] = {}
 _MODEL_DEVICE_CACHE: Dict[CodeExplainer, str] = {}
 _CACHE_LOCK = __import__('threading').RLock()
-
-# Pre-allocated response templates for common cases
-_RESPONSE_TEMPLATE_CACHE: Dict[str, Dict[str, Any]] = {}
-_TEMPLATE_LOCK = __import__('threading').Lock()
 
 
 def _get_model_name(explainer: CodeExplainer) -> str:
@@ -67,9 +62,6 @@ def _get_model_device(explainer: CodeExplainer) -> str:
 
 def _build_response_fast(explanation: str, strategy: str, processing_time: float, model_name: str) -> CodeExplanationResponse:
     """Build response object efficiently with minimal allocations."""
-    # Use cached template key for common strategy patterns
-    template_key = f"{strategy}:{model_name}"
-    
     # Round processing time once
     proc_time_rounded = round(processing_time, 4)
     

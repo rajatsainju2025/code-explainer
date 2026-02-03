@@ -11,7 +11,6 @@ import gzip
 import json
 import logging
 import threading
-from functools import lru_cache
 from pathlib import Path
 from time import perf_counter
 from typing import Any, Dict, List, Optional, Tuple
@@ -23,7 +22,7 @@ from .bm25_index import BM25Index
 from .enhanced_retrieval import EnhancedRetrieval
 from .faiss_index import FAISSIndex
 from .hybrid_search import HybridSearch
-from .models import RetrievalCandidate, RetrievalConfig, RetrievalStats, SearchResult
+from .models import RetrievalCandidate, RetrievalConfig, RetrievalStats
 from .model_cache import get_cached_model
 
 logger = logging.getLogger(__name__)
@@ -40,9 +39,6 @@ except ImportError:
 
 # Pre-compute valid methods set for O(1) lookup
 _VALID_METHODS = frozenset({"faiss", "bm25", "hybrid"})
-
-# Pre-computed format strings to avoid repeated allocations
-_KEY_FORMAT = "{query}|{k}|{method}|{alpha:.2f}|{reranker}|{mmr}"
 
 
 class LRUQueryCache:
