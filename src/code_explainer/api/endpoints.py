@@ -40,7 +40,6 @@ router = APIRouter()
 
 # Cache for frequently accessed attributes to reduce getattr overhead
 _MODEL_NAME_CACHE: Dict[CodeExplainer, str] = {}
-_MODEL_DEVICE_CACHE: Dict[CodeExplainer, str] = {}
 _CACHE_LOCK = __import__('threading').RLock()
 
 
@@ -50,14 +49,6 @@ def _get_model_name(explainer: CodeExplainer) -> str:
         if explainer not in _MODEL_NAME_CACHE:
             _MODEL_NAME_CACHE[explainer] = getattr(explainer, 'model_name', 'unknown')
         return _MODEL_NAME_CACHE[explainer]
-
-
-def _get_model_device(explainer: CodeExplainer) -> str:
-    """Get model device with caching."""
-    with _CACHE_LOCK:
-        if explainer not in _MODEL_DEVICE_CACHE:
-            _MODEL_DEVICE_CACHE[explainer] = str(getattr(explainer, 'device', 'cpu'))
-        return _MODEL_DEVICE_CACHE[explainer]
 
 
 def _build_response_fast(explanation: str, strategy: str, processing_time: float, model_name: str) -> CodeExplanationResponse:
@@ -432,8 +423,3 @@ async def prometheus_metrics_endpoint(
             status_code=500,
             detail=f"Failed to export metrics: {str(e)}"
         )
-
-def _get_retrieval_cache_stats() -> Dict[str, Any]:
-    """Get retrieval cache statistics for monitoring."""
-    # Remove unused import reference
-    return {"status": "cache_stats_not_implemented"}
