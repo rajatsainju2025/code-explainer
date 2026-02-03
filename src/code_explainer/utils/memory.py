@@ -215,7 +215,3 @@ def optimize_memory(aggressive: bool = False) -> Tuple[int, int]:
     
     return collected, memory_freed
 
-
-def optimize_memory() -> None:
-    """Trigger garbage collection and memory optimization."""
-    gc.collect()
