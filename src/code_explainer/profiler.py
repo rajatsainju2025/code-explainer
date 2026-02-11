@@ -9,10 +9,8 @@ Optimized for:
 - Async-aware profiling support
 """
 
-import asyncio
 from typing import Dict, Any, Callable, Optional, List
 import time
-import functools
 from contextlib import contextmanager, asynccontextmanager
 import os
 
@@ -36,12 +34,6 @@ def _get_process():
 
 # Pre-computed divisor to avoid repeated division
 _MEMORY_MB_DIVISOR = 1024 * 1024
-
-# Pre-allocated result templates to reduce allocation
-_PROFILE_RESULT_KEYS = frozenset({
-    "execution_time", "memory_usage_start", "memory_usage_end", 
-    "memory_delta", "success", "result", "error"
-})
 
 
 class PerformanceProfiler:

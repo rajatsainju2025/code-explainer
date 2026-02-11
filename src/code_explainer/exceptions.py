@@ -38,6 +38,12 @@ def _return_context_to_pool(ctx: Dict[str, Any]) -> None:
             if len(_CONTEXT_POOL) < 100:
                 ctx.clear()
                 _CONTEXT_POOL.append(ctx)
+
+
+class CodeExplainerError(Exception):
+    """Base exception for all Code Explainer errors."""
+
+    __slots__ = ('message', 'error_code', '_context')
     http_status: ClassVar[int] = 500
     
     def __init__(
@@ -220,75 +226,3 @@ class ResourceError(CodeExplainerError):
             error_code="RESOURCE_ERROR",
             context=context
         )
-
-
-class InferenceError(CodeExplainerError):
-    """Raised when code explanation inference fails."""
-    
-    def __init__(
-        self,
-        message: str,
-        strategy: Optional[str] = None,
-        code_length: Optional[int] = None
-    ) -> None:
-        context = {}
-        if strategy:
-            context["strategy"] = strategy
-        if code_length:
-            context["code_length"] = code_length
-            
-        super().__init__(
-            message,
-            error_code="INFERENCE_ERROR",
-            context=context
-        )
-
-
-class TimeoutError(CodeExplainerError):
-    """Raised when operations exceed timeout limits."""
-    
-    def __init__(
-        self,
-        message: str,
-        timeout_seconds: Optional[float] = None,
-        operation: Optional[str] = None
-    ) -> None:
-        context = {}
-        if timeout_seconds:
-            context["timeout_seconds"] = timeout_seconds
-        if operation:
-            context["operation"] = operation
-            
-        super().__init__(
-            message,
-            error_code="TIMEOUT_ERROR",
-            context=context
-        )
-
-
-class SecurityError(CodeExplainerError):
-    """Raised when security checks fail."""
-    
-    def __init__(
-        self,
-        message: str,
-        security_check: Optional[str] = None,
-        code_snippet: Optional[str] = None
-    ) -> None:
-        context = {}
-        if security_check:
-            context["security_check"] = security_check
-        if code_snippet:
-            # Only include first 50 chars for security
-            context["code_snippet"] = code_snippet[:50] + "..." if len(code_snippet) > 50 else code_snippet
-            
-        super().__init__(
-            message,
-            error_code="SECURITY_ERROR",
-            context=context
-        )
-
-
-# Backwards compatibility aliases
-ConfigError = ConfigurationError
-InferenceFailure = InferenceError
