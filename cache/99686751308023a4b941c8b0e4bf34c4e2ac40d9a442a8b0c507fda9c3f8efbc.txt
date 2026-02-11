@@ -1,1 +1,0 @@
-This is a function fibonacci recursive this is a 'for' loop that iterates three times. It will print the numbers 0, 1, and 2, each on a new line.

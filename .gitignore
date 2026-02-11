@@ -144,6 +144,12 @@ Thumbs.db
 ehthumbs.db
 Desktop.ini
 
+# Runtime artifacts
+cache/
+MagicMock/
+bandit_results.json
+security_report.json
+
 # Evaluation artifacts
 ab_results.txt
 examples/eval_results/*.jsonl

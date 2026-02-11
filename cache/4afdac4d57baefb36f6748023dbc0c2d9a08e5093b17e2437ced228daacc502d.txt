@@ -1,1 +1,0 @@
-This code initializes a list named 'hi' with three numbers. It then prints the first element of the list, which is 1.
