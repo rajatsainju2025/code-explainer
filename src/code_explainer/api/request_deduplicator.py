@@ -5,14 +5,7 @@ import threading
 from typing import Any, Dict, Optional
 from collections import OrderedDict
 
-try:
-    import xxhash
-    def fast_hash(data: bytes) -> str:
-        return xxhash.xxh64(data).hexdigest()
-except ImportError:
-    import hashlib
-    def fast_hash(data: bytes) -> str:
-        return hashlib.md5(data).hexdigest()
+from ..utils.hashing import fast_hash_bytes as fast_hash
 
 
 class RequestDeduplicator:

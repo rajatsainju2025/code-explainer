@@ -10,6 +10,7 @@ from .ast_analysis import (
 from .config import load_config, setup_logging
 from .device import get_device
 from .execution import _safe_exec_subprocess
+from .hashing import fast_hash_bytes, fast_hash_str, json_loads, json_dumps
 from .language import detect_language
 from .prompting import prompt_for_language
 
@@ -20,7 +21,11 @@ __all__ = [
     "_safe_exec_subprocess",
     "_summarize_python_ast",
     "detect_language",
+    "fast_hash_bytes",
+    "fast_hash_str",
     "get_device",
+    "json_loads",
+    "json_dumps",
     "load_config",
     "prompt_for_language",
     "setup_logging",

@@ -17,15 +17,7 @@ from fcntl import flock, LOCK_SH, LOCK_EX, LOCK_UN
 
 from sentence_transformers import SentenceTransformer
 
-# Use xxhash if available (6x faster than hashlib.md5)
-try:
-    import xxhash
-    def _fast_hash(data: str) -> str:
-        return xxhash.xxh64(data.encode()).hexdigest()
-except ImportError:
-    import hashlib
-    def _fast_hash(data: str) -> str:
-        return hashlib.md5(data.encode()).hexdigest()
+from ..utils.hashing import fast_hash_str as _fast_hash
 
 logger = logging.getLogger(__name__)
 

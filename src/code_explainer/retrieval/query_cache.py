@@ -14,15 +14,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from collections import OrderedDict
 import threading
 
-# Use xxhash if available (6x faster than hashlib.md5)
-try:
-    import xxhash
-    def _fast_hash(data: str) -> str:
-        return xxhash.xxh64(data.encode()).hexdigest()
-except ImportError:
-    import hashlib
-    def _fast_hash(data: str) -> str:
-        return hashlib.md5(data.encode(), usedforsecurity=False).hexdigest()
+from ..utils.hashing import fast_hash_str as _fast_hash
 
 # Cache time functions for micro-optimization
 _monotonic = time.monotonic

@@ -24,18 +24,9 @@ from .faiss_index import FAISSIndex
 from .hybrid_search import HybridSearch
 from .models import RetrievalCandidate, RetrievalConfig, RetrievalStats
 from .model_cache import get_cached_model
+from ..utils.hashing import fast_hash_str as _hash_key
 
 logger = logging.getLogger(__name__)
-
-# Try to use xxhash for faster key generation (10x faster than md5)
-try:
-    import xxhash
-    def _hash_key(data: str) -> str:
-        return xxhash.xxh64(data.encode()).hexdigest()
-except ImportError:
-    import hashlib
-    def _hash_key(data: str) -> str:
-        return hashlib.md5(data.encode()).hexdigest()
 
 # Pre-compute valid methods set for O(1) lookup
 _VALID_METHODS = frozenset({"faiss", "bm25", "hybrid"})

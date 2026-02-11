@@ -5,15 +5,7 @@ import time
 import threading
 from typing import Any, Dict, Optional
 
-# Use orjson for faster JSON operations if available
-try:
-    import orjson
-    def json_loads(s): return orjson.loads(s)
-    def json_dumps(obj): return orjson.dumps(obj, option=orjson.OPT_INDENT_2).decode()
-except ImportError:
-    import json
-    json_loads = json.loads
-    def json_dumps(obj): return json.dumps(obj, separators=(',', ':'))
+from ..utils.hashing import json_loads, json_dumps
 
 from .base_cache import BaseCache, MemoryCache
 from .models import CacheConfig, CacheStats

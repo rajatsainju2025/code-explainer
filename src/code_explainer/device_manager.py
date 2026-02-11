@@ -20,15 +20,7 @@ from typing import Optional, Union, Dict, Any, FrozenSet, TYPE_CHECKING
 import logging
 import threading
 
-# Use orjson for faster JSON operations if available, fallback to stdlib
-try:
-    import orjson
-    def json_loads(s): return orjson.loads(s)
-    def json_dumps(obj): return orjson.dumps(obj, option=orjson.OPT_INDENT_2).decode()
-except ImportError:
-    import json
-    json_loads = json.loads
-    def json_dumps(obj): return json.dumps(obj, separators=(',', ':'))
+from .utils.hashing import json_loads, json_dumps
 
 if TYPE_CHECKING:
     import torch
