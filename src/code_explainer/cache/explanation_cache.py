@@ -4,6 +4,7 @@ import heapq
 import time
 import threading
 from typing import Any, Dict, Optional
+from collections import deque
 
 from ..utils.hashing import json_loads, json_dumps
 
