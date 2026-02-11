@@ -24,10 +24,6 @@ from .config_validation import CodeExplainerConfigValidationMixin
 from .utilities import CodeExplainerUtilitiesMixin
 from .explanation import CodeExplainerExplanationMixin
 from .monitoring import CodeExplainerMonitoringMixin
-
-# Import OmegaConf for config conversion
-
-# Import new intelligent explanation components
 try:
     from .intelligent_explainer import (
         IntelligentExplanationGenerator,

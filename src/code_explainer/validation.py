@@ -8,13 +8,9 @@ Optimized for performance with:
 - Singleton fast validator for compiled pattern reuse
 """
 
-from typing import List, Optional, Literal, ClassVar
+from typing import List, Optional, Literal
 from pydantic import BaseModel, Field, field_validator, ConfigDict
 from .exceptions import ValidationError
-from .utils.fast_validator import FastPathValidator
-
-# Singleton fast validator
-_FAST_VALIDATOR = FastPathValidator()
 
 # Pre-computed sets for constant-time validation
 _ALLOWED_STRATEGIES = frozenset({"vanilla", "ast_augmented", "retrieval_augmented", "execution_trace", "multi_agent", "intelligent"})

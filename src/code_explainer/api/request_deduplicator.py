@@ -2,7 +2,7 @@
 
 import time
 import threading
-from typing import Any, Dict, Optional, Callable, Tuple
+from typing import Any, Dict, Optional
 from collections import OrderedDict
 
 try:

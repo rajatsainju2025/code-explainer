@@ -1,7 +1,6 @@
 """Code Explainer trainer for fine-tuning models."""
 
-from typing import Dict, Any, Optional, Union, List
-from pathlib import Path
+from typing import Dict, Any, Optional
 import logging
 
 logger: logging.Logger = logging.getLogger(__name__)

@@ -3,14 +3,10 @@
 import logging
 import gc
 import time
-from pathlib import Path
 from functools import lru_cache, wraps
 
 import click
 from rich.console import Console
-from rich.panel import Panel
-from rich.syntax import Syntax
-from rich.table import Table
 
 from ..model import CodeExplainer
 from ..utils import setup_logging

@@ -1,6 +1,5 @@
 """Base caching functionality and interfaces."""
 
-import asyncio
 import threading
 import time
 from abc import ABC, abstractmethod

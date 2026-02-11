@@ -4,7 +4,6 @@ import heapq
 import time
 import threading
 from typing import Any, Dict, Optional
-from collections import deque
 
 # Use orjson for faster JSON operations if available
 try:
