@@ -1,26 +1,34 @@
-"""Custom exception hierarchy for Code Explainer."""
+"""Exception hierarchy for Code Explainer.
 
-# Custom exception hierarchy
-class CodeExplainerError(Exception):
-    """Base exception for Code Explainer."""
-    pass
+Re-exports from the canonical exceptions module to avoid duplicate class
+hierarchies. All exception classes are defined in code_explainer.exceptions.
+"""
 
-class ModelError(CodeExplainerError):
-    """Exception raised for model-related errors."""
-    pass
+from ..exceptions import (
+    CodeExplainerError,
+    ConfigurationError,
+    ModelError,
+    ResourceError,
+    ValidationError,
+    CacheError,
+)
 
-class ConfigurationError(CodeExplainerError):
-    """Exception raised for configuration-related errors."""
-    pass
-
-class ValidationError(CodeExplainerError):
-    """Exception raised for input validation errors."""
-    pass
 
 class ProcessingError(CodeExplainerError):
-    """Exception raised for processing-related errors."""
+    """Raised for processing-related errors.
+
+    Defined here because it's only used within the error_handling package.
+    """
+
     pass
 
-class ResourceError(CodeExplainerError):
-    """Exception raised for resource-related errors."""
-    pass
+
+__all__ = [
+    "CodeExplainerError",
+    "ConfigurationError",
+    "ModelError",
+    "ProcessingError",
+    "ResourceError",
+    "ValidationError",
+    "CacheError",
+]
