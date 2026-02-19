@@ -13,10 +13,9 @@ Optimized for:
 from __future__ import annotations
 
 import os
-import warnings
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional, Union, Dict, Any, FrozenSet, TYPE_CHECKING
+from typing import Optional, Dict, Any, FrozenSet, TYPE_CHECKING
 import logging
 import threading
 
@@ -29,12 +28,7 @@ logger = logging.getLogger(__name__)
 
 # Pre-compute valid device types and precisions for O(1) lookup
 _VALID_DEVICE_TYPES: FrozenSet[str] = frozenset({'cpu', 'cuda', 'mps', 'auto'})
-_VALID_PRECISIONS: FrozenSet[str] = frozenset({'fp32', 'fp16', 'bf16', '8bit', 'auto'})
 _DEFAULT_DEVICE_ORDER = ('cuda', 'mps', 'cpu')
-
-# Singleton instance and lock for thread safety
-_device_manager_instance: Optional["DeviceManager"] = None
-_device_manager_lock = threading.Lock()
 
 # Lazy torch import
 _torch = None
@@ -75,16 +69,6 @@ class DeviceCapabilities:
             'compute_capability': self.compute_capability,
             'device_name': self.device_name
         }
-
-
-def get_device_manager() -> "DeviceManager":
-    """Get the singleton DeviceManager instance (thread-safe)."""
-    global _device_manager_instance
-    if _device_manager_instance is None:
-        with _device_manager_lock:
-            if _device_manager_instance is None:
-                _device_manager_instance = DeviceManager()
-    return _device_manager_instance
 
 
 class DeviceManager:
@@ -200,6 +184,7 @@ class DeviceManager:
             return cached
 
         capabilities = None
+        torch = _get_torch()
 
         try:
             if device_type == 'cuda' and torch.cuda.is_available():
@@ -221,6 +206,7 @@ class DeviceManager:
 
     def _analyze_cuda_device(self) -> DeviceCapabilities:
         """Analyze CUDA device capabilities."""
+        torch = _get_torch()
         device = torch.device('cuda')
         device_props = torch.cuda.get_device_properties(0)
 
@@ -248,6 +234,7 @@ class DeviceManager:
 
     def _analyze_mps_device(self) -> DeviceCapabilities:
         """Analyze MPS (Apple Silicon) device capabilities."""
+        torch = _get_torch()
         device = torch.device('mps')
 
         # MPS generally supports fp16 but not bf16 or 8bit reliably
@@ -264,6 +251,7 @@ class DeviceManager:
 
     def _analyze_cpu_device(self) -> DeviceCapabilities:
         """Analyze CPU device capabilities."""
+        torch = _get_torch()
         device = torch.device('cpu')
 
         return DeviceCapabilities(
@@ -280,9 +268,10 @@ class DeviceManager:
     def get_recommended_dtype(self, device_caps: DeviceCapabilities,
                             prefer_precision: Optional[str] = None) -> torch.dtype:
         """Get recommended dtype for a device."""
+        torch = _get_torch()
         # Check environment variable override
         env_precision = os.getenv('CODE_EXPLAINER_PRECISION', '').lower()
-        if env_precision in ['fp32', 'fp16', 'bf16', '8bit', 'auto']:
+        if env_precision in {'fp32', 'fp16', 'bf16', '8bit', 'auto'}:
             prefer_precision = env_precision if env_precision != 'auto' else prefer_precision
 
         # Handle explicit precision requests
@@ -370,6 +359,7 @@ class DeviceManager:
 
     def get_device_info(self) -> Dict[str, Any]:
         """Get comprehensive device information for debugging."""
+        torch = _get_torch()
         info = {
             'torch_version': torch.__version__,
             'cuda_available': torch.cuda.is_available(),
