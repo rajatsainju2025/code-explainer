@@ -1,43 +1,14 @@
 """
 Custom exception types for the Code Explainer system.
 
-This module defines a hierarchy of exceptions to provide better error handling
-and more specific error information throughout the codebase.
-
-Optimized for:
-- Lazy string formatting to avoid allocation when exception not printed
+This module defines a hierarchy of exceptions with:
 - __slots__ for memory efficiency
 - HTTP status code mapping for API use
 - Pickleable for multiprocessing support
-- Exception context pooling for frequently used errors
+- Lazy string formatting
 """
 
 from typing import Optional, Dict, Any, ClassVar
-import threading
-from collections import deque
-
-# Pre-allocated context pool for common error scenarios
-_CONTEXT_POOL: deque = deque(maxlen=100)
-_CONTEXT_POOL_LOCK = threading.Lock()
-
-
-def _get_pooled_context() -> Dict[str, Any]:
-    """Get a context dict from pool or create new one."""
-    with _CONTEXT_POOL_LOCK:
-        if _CONTEXT_POOL:
-            ctx = _CONTEXT_POOL.popleft()
-            ctx.clear()
-            return ctx
-    return {}
-
-
-def _return_context_to_pool(ctx: Dict[str, Any]) -> None:
-    """Return context dict to pool for reuse."""
-    if ctx and len(ctx) < 20:  # Only pool small contexts
-        with _CONTEXT_POOL_LOCK:
-            if len(_CONTEXT_POOL) < 100:
-                ctx.clear()
-                _CONTEXT_POOL.append(ctx)
 
 
 class CodeExplainerError(Exception):
@@ -52,23 +23,17 @@ class CodeExplainerError(Exception):
         error_code: Optional[str] = None,
         context: Optional[Dict[str, Any]] = None
     ) -> None:
-        # Don't call super().__init__ with formatted string - defer to __str__
         super().__init__(message)
         self.message = message
         self.error_code = error_code
-        self._context = context  # Use private to allow lazy initialization
+        self._context = context
     
     @property
     def context(self) -> Dict[str, Any]:
-        """Get context dict, lazily initializing from pool if None."""
+        """Get context dict, lazily initializing if None."""
         if self._context is None:
-            self._context = _get_pooled_context()
+            self._context = {}
         return self._context
-    
-    def __del__(self):
-        """Return context to pool when exception is destroyed."""
-        if self._context is not None:
-            _return_context_to_pool(self._context)
     
     def __str__(self) -> str:
         """Lazy string formatting - only format when actually printed."""

@@ -17,7 +17,7 @@ import hashlib
 import json
 import logging
 from pathlib import Path
-from datetime import datetime, timedelta
+from datetime import datetime
 from collections import defaultdict, deque
 
 logger = logging.getLogger(__name__)
