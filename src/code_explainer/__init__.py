@@ -18,15 +18,6 @@ try:
 except ImportError:
     CodeExplainerTrainer = None
 
-try:
-    from .research_evaluation_orchestrator import (
-        ResearchEvaluationOrchestrator,
-        ResearchEvaluationConfig,
-    )
-except ImportError:
-    ResearchEvaluationOrchestrator = None
-    ResearchEvaluationConfig = None
-
 __all__ = [
     "CodeExplainer",
     "load_config",
@@ -35,6 +26,3 @@ __all__ = [
 
 if CodeExplainerTrainer is not None:
     __all__.append("CodeExplainerTrainer")
-
-if ResearchEvaluationOrchestrator is not None:
-    __all__.extend(["ResearchEvaluationOrchestrator", "ResearchEvaluationConfig"])
