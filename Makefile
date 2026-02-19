@@ -428,15 +428,6 @@ eval-fast:
 ab:
 	python scripts/ab_compare_strategies.py --config configs/default.yaml --max-samples 5 --strategies vanilla ast_augmented
 
-icml-all:
-	python scripts/run_icml_experiments.py --config configs/icml_experiment_full.yaml --phase all
-
-icml-analysis:
-	python scripts/run_icml_experiments.py --config configs/icml_experiment_full.yaml --phase analysis
-
-icml-outputs:
-	python scripts/run_icml_experiments.py --config configs/icml_experiment_full.yaml --phase outputs
-
 docs-serve:
 	mkdocs serve -a 0.0.0.0:8001
 
