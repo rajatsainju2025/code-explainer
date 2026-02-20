@@ -237,15 +237,3 @@ def get_cached_model(model_name: str) -> SentenceTransformer:
     return model
 
 
-def clear_model_cache() -> None:
-    """Clear all persistent model caches."""
-    _PERSISTENT_CACHE.clear()
-
-
-def get_model_cache_info() -> Dict[str, Any]:
-    """Get information about model cache usage.
-    
-    Returns:
-        Dict with cache statistics
-    """
-    return _PERSISTENT_CACHE.get_cache_info()
