@@ -7,7 +7,6 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Optional
 
-from .error_handler import ErrorHandler
 from .exceptions import (
     CodeExplainerError,
     ConfigurationError,
@@ -43,7 +42,6 @@ def setup_logging(
 __all__ = [
     "CodeExplainerError",
     "ConfigurationError",
-    "ErrorHandler",
     "LogEntry",
     "ModelError",
     "ProcessingError",
