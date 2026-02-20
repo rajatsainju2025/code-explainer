@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 _TRY_TYPE = ast.Try
 _FUNC_DEF_TYPE = ast.FunctionDef
 _ARG_TYPE = ast.arg
-_STR_TYPE = ast.Str
+_CONSTANT_TYPE = ast.Constant
 
 # Pre-computed pattern keywords
 _SORT_KEYWORDS = frozenset(["sort"])
@@ -76,7 +76,7 @@ class ContextAgent(BaseAgent):
                     has_error_handling = True
                 elif isinstance(node, _ARG_TYPE) and getattr(node, "annotation", None):
                     has_type_hints = True
-                elif isinstance(node, _STR_TYPE):
+                elif isinstance(node, _CONSTANT_TYPE) and isinstance(node.value, str):
                     has_docstrings = True
                 elif isinstance(node, _FUNC_DEF_TYPE):
                     name_lower = node.name.lower()
