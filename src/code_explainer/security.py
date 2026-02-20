@@ -550,20 +550,3 @@ class SecurityManager:
         
         return is_valid, issues
 
-    def execute_code_safe(self, code: str, client_id: Optional[str] = None) -> Dict[str, Any]:
-        """Execute code with full security checks."""
-        # Check rate limit
-        allowed, message = self.check_rate_limit(client_id or "anonymous")
-        if not allowed:
-            return {
-                "success": False,
-                "error": message,
-                "rate_limited": True
-            }
-        
-        # Execute with validation
-        return self.executor.execute_code(code, client_id)
-
-    def scan_for_sensitive_content(self, code: str) -> Dict[str, List[str]]:
-        """Scan code for sensitive content."""
-        return self.content_filter.scan(code)
