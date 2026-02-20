@@ -384,14 +384,3 @@ class DeviceManager:
 
 # Global device manager instance
 device_manager = DeviceManager()
-
-
-def get_device_capabilities(prefer_device: Optional[str] = None) -> DeviceCapabilities:
-    """Get optimal device capabilities (convenience function)."""
-    return device_manager.get_optimal_device(prefer_device)
-
-
-def get_recommended_dtype(device_caps: DeviceCapabilities,
-                         prefer_precision: Optional[str] = None) -> torch.dtype:
-    """Get recommended dtype for device (convenience function)."""
-    return device_manager.get_recommended_dtype(device_caps, prefer_precision)
