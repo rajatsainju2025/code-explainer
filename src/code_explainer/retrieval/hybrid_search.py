@@ -2,8 +2,7 @@
 
 import logging
 from enum import Enum
-from typing import Dict, List, Tuple, Optional, Set
-import re
+from typing import Dict, List, Tuple, Optional
 
 import numpy as np
 
@@ -11,9 +10,6 @@ from .bm25_index import BM25Index
 from .faiss_index import FAISSIndex
 
 logger = logging.getLogger(__name__)
-
-# Pre-compile regex for query tokenization
-_WORD_PATTERN = re.compile(r'\b\w+\b')
 
 
 class FusionStrategy(Enum):
@@ -23,51 +19,10 @@ class FusionStrategy(Enum):
     DISTRIBUTION_BASED = "distribution_based"  # Distribution-based fusion
 
 
-class QueryExpansion:
-    """Query expansion utilities."""
-    
-    __slots__ = ()  # No instance attributes needed
-
-    @staticmethod
-    def expand_with_synonyms(query: str, synonyms: Optional[Dict[str, List[str]]] = None) -> List[str]:
-        """Expand query with synonyms."""
-        if not synonyms:
-            return [query]
-
-        expanded_queries = [query]
-        query_lower = query.lower()
-        words = _WORD_PATTERN.findall(query_lower)
-
-        for word in words:
-            word_synonyms = synonyms.get(word)
-            if word_synonyms:
-                for synonym in word_synonyms[:2]:  # Limit to 2 synonyms per word
-                    expanded = query_lower.replace(word, synonym)
-                    if expanded not in expanded_queries:
-                        expanded_queries.append(expanded)
-
-        return expanded_queries[:5]  # Limit to 5 expanded queries
-
-    @staticmethod
-    def expand_with_ngrams(query: str) -> List[str]:
-        """Generate n-gram expansions."""
-        words = query.split()
-        expansions = [query]
-
-        # Add bigrams
-        if len(words) >= 2:
-            for i in range(len(words) - 1):
-                bigram = f"{words[i]} {words[i+1]}"
-                if bigram not in query:
-                    expansions.append(bigram)
-
-        return expansions
-
-
 class AdvancedHybridSearch:
     """Advanced hybrid search with multiple fusion strategies and query expansion."""
     
-    __slots__ = ('faiss_index', 'bm25_index', 'fusion_strategy', 'alpha', 'rrf_k', 'query_expander')
+    __slots__ = ('faiss_index', 'bm25_index', 'fusion_strategy', 'alpha', 'rrf_k')
 
     def __init__(self,
                  faiss_index: Optional[FAISSIndex] = None,
@@ -80,32 +35,12 @@ class AdvancedHybridSearch:
         self.fusion_strategy = fusion_strategy
         self.alpha = alpha
         self.rrf_k = rrf_k
-        self.query_expander = QueryExpansion()
 
     def search(self,
                query: str,
-               k: int,
-               expand_query: bool = False,
-               synonyms: Optional[Dict[str, List[str]]] = None) -> List[Tuple[int, float]]:
-        """Perform advanced hybrid search with optional query expansion."""
-        if expand_query:
-            queries = self.query_expander.expand_with_synonyms(query, synonyms)
-            if len(queries) > 1:
-                logger.debug("Expanded query '%s' to %d variations", query, len(queries))
-        else:
-            queries = [query]
-
-        # Fast path for single query
-        if len(queries) == 1:
-            return self._search_single_query(queries[0], k)
-
-        all_results = []
-        for q in queries:
-            results = self._search_single_query(q, k * 2)  # Get more candidates for fusion
-            all_results.append(results)
-
-        # Combine results from all query variations
-        return self._combine_expanded_results(all_results, k)
+               k: int) -> List[Tuple[int, float]]:
+        """Perform hybrid search."""
+        return self._search_single_query(query, k)
 
     def _search_single_query(self, query: str, k: int) -> List[Tuple[int, float]]:
         """Search with a single query using configured fusion strategy."""
@@ -265,24 +200,6 @@ class AdvancedHybridSearch:
             'min': float(scores.min()),
             'max': float(scores.max())
         }
-
-    def _combine_expanded_results(self,
-                                all_results: List[List[Tuple[int, float]]],
-                                k: int) -> List[Tuple[int, float]]:
-        """Combine results from multiple query expansions."""
-        if len(all_results) == 1:
-            return all_results[0][:k]
-
-        # Use RRF to combine results from different query expansions
-        rrf_scores: Dict[int, float] = {}
-
-        for results in all_results:
-            for rank, (idx, _) in enumerate(results, 1):
-                rrf_scores[idx] = rrf_scores.get(idx, 0.0) + (1.0 / (self.rrf_k + rank))
-
-        combined_results = [(idx, score) for idx, score in rrf_scores.items()]
-        combined_results.sort(key=lambda x: x[1], reverse=True)
-        return combined_results[:k]
 
     def set_fusion_strategy(self, strategy: FusionStrategy):
         """Change the fusion strategy."""
