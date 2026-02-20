@@ -43,18 +43,7 @@ def generate_cache_key(*components: str) -> str:
     content = _KEY_SEPARATOR.join(str(c) for c in components)
     return _fast_hash(content.encode('utf-8'))
 
-
-def generate_cache_key_fast(code: str, strategy: str, model_name: str) -> str:
-    """Optimized cache key generation for common 3-component case.
-    
-    Avoids *args overhead and tuple creation for the most common use case.
-    """
-    # Check cache manually for the common case
-    return generate_cache_key(code, strategy, model_name)
-
-
 # Use monotonic time for TTL calculations (more reliable than wall clock)
-_get_time = time.monotonic
 
 
 def is_expired(timestamp: float, ttl_seconds: int) -> bool:
@@ -63,11 +52,6 @@ def is_expired(timestamp: float, ttl_seconds: int) -> bool:
     Uses monotonic time for reliable interval measurement.
     """
     return time.time() - timestamp > ttl_seconds
-
-
-def is_expired_monotonic(created_at_monotonic: float, ttl_seconds: int) -> bool:
-    """Check expiration using monotonic timestamps (preferred for intervals)."""
-    return _get_time() - created_at_monotonic > ttl_seconds
 
 
 # Compression level 6 is a good balance of speed vs compression ratio
