@@ -2,10 +2,10 @@
 
 import ast
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from ..base_agent import BaseAgent
-from ..models import AgentMessage, AgentRole, ExplanationComponent
+from ..models import AgentRole, ExplanationComponent
 
 logger = logging.getLogger(__name__)
 
@@ -100,17 +100,3 @@ This code has {complexity_level} complexity.
                 confidence=0.1,
                 metadata={"error": str(e)},
             )
-
-    def process_message(self, message: AgentMessage) -> Optional[AgentMessage]:
-        """Process messages from other agents."""
-        if message.message_type == "request_structure":
-            # Another agent is requesting structural information
-            code = message.content.get("code", "")
-            analysis = self.analyze_code(code, {})
-
-            return self.send_message(
-                recipient=message.sender,
-                content={"analysis": analysis.metadata},
-                message_type="structure_response",
-            )
-        return None

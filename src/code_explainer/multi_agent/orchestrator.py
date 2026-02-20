@@ -9,7 +9,7 @@ from .agents.semantic_agent import SemanticAgent
 from .agents.structural_agent import StructuralAgent
 from .agents.verification_agent import VerificationAgent
 from .base_agent import BaseAgent
-from .models import AgentMessage, ExplanationComponent
+from .models import ExplanationComponent
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +27,6 @@ class MultiAgentOrchestrator:
             "context": ContextAgent(),
             "verification": VerificationAgent(),
         }
-        self.message_queue: List[AgentMessage] = []
 
     def explain_code_collaborative(self, code: str) -> str:
         """Generate collaborative explanation using multiple agents (with parallelization)."""
@@ -88,18 +87,3 @@ class MultiAgentOrchestrator:
         ]
 
         return "\n".join(parts)
-
-    def send_message(self, message: AgentMessage) -> None:
-        """Route message to appropriate agent."""
-        if message.recipient in self.agents:
-            self.agents[message.recipient].receive_message(message)
-        self.message_queue.append(message)
-
-    def process_messages(self) -> None:
-        """Process all pending messages between agents."""
-        for agent in self.agents.values():
-            while agent.inbox:
-                message = agent.inbox.pop(0)
-                response = agent.process_message(message)
-                if response:
-                    self.send_message(response)

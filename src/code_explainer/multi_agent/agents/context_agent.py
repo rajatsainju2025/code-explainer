@@ -2,10 +2,10 @@
 
 import ast
 import logging
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 from ..base_agent import BaseAgent
-from ..models import AgentMessage, AgentRole, ExplanationComponent
+from ..models import AgentRole, ExplanationComponent
 
 logger = logging.getLogger(__name__)
 
@@ -112,16 +112,3 @@ class ContextAgent(BaseAgent):
             suggestions.append("- Consider breaking long functions into smaller, focused functions")
 
         return "\n".join(suggestions) if suggestions else "Code follows good practices"
-
-    def process_message(self, message: AgentMessage) -> Optional[AgentMessage]:
-        """Process messages from other agents."""
-        if message.message_type == "request_context":
-            code = message.content.get("code", "")
-            analysis = self.analyze_code(code, {})
-
-            return self.send_message(
-                recipient=message.sender,
-                content={"analysis": analysis.content},
-                message_type="context_response",
-            )
-        return None

@@ -2,10 +2,10 @@
 
 import ast
 import logging
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 from ..base_agent import BaseAgent
-from ..models import AgentMessage, AgentRole, ExplanationComponent
+from ..models import AgentRole, ExplanationComponent
 
 logger = logging.getLogger(__name__)
 
@@ -90,16 +90,3 @@ The code implements the following logical flow:
 
         except Exception:
             return "Complex control flow"
-
-    def process_message(self, message: AgentMessage) -> Optional[AgentMessage]:
-        """Process messages from other agents."""
-        if message.message_type == "request_semantics":
-            code = message.content.get("code", "")
-            analysis = self.analyze_code(code, {})
-
-            return self.send_message(
-                recipient=message.sender,
-                content={"analysis": analysis.content},
-                message_type="semantics_response",
-            )
-        return None
