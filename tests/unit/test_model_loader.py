@@ -8,7 +8,7 @@ from code_explainer.model_loader import (
     ModelLoader,
     ModelResources,
 )
-from code_explainer.enhanced_error_handling import ModelError, ResourceError, ConfigurationError
+from code_explainer.error_handling import ModelError, ResourceError, ConfigurationError
 
 
 def test_model_loader_initialization(test_model_config):

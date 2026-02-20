@@ -4,7 +4,7 @@ import pytest
 from pathlib import Path
 
 from code_explainer.model import CodeExplainer
-from code_explainer.enhanced_error_handling import ModelError
+from code_explainer.error_handling import ModelError
 
 
 def test_code_explainer_initialization(test_config, mock_model, mock_tokenizer, monkeypatch):
