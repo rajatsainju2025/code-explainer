@@ -15,19 +15,14 @@ class CodeExplainerMonitoringMixin:
     """Mixin providing monitoring, security, and optimization methods."""
 
     def _init_monitoring(self):
-        """Initialize monitoring components."""
-        if not hasattr(self, '_security_manager'):
-            self._security_manager: Optional[SecurityManager] = None
-        if not hasattr(self, '_request_count'):
-            self._request_count = 0
-        if not hasattr(self, '_total_response_time'):
-            self._total_response_time = 0.0
-        if not hasattr(self, '_start_time'):
-            self._start_time = time.time()
+        """Initialize monitoring state. Called once from _initialize_components."""
+        self._security_manager: Optional[SecurityManager] = None
+        self._request_count = 0
+        self._total_response_time = 0.0
+        self._start_time = time.time()
 
     def get_memory_usage(self) -> Dict[str, float]:
         """Get current memory usage."""
-        self._init_monitoring()
         try:
             process = psutil.Process()
             memory_info = process.memory_info()
@@ -50,7 +45,6 @@ class CodeExplainerMonitoringMixin:
 
     def get_performance_report(self) -> Dict[str, Any]:
         """Get comprehensive performance report."""
-        self._init_monitoring()
         uptime = time.time() - self._start_time
         avg_response_time = (
             self._total_response_time / self._request_count
@@ -68,7 +62,6 @@ class CodeExplainerMonitoringMixin:
 
     def validate_input_security(self, code: str) -> Tuple[bool, List[str]]:
         """Validate input for security issues."""
-        self._init_monitoring()
         if self._security_manager is None:
             self._security_manager = SecurityManager()
         
@@ -76,7 +69,6 @@ class CodeExplainerMonitoringMixin:
 
     def check_rate_limit(self, client_id: str = "default") -> bool:
         """Check if request is within rate limits."""
-        self._init_monitoring()
         if self._security_manager is None:
             self._security_manager = SecurityManager()
         
@@ -85,7 +77,6 @@ class CodeExplainerMonitoringMixin:
 
     def audit_security_event(self, event_type: str, details: Dict[str, Any]):
         """Log a security audit event."""
-        self._init_monitoring()
         if self._security_manager is None:
             self._security_manager = SecurityManager()
         

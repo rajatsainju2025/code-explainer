@@ -132,3 +132,6 @@ class CodeExplainerInitializationMixin:
             self.logger.warning("Failed to initialize some components: %s", e)
             self.explanation_cache = None
             self.cache_manager = None
+
+        # Initialize monitoring state once
+        self._init_monitoring()
