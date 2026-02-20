@@ -14,7 +14,6 @@ _AST_FOR = ast.For
 _AST_WHILE = ast.While
 _AST_IF = ast.If
 _AST_FUNCTIONDEF = ast.FunctionDef
-_AST_LOOP_TYPES = (_AST_FOR, _AST_WHILE)
 
 
 class VerificationAgent(BaseAgent):

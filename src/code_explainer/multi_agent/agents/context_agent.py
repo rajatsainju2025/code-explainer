@@ -16,9 +16,7 @@ _ARG_TYPE = ast.arg
 _CONSTANT_TYPE = ast.Constant
 
 # Pre-computed pattern keywords
-_SORT_KEYWORDS = frozenset(["sort"])
-_SEARCH_KEYWORDS = frozenset(["search"])
-_MATH_KEYWORDS = frozenset(["factorial", "fibonacci"])
+_MATH_KEYWORDS = ("factorial", "fibonacci")
 
 
 class ContextAgent(BaseAgent):
@@ -80,9 +78,9 @@ class ContextAgent(BaseAgent):
                     has_docstrings = True
                 elif isinstance(node, _FUNC_DEF_TYPE):
                     name_lower = node.name.lower()
-                    if any(kw in name_lower for kw in _SORT_KEYWORDS):
+                    if "sort" in name_lower:
                         context_notes.append("- Implements a sorting algorithm")
-                    elif any(kw in name_lower for kw in _SEARCH_KEYWORDS):
+                    elif "search" in name_lower:
                         context_notes.append("- Implements a search algorithm")
                     elif any(kw in name_lower for kw in _MATH_KEYWORDS):
                         context_notes.append("- Implements a mathematical/recursive function")
