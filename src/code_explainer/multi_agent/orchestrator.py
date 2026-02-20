@@ -2,7 +2,7 @@
 
 import logging
 import concurrent.futures
-from typing import Dict, List, Generator, Tuple
+from typing import Dict, List, Tuple
 
 from .agents.context_agent import ContextAgent
 from .agents.semantic_agent import SemanticAgent
@@ -88,13 +88,6 @@ class MultiAgentOrchestrator:
         ]
 
         return "\n".join(parts)
-
-    def _iter_confident_content(self, components: List[ExplanationComponent]) -> Generator[str, None, None]:
-        """Generator for streaming confident component content."""
-        for component in components:
-            if component.confidence > 0.5:
-                yield component.content
-                yield ""
 
     def send_message(self, message: AgentMessage) -> None:
         """Route message to appropriate agent."""
