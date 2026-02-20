@@ -66,11 +66,6 @@ class CodeExplainerMonitoringMixin:
             "memory": self.get_memory_usage()
         }
 
-    def _track_request(self, response_time: float):
-        """Track request metrics."""
-        self._request_count += 1
-        self._total_response_time += response_time
-
     def validate_input_security(self, code: str) -> Tuple[bool, List[str]]:
         """Validate input for security issues."""
         self._init_monitoring()
