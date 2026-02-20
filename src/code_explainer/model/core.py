@@ -78,7 +78,6 @@ class CodeExplainer(
     _injected_tokenizer: Optional[PreTrainedTokenizerBase]
     explanation_cache: Optional["ExplanationCache"]
     cache_manager: Optional[Any]
-    advanced_cache: Optional[Any]
 
     def __init__(
         self,

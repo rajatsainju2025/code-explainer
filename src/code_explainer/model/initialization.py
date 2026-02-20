@@ -127,10 +127,8 @@ class CodeExplainerInitializationMixin:
 
             # Initialize other components as needed
             self.cache_manager = None
-            self.advanced_cache = None
 
         except Exception as e:
             self.logger.warning("Failed to initialize some components: %s", e)
             self.explanation_cache = None
             self.cache_manager = None
-            self.advanced_cache = None

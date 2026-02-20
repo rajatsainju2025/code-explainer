@@ -6,9 +6,7 @@ Optimized with:
 - Thread-safe singleton pattern
 """
 
-import json
 import logging
-import os
 import pickle
 import threading
 from pathlib import Path
