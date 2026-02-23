@@ -8,17 +8,14 @@ Optimized for performance with:
 - Singleton fast validator for compiled pattern reuse
 """
 
-from typing import List, Optional, Literal
+from typing import List, Optional
 from pydantic import BaseModel, Field, field_validator, ConfigDict
 from .exceptions import ValidationError
 
 # Pre-computed sets for constant-time validation
 _ALLOWED_STRATEGIES = frozenset({"vanilla", "ast_augmented", "retrieval_augmented", "execution_trace", "multi_agent", "intelligent"})
-_ALLOWED_CACHE_STRATEGIES = frozenset({"lru", "lfu", "fifo", "size_based", "adaptive"})
-
 # Pre-formatted error messages (avoid repeated string formatting)
 _STRATEGY_ERROR_MSG = f"Strategy must be one of: {', '.join(sorted(_ALLOWED_STRATEGIES))}"
-_CACHE_STRATEGY_ERROR_MSG = f"Cache strategy must be one of: {', '.join(sorted(_ALLOWED_CACHE_STRATEGIES))}"
 
 # Constants for validation limits
 _MAX_CODE_LENGTH = 10000
@@ -121,52 +118,5 @@ class BatchCodeExplanationRequest(BaseModel):
         return v
 
 
-class ModelConfigValidation(BaseModel):
-    """Validation model for model configuration."""
-    
-    model_config = ConfigDict(validate_default=False, extra='ignore')
-    
-    name: str = Field(min_length=1, description="Model name or path")
-    arch: Literal["causal", "seq2seq"] = Field(default="causal", description="Model architecture")
-    torch_dtype: str = Field(default="auto", description="PyTorch data type")
-    load_in_8bit: bool = Field(default=False, description="Whether to load in 8-bit precision")
-    max_length: int = Field(default=512, ge=1, le=4096, description="Maximum sequence length")
-    device_map: Optional[str] = Field(default=None, description="Device mapping for model")
 
-
-class LoggingConfigValidation(BaseModel):
-    """Validation model for logging configuration."""
-    
-    model_config = ConfigDict(validate_default=False, extra='ignore')
-    
-    level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = Field(default="INFO", description="Logging level")
-    log_file: Optional[str] = Field(default=None, description="Log file path")
-    format: str = Field(default="%(asctime)s - %(name)s - %(levelname)s - %(message)s", description="Log format")
-    date_format: str = Field(default="%Y-%m-%d %H:%M:%S", description="Date format")
-
-
-class CacheConfigValidation(BaseModel):
-    """Validation model for cache configuration."""
-    
-    model_config = ConfigDict(validate_default=False, extra='ignore')
-    
-    enabled: bool = Field(default=True, description="Whether caching is enabled")
-    directory: str = Field(default=".cache/explanations", description="Cache directory path")
-    max_size: int = Field(default=1000, ge=1, le=10000, description="Maximum cache size")
-
-    # Advanced cache settings
-    advanced_cache_enabled: bool = Field(default=False, description="Whether advanced caching is enabled")
-    advanced_cache_dir: str = Field(default=".cache/advanced", description="Advanced cache directory")
-    max_memory_entries: int = Field(default=1000, ge=100, le=10000, description="Maximum memory cache entries")
-    max_disk_entries: int = Field(default=10000, ge=1000, le=100000, description="Maximum disk cache entries")
-    default_ttl: int = Field(default=86400, ge=3600, le=604800, description="Default cache TTL in seconds")
-    cache_strategy: str = Field(default="lru", description="Cache eviction strategy")
-    compression_threshold: int = Field(default=1000, ge=100, le=10000, description="Compression threshold in bytes")
-    enable_monitoring: bool = Field(default=True, description="Enable cache performance monitoring")
-
-    @field_validator('cache_strategy')
-    @classmethod
-    def validate_cache_strategy(cls, v: str) -> str:
-        if v not in _ALLOWED_CACHE_STRATEGIES:
-            raise ValueError(_CACHE_STRATEGY_ERROR_MSG)
         return v
