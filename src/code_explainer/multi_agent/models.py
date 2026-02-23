@@ -22,17 +22,6 @@ class AgentRole(Enum):
 
 
 @dataclass(slots=True)
-class AgentMessage:
-    """Message passed between agents."""
-
-    sender: str
-    recipient: str
-    content: Dict[str, Any]
-    message_type: str
-    timestamp: float
-
-
-@dataclass(slots=True)
 class ExplanationComponent:
     """A component of the final explanation."""
 
