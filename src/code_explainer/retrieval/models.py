@@ -8,19 +8,7 @@ Optimized with:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, Optional
-
-
-@dataclass
-class RetrievalCandidate:
-    """A candidate result from retrieval."""
-    content: str
-    index: int
-    initial_score: float
-    method: str
-    rerank_score: Optional[float] = None
-    final_score: Optional[float] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
+from typing import Dict, Optional
 
 
 @dataclass(frozen=True)

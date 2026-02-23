@@ -19,10 +19,9 @@ from collections import OrderedDict
 from sentence_transformers import SentenceTransformer
 
 from .bm25_index import BM25Index
-from .enhanced_retrieval import EnhancedRetrieval
 from .faiss_index import FAISSIndex
 from .hybrid_search import HybridSearch
-from .models import RetrievalCandidate, RetrievalConfig, RetrievalStats
+from .models import RetrievalConfig, RetrievalStats
 from .model_cache import get_cached_model
 from ..utils.hashing import fast_hash_str as _hash_key
 
