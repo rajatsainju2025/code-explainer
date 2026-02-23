@@ -10,25 +10,13 @@ from ..exceptions import (
     ModelError,
     ResourceError,
     ValidationError,
-    CacheError,
 )
-
-
-class ProcessingError(CodeExplainerError):
-    """Raised for processing-related errors.
-
-    Defined here because it's only used within the error_handling package.
-    """
-
-    pass
 
 
 __all__ = [
     "CodeExplainerError",
     "ConfigurationError",
     "ModelError",
-    "ProcessingError",
     "ResourceError",
     "ValidationError",
-    "CacheError",
 ]

@@ -11,7 +11,6 @@ from .exceptions import (
     CodeExplainerError,
     ConfigurationError,
     ModelError,
-    ProcessingError,
     ResourceError,
     ValidationError,
 )
@@ -44,7 +43,6 @@ __all__ = [
     "ConfigurationError",
     "LogEntry",
     "ModelError",
-    "ProcessingError",
     "ResourceError",
     "StructuredLogger",
     "ValidationError",

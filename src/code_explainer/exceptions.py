@@ -149,28 +149,6 @@ class ValidationError(CodeExplainerError):
         )
 
 
-class CacheError(CodeExplainerError):
-    """Raised when cache operations fail."""
-    
-    def __init__(
-        self,
-        message: str,
-        cache_type: Optional[str] = None,
-        operation: Optional[str] = None
-    ) -> None:
-        context = {}
-        if cache_type:
-            context["cache_type"] = cache_type
-        if operation:
-            context["operation"] = operation
-            
-        super().__init__(
-            message,
-            error_code="CACHE_ERROR",
-            context=context
-        )
-
-
 class ResourceError(CodeExplainerError):
     """Raised when resource allocation or management fails."""
     
