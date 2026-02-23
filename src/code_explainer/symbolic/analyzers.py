@@ -9,7 +9,6 @@ class ComplexityAnalyzers:
 
     def __init__(self):
         self.variable_assignments: Dict[str, List[ast.AST]] = {}
-        self._ast_cache: Dict[str, ast.AST] = {}  # Cache for parsed ASTs
 
     def _analyze_complexity(self, tree: ast.AST) -> Dict[str, Any]:
         """Analyze computational complexity with optimized single-pass traversal."""
@@ -98,22 +97,6 @@ class ComplexityAnalyzers:
 
         return get_depth(tree)
 
-
-    def _estimate_time_complexity(self, tree: ast.AST) -> str:
-        """Estimate time complexity based on loop nesting."""
-        max_loop_nesting = 0
-
-        def count_loop_nesting(node, depth=0):
-            nonlocal max_loop_nesting
-            if isinstance(node, (ast.For, ast.While)):
-                depth += 1
-                max_loop_nesting = max(max_loop_nesting, depth)
-
-            for child in ast.iter_child_nodes(node):
-                count_loop_nesting(child, depth)
-
-        count_loop_nesting(tree)
-        return self._estimate_complexity_from_nesting(max_loop_nesting)
 
     @staticmethod
     def _estimate_complexity_from_nesting(max_loop_nesting: int) -> str:
