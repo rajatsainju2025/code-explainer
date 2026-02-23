@@ -7,35 +7,7 @@ Optimized with:
 """
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
-
-
-@dataclass
-class CacheEntry:
-    """Base cache entry structure."""
-    key: str
-    data: Any
-    timestamp: float
-    access_count: int = 0
-    last_access: Optional[float] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
-
-
-@dataclass
-class ExplanationEntry(CacheEntry):
-    """Cache entry for code explanations."""
-    code: str = ""
-    strategy: str = ""
-    model_name: str = ""
-    compressed: bool = False
-    code_length: int = 0
-
-
-@dataclass
-class EmbeddingEntry(CacheEntry):
-    """Cache entry for code embeddings."""
-    code: str = ""
-    model_name: str = ""
+from typing import Any, Dict, List
 
 
 @dataclass

@@ -9,12 +9,9 @@ All functionality is now available through the cache package.
 from .cache import (
     BaseCache,
     CacheConfig,
-    CacheEntry,
     CacheStats,
     EmbeddingCache,
-    EmbeddingEntry,
     ExplanationCache,
-    ExplanationEntry,
     MemoryCache,
 )
 
@@ -24,8 +21,5 @@ __all__ = [
     "BaseCache",
     "MemoryCache",
     "CacheConfig",
-    "CacheEntry",
     "CacheStats",
-    "ExplanationEntry",
-    "EmbeddingEntry",
 ]
