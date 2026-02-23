@@ -3,7 +3,6 @@
 from pathlib import Path
 from typing import Optional, Union
 
-import hydra
 from hydra.core.config_store import ConfigStore
 from omegaconf import DictConfig, OmegaConf
 

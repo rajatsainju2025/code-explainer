@@ -14,7 +14,7 @@ import re
 import threading
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, Optional, Union
 
 # Lazy YAML import for faster startup
 _yaml = None

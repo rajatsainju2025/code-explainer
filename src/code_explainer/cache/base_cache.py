@@ -1,12 +1,10 @@
 """Base caching functionality and interfaces."""
 
 import threading
-import time
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 from collections import OrderedDict
-import heapq
 
 from .models import CacheConfig, CacheStats
 from .utils import ensure_directory

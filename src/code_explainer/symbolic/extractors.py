@@ -3,7 +3,7 @@
 import ast
 from typing import FrozenSet, List, Optional
 
-from .models import SymbolicCondition, PropertyTest
+from .models import SymbolicCondition
 
 # Pre-cache AST types for O(1) lookup
 _AST_FUNCTIONDEF = ast.FunctionDef

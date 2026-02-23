@@ -3,7 +3,6 @@ Intelligent explanation generator for adaptive, audience-aware explanations.
 """
 
 from enum import Enum
-from typing import Dict, Any, Optional
 from dataclasses import dataclass
 
 

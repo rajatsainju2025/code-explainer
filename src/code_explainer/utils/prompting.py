@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 from functools import lru_cache
-from typing import TYPE_CHECKING, Any, Dict, FrozenSet, List, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List
 
 from .ast_analysis import _collect_docstrings_from_code, _collect_import_docs, _extract_python_ast_info, summarize_code_structure
 from .execution import _safe_exec_subprocess

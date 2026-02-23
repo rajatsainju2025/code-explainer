@@ -1,7 +1,6 @@
 """Analysis methods for symbolic analysis."""
 
 import ast
-from functools import lru_cache
 from typing import Any, Dict, List, Tuple
 
 

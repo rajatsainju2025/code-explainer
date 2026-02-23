@@ -1,8 +1,7 @@
 """Main symbolic analyzer combining all analysis components."""
 
 import ast
-from functools import lru_cache
-from typing import Dict, List, Tuple
+from typing import Dict, List
 
 from .models import SymbolicExplanation
 from .extractors import ConditionExtractors

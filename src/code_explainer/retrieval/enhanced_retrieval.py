@@ -1,7 +1,7 @@
 """Enhanced retrieval with reranking and MMR."""
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Dict, List
 
 import numpy as np
 from sentence_transformers import SentenceTransformer

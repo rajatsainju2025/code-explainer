@@ -1,7 +1,6 @@
 """Embedding cache implementation."""
 
 import pickle
-from pathlib import Path
 from typing import Any, Optional
 
 from .base_cache import BaseCache

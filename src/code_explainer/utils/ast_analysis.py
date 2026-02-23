@@ -11,7 +11,7 @@ Optimized for performance with:
 import ast
 from dataclasses import dataclass
 from functools import lru_cache
-from typing import Any, List, Optional, Tuple, Union, cast
+from typing import List, Optional, Tuple, Union, cast
 import sys
 
 # Pre-define node type tuples for faster isinstance checks

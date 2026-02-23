@@ -1,6 +1,5 @@
 """Main CLI interface for code explainer."""
 
-import logging
 import gc
 import time
 from functools import lru_cache, wraps

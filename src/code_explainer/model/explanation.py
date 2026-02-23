@@ -1,11 +1,10 @@
 """Code explanation mixin for CodeExplainer."""
 
 import gc
-import logging
 from typing import Any, List, Optional, Dict, TYPE_CHECKING, cast
 import torch
 
-from ..exceptions import ValidationError, ModelError, ConfigurationError
+from ..exceptions import ValidationError, ModelError
 from ..validation import CodeExplanationRequest, BatchCodeExplanationRequest
 from ..utils import prompt_for_language
 
