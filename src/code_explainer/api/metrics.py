@@ -208,18 +208,6 @@ class MetricsCollector:
         index = int(len(sorted_values) * percentile)
         index = min(index, len(sorted_values) - 1)
         return round(sorted_values[index], 4)
-    
-    def reset(self) -> None:
-        """Reset all metrics."""
-        with self._lock:
-            self._requests.clear()
-            self._total_requests = 0
-            self._endpoint_counts.clear()
-            self._error_counts.clear()
-            self._response_times.clear()
-            self._model_inference_times.clear()
-            self._cache_hits = 0
-            self._cache_misses = 0
 
 
 # Global metrics collector instance
