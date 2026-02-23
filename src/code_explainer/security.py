@@ -459,62 +459,6 @@ def hash_code(code: str) -> str:
         return hashlib.sha256(code.encode('utf-8')).hexdigest()
 
 
-# Pre-compiled sanitization patterns for display (avoid recompilation)
-_SANITIZE_PATTERNS = {
-    'password': re.compile(r'password\s*=\s*["\'][^"\']*["\']', re.IGNORECASE),
-    'api_key': re.compile(r'api[_-]?key\s*=\s*["\'][^"\']*["\']', re.IGNORECASE),
-    'token': re.compile(r'token\s*=\s*["\'][^"\']*["\']', re.IGNORECASE),
-    'secret': re.compile(r'secret\s*=\s*["\'][^"\']*["\']', re.IGNORECASE),
-    'auth': re.compile(r'auth\s*=\s*["\'][^"\']*["\']', re.IGNORECASE),
-}
-
-_SANITIZE_REPLACEMENTS = {
-    'password': 'password = "***"',
-    'api_key': 'api_key = "***"',
-    'token': 'token = "***"',
-    'secret': 'secret = "***"',
-    'auth': 'auth = "***"',
-}
-
-# Pre-computed replacement strings for dangerous patterns
-_DANGEROUS_REMOVALS = (
-    ('import os', '# import os (removed for security)'),
-    ('import subprocess', '# import subprocess (removed for security)'),
-    ('eval(', '# eval( (removed for security)'),
-    ('exec(', '# exec( (removed for security)'),
-)
-
-
-def sanitize_code_for_display(code: str, max_length: int = 1000) -> str:
-    """Sanitize code for safe display with pre-compiled patterns.
-    
-    Optimized with:
-    - Pre-compiled regex patterns (avoid recompilation)
-    - Early length check to avoid unnecessary work
-    - Tuple-based replacement iteration
-    """
-    # Early length check
-    if not code:
-        return ""
-    
-    sanitized = code
-    
-    # Remove potentially dangerous patterns for display
-    for old, new in _DANGEROUS_REMOVALS:
-        if old in sanitized:  # Only replace if pattern exists
-            sanitized = sanitized.replace(old, new)
-
-    # Mask potential secrets with pre-compiled patterns
-    for key, pattern in _SANITIZE_PATTERNS.items():
-        sanitized = pattern.sub(_SANITIZE_REPLACEMENTS[key], sanitized)
-
-    # Truncate if too long
-    if len(sanitized) > max_length:
-        sanitized = sanitized[:max_length - 3] + "..."
-
-    return sanitized
-
-
 class SecurityManager:
     """Central security manager coordinating all security components."""
 
