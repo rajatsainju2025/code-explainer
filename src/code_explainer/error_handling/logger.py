@@ -1,15 +1,14 @@
 """Structured logging functionality."""
 
-import json
 import logging
 import logging.handlers
 import sys
 import traceback
 from collections import deque
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
-from typing import Any, Deque, Dict, List, Optional
+from typing import Any, Deque, Dict, Optional
 
 # Cache datetime.now for faster access
 _now = datetime.now
@@ -123,23 +122,3 @@ class StructuredLogger:
             entry.exception_info = _format_exc()
         self._store_entry(entry)
         self.logger.critical(message, exc_info=exc_info, extra=extra_data)
-
-    def get_recent_logs(self, hours: int = 24) -> List[LogEntry]:
-        """Get recent log entries."""
-        cutoff = _now() - timedelta(hours=hours)
-        return [entry for entry in self.log_entries
-                if entry.timestamp > cutoff]
-
-    def export_logs(self, filepath: Path, format: str = "json"):
-        """Export logs to file."""
-        if format == "json":
-            data = [entry.__dict__ for entry in self.log_entries]
-            with open(filepath, 'w') as f:
-                json.dump(data, f, separators=(',', ':'), default=str)  # Compact JSON
-        elif format == "csv":
-            import csv
-            with open(filepath, 'w', newline='') as f:
-                writer = csv.DictWriter(f, fieldnames=LogEntry.__dataclass_fields__.keys())
-                writer.writeheader()
-                for entry in self.log_entries:
-                    writer.writerow(entry.__dict__)

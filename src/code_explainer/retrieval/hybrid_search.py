@@ -201,14 +201,6 @@ class AdvancedHybridSearch:
             'max': float(scores.max())
         }
 
-    def set_fusion_strategy(self, strategy: FusionStrategy):
-        """Change the fusion strategy."""
-        self.fusion_strategy = strategy
-
-    def set_alpha(self, alpha: float):
-        """Change the fusion weight alpha."""
-        self.alpha = max(0.0, min(1.0, alpha))
-
 
 # Backward compatibility
 class HybridSearch(AdvancedHybridSearch):

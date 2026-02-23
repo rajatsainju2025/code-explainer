@@ -93,11 +93,6 @@ def load_config(config_path: Union[str, Path], interpolate_env: bool = True) -> 
     return config or {}
 
 
-def clear_config_cache() -> None:
-    """Clear the configuration cache."""
-    load_config.cache_clear()
-
-
 def setup_logging(
     level: str = "INFO", 
     log_file: Optional[str] = None,

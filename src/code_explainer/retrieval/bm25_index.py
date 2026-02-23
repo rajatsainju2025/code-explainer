@@ -86,7 +86,3 @@ class BM25Index:
         top_scores = top_k_scores[sorted_order]
 
         return top_scores, top_indices
-
-    def get_size(self) -> int:
-        """Get the number of documents in the index."""
-        return self.corpus_size

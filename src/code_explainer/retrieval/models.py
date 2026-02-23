@@ -8,20 +8,14 @@ Optimized with:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, Optional
+from typing import Dict
 
 
 @dataclass(frozen=True)
 class RetrievalConfig:
     """Configuration for retrieval behavior (immutable for hashability)."""
-    model_name: str = "sentence-transformers/all-MiniLM-L6-v2"
     batch_size: int = 32
-    faiss_index_type: str = "IndexFlatL2"
-    bm25_k1: float = 1.5
-    bm25_b: float = 0.75
     hybrid_alpha: float = 0.5
-    rerank_top_k: int = 20
-    mmr_lambda: float = 0.5
 
 
 # Pre-create default method usage dict to avoid repeated lambda calls
@@ -35,12 +29,3 @@ class RetrievalStats:
     method_usage: Dict[str, int] = field(default_factory=lambda: dict(_DEFAULT_METHOD_USAGE))
     avg_response_time: float = 0.0
     total_response_time: float = 0.0
-    rerank_usage: int = 0
-    mmr_usage: int = 0
-    cache_hits: int = 0
-    cache_misses: int = 0
-    
-    def get_cache_hit_rate(self) -> float:
-        """Calculate cache hit rate."""
-        total = self.cache_hits + self.cache_misses
-        return self.cache_hits / total if total > 0 else 0.0

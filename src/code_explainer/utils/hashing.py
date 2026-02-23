@@ -44,10 +44,6 @@ try:
         """Dump JSON using orjson with compact formatting."""
         return orjson.dumps(obj, option=orjson.OPT_INDENT_2).decode()
 
-    def json_dumps_compact(obj: Any) -> str:
-        """Dump JSON compactly using orjson."""
-        return orjson.dumps(obj).decode()
-
 except ImportError:
     import json
 
@@ -57,8 +53,4 @@ except ImportError:
 
     def json_dumps(obj: Any) -> str:  # type: ignore[misc]
         """Dump JSON using stdlib with compact separators."""
-        return json.dumps(obj, separators=(',', ':'))
-
-    def json_dumps_compact(obj: Any) -> str:  # type: ignore[misc]
-        """Dump JSON compactly using stdlib."""
         return json.dumps(obj, separators=(',', ':'))

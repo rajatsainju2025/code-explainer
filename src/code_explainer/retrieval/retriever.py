@@ -2,7 +2,6 @@
 
 Optimized for performance with:
 - Fast xxhash-based cache key generation
-- Lock-free reads for cache hits (optimistic locking)
 - Pre-computed method validation sets
 - Efficient memory usage with __slots__
 """
@@ -13,8 +12,7 @@ import logging
 import threading
 from pathlib import Path
 from time import perf_counter
-from typing import Any, Dict, List, Optional, Tuple
-from collections import OrderedDict
+from typing import Dict, List, Optional
 
 from sentence_transformers import SentenceTransformer
 
@@ -23,7 +21,6 @@ from .faiss_index import FAISSIndex
 from .hybrid_search import HybridSearch
 from .models import RetrievalConfig, RetrievalStats
 from .model_cache import get_cached_model
-from ..utils.hashing import fast_hash_str as _hash_key
 
 logger = logging.getLogger(__name__)
 
@@ -31,111 +28,22 @@ logger = logging.getLogger(__name__)
 _VALID_METHODS = frozenset({"faiss", "bm25", "hybrid"})
 
 
-class LRUQueryCache:
-    """LRU cache for retrieval results to avoid redundant computations.
-    
-    Uses __slots__ to reduce memory overhead per cache instance.
-    Implements optimistic read locking for better concurrent performance.
-    Optimized with pre-computed string templates for faster key generation.
-    """
-    __slots__ = ('cache', 'max_size', 'hits', 'misses', '_lock', '_version', '_key_cache')
-    
-    def __init__(self, max_size: int = 512):
-        self.cache: OrderedDict = OrderedDict()
-        self.max_size = max_size
-        self.hits = 0
-        self.misses = 0
-        self._lock = threading.Lock()
-        self._version = 0  # For optimistic read detection
-        self._key_cache: Dict[Tuple, str] = {}  # Cache generated keys
-    
-    def _make_key(self, query: str, k: int, method: str, alpha: float, 
-                  use_reranker: bool, use_mmr: bool) -> str:
-        """Create deterministic cache key from query parameters.
-        
-        Uses f-string formatting (faster than join) and xxhash.
-        Caches computed keys for frequently repeated queries.
-        """
-        # Create a tuple for key lookup (immutable, hashable)
-        key_params = (query, k, method, alpha, use_reranker, use_mmr)
-        
-        # Check key cache first (faster for repeated queries)
-        if key_params in self._key_cache:
-            return self._key_cache[key_params]
-        
-        # Use f-string for faster string building
-        key_str = f"{query}|{k}|{method}|{alpha:.2f}|{use_reranker}|{use_mmr}"
-        hashed_key = _hash_key(key_str)
-        
-        # Cache if not full (limit to 1000 entries)
-        if len(self._key_cache) < 1000:
-            self._key_cache[key_params] = hashed_key
-        
-        return hashed_key
-    
-    def get(self, query: str, k: int, method: str, alpha: float,
-            use_reranker: bool = False, use_mmr: bool = False) -> Optional[Any]:
-        """Get cached result if available.
-        
-        Uses optimistic read: first check without lock, then verify.
-        """
-        key = self._make_key(query, k, method, alpha, use_reranker, use_mmr)
-        
-        # Optimistic read without lock (safe for immutable values)
-        value = self.cache.get(key)
-        if value is not None:
-            # Update LRU order with lock
-            with self._lock:
-                if key in self.cache:
-                    self.cache.move_to_end(key)
-                    self.hits += 1
-                    return value
-        
-        with self._lock:
-            self.misses += 1
-        return None
-    
-    def put(self, query: str, k: int, method: str, alpha: float,
-            value: Any, use_reranker: bool = False, use_mmr: bool = False) -> None:
-        """Cache a result."""
-        key = self._make_key(query, k, method, alpha, use_reranker, use_mmr)
-        with self._lock:
-            # Check if already exists
-            if key in self.cache:
-                self.cache[key] = value
-                self.cache.move_to_end(key)
-                return
-            
-            # Evict oldest entries if at capacity
-            while len(self.cache) >= self.max_size:
-                self.cache.popitem(last=False)
-            
-            self.cache[key] = value
-            self._version += 1
-
-
 class CodeRetriever:
     """Handles building and querying a FAISS index for code retrieval.
 
     Supports FAISS vector search, BM25 lexical search, and hybrid fusion.
-    Includes LRU query result caching to avoid redundant computations.
     """
     
     __slots__ = ('config', 'model', 'code_corpus', 'faiss_index', 'bm25_index', 
-                 'hybrid_search', 'enable_query_cache',
-                 'query_cache', 'stats', '_stats_lock')
+                 'hybrid_search', 'stats', '_stats_lock')
 
     def __init__(self, model_name: str = "sentence-transformers/all-MiniLM-L6-v2",
-                 model: Optional[SentenceTransformer] = None, 
-                 enable_query_cache: bool = True,
-                 query_cache_size: int = 256):
+                 model: Optional[SentenceTransformer] = None):
         """Initialize the code retriever.
         
         Args:
             model_name: Name of the sentence transformer model
             model: Pre-loaded model instance (optional)
-            enable_query_cache: Whether to cache query results
-            query_cache_size: Maximum number of cached queries
         """
         self.config = RetrievalConfig()
         # Use provided model or get from persistent cache
@@ -146,10 +54,6 @@ class CodeRetriever:
         self.faiss_index = FAISSIndex(self.model, self.config.batch_size)
         self.bm25_index = BM25Index()
         self.hybrid_search = HybridSearch(self.faiss_index, self.bm25_index, self.config.hybrid_alpha)
-
-        # Query result caching
-        self.enable_query_cache = enable_query_cache
-        self.query_cache = LRUQueryCache(max_size=query_cache_size) if enable_query_cache else None
 
         # Statistics
         self.stats = RetrievalStats()

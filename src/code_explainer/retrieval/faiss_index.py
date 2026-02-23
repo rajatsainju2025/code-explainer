@@ -23,7 +23,7 @@ class FAISSIndex:
     
     # Use __slots__ to reduce memory overhead
     __slots__ = ('model', 'batch_size', 'index', '_dimension', '_query_cache', 
-                 '_cache_max_size', '_embedding_buffer')
+                 '_cache_max_size')
 
     def __init__(self, model: SentenceTransformer, batch_size: int = 32):
         if not HAS_FAISS:
@@ -35,7 +35,6 @@ class FAISSIndex:
         self._dimension: Optional[int] = None
         self._query_cache: OrderedDict = OrderedDict()  # LRU cache
         self._cache_max_size = 256  # Increased from 200 for better hit rate
-        self._embedding_buffer: Optional[np.ndarray] = None  # Reusable buffer
 
     def build_index(self, codes: List[str], use_ivf: bool = False, nlist: int = 100) -> None:
         """Build FAISS index from code snippets.
@@ -68,9 +67,6 @@ class FAISSIndex:
 
         # Store dimension for later use
         self._dimension = embeddings.shape[1]
-        
-        # Pre-allocate embedding buffer for search operations
-        self._embedding_buffer = np.zeros((1, self._dimension), dtype=np.float32)
 
         # Build FAISS index - use IVF for large datasets
         if use_ivf and num_codes >= 1000:
@@ -126,24 +122,6 @@ class FAISSIndex:
         
         return distances, indices
 
-    def search_batch(self, query_codes: List[str], k: int) -> Tuple[np.ndarray, np.ndarray]:
-        """Batch search for similar codes - more efficient for multiple queries."""
-        if self.index is None:
-            raise ValueError("FAISS index is not loaded.")
-
-        query_embeddings = self.model.encode(
-            query_codes,
-            batch_size=self.batch_size,
-            convert_to_numpy=True,
-            normalize_embeddings=True
-        )
-        query_embeddings = np.ascontiguousarray(query_embeddings, dtype=np.float32)
-        
-        k_actual = min(k, self.index.ntotal)
-        distances, indices = self.index.search(query_embeddings, k_actual)
-        
-        return distances, indices
-
     def save_index(self, path: str) -> None:
         """Save FAISS index to disk."""
         if self.index is None:
@@ -162,7 +140,3 @@ class FAISSIndex:
 
         self.index = faiss.read_index(str(p))
         logger.info("FAISS index loaded from %s. Index size: %d", path, self.index.ntotal)
-
-    def get_size(self) -> int:
-        """Get the number of vectors in the index."""
-        return self.index.ntotal if self.index else 0

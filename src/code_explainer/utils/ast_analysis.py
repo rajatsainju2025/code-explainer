@@ -14,10 +14,6 @@ from functools import lru_cache
 from typing import List, Optional, Tuple, Union, cast
 import sys
 
-# Pre-define node type tuples for faster isinstance checks
-_FUNCTION_TYPES = (ast.FunctionDef, ast.AsyncFunctionDef)
-_IMPORT_TYPES = (ast.Import, ast.ImportFrom)
-
 # Intern commonly used string prefixes to reduce memory
 _MODULE_DOC = sys.intern("Module doc: ")
 _FUNCTION_DOC = sys.intern("Function ")
