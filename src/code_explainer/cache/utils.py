@@ -90,7 +90,7 @@ def decompress_data(data: bytes, is_compressed: bool = True) -> str:
         return data.decode('utf-8')
 
 
-def safe_file_operation(operation: str, file_path: Path, mode: str = 'r',
+def safe_file_operation(file_path: Path, mode: str = 'r',
                        data: Optional[Any] = None) -> Optional[Any]:
     """Safely perform file operations with error handling."""
     try:

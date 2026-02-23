@@ -24,7 +24,7 @@ class EmbeddingCache(BaseCache):
             return None
 
         try:
-            data = safe_file_operation("read", cache_file, "rb")
+            data = safe_file_operation(cache_file, "rb")
             if data:
                 return pickle.loads(data)
         except Exception:
@@ -38,7 +38,7 @@ class EmbeddingCache(BaseCache):
 
         try:
             data = pickle.dumps(embedding)
-            safe_file_operation("write", cache_file, "wb", data)
+            safe_file_operation(cache_file, "wb", data)
         except Exception:
             pass  # Silent failure for caching
 

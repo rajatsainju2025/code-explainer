@@ -61,7 +61,7 @@ class ExplanationCache(BaseCache):
 
     def _load_index(self) -> Dict[str, Dict[str, Any]]:
         """Load the cache index."""
-        data = safe_file_operation("load", self._index_file, "r")
+        data = safe_file_operation(self._index_file, "r")
         if data:
             try:
                 return json_loads(data)
@@ -120,7 +120,7 @@ class ExplanationCache(BaseCache):
         """
         # Use compact JSON for smaller file size
         data = json_dumps(self._index)
-        safe_file_operation("save", self._index_file, "w", data)
+        safe_file_operation(self._index_file, "w", data)
 
     def get(self, code: str, strategy: str, model_name: str) -> Optional[str]:
         """Get a cached explanation if available."""
@@ -149,7 +149,7 @@ class ExplanationCache(BaseCache):
                 return None
 
             cache_file = self.cache_dir / f"{cache_key}.txt"
-            compressed_data = safe_file_operation("read", cache_file, "rb")
+            compressed_data = safe_file_operation(cache_file, "rb")
             if compressed_data is None:
                 # Remove stale index entry
                 del self._index[cache_key]
@@ -192,7 +192,7 @@ class ExplanationCache(BaseCache):
             try:
                 # Compress and write explanation to file
                 compressed_data = compress_data(explanation)
-                safe_file_operation("write", cache_file, "wb", compressed_data)
+                safe_file_operation(cache_file, "wb", compressed_data)
 
                 # Update index
                 current_time = time.time()
