@@ -4,7 +4,6 @@ import gc
 import logging
 from pathlib import Path
 from typing import Any, Optional, Union
-from dataclasses import dataclass
 
 import torch
 from transformers import (
@@ -41,17 +40,6 @@ except ImportError as e:
     EnhancedExplanation = None
 
 logger = logging.getLogger(__name__)
-
-
-@dataclass
-class ModelConfig:
-    """Configuration for model loading and inference."""
-    name: str
-    arch: str = "causal"
-    torch_dtype: Union[str, torch.dtype] = "auto"
-    load_in_8bit: bool = False
-    max_length: int = 512
-    device_map: Optional[str] = None
 
 
 class CodeExplainer(

@@ -101,13 +101,3 @@ class Config:
     cache: CacheConfig = field(default_factory=CacheConfig)
     logging: LoggingConfig = field(default_factory=LoggingConfig)
     prompt: PromptConfig = field(default_factory=PromptConfig)
-
-
-defaults = [
-    {"model": "default"},
-    {"training": "default"},
-    {"cache": "default"},
-    {"logging": "default"},
-    {"prompt": "default"},
-    "_self_",
-]

@@ -1,5 +1,5 @@
 """Model package for CodeExplainer."""
 
-from .core import CodeExplainer, ModelConfig
+from .core import CodeExplainer
 
-__all__ = ["CodeExplainer", "ModelConfig"]
+__all__ = ["CodeExplainer"]

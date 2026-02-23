@@ -22,22 +22,6 @@ from collections import defaultdict, deque
 
 logger = logging.getLogger(__name__)
 
-# Pre-compile dangerous patterns for efficient detection
-DANGEROUS_IMPORTS = frozenset({
-    'os', 'subprocess', 'sys', 'socket', '__import__',
-    'exec', 'eval', 'compile', 'open', 'input'
-})
-
-DANGEROUS_FUNCTIONS = frozenset({
-    'system', 'exec', 'eval', 'compile', 'getattr',
-    'setattr', 'delattr', '__import__', 'open'
-})
-
-DANGEROUS_PATTERN = re.compile(
-    r'\b(os|subprocess|__import__|exec|eval|compile)\s*\(',
-    re.IGNORECASE | re.MULTILINE
-)
-
 
 # Cache time.time for micro-optimization
 _time_time = time.time
@@ -155,18 +139,6 @@ class AuditLogger:
         self.log_event(
             "rate_limit_exceeded",
             {"client_id": client_id},
-            severity="WARNING"
-        )
-
-    def log_suspicious_pattern(self, code_hash: str, pattern: str, client_id: Optional[str] = None):
-        """Log detection of suspicious pattern."""
-        self.log_event(
-            "suspicious_pattern",
-            {
-                "code_hash": code_hash,
-                "pattern": pattern,
-                "client_id": client_id
-            },
             severity="WARNING"
         )
 
