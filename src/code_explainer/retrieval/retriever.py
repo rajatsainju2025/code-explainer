@@ -113,43 +113,6 @@ class LRUQueryCache:
             
             self.cache[key] = value
             self._version += 1
-    
-    def invalidate(self, query: str) -> int:
-        """Invalidate all cache entries containing query.
-        
-        Returns number of entries removed.
-        """
-        with self._lock:
-            keys_to_remove = [k for k in self.cache if query in str(k)]
-            for key in keys_to_remove:
-                del self.cache[key]
-            self._version += 1
-            return len(keys_to_remove)
-    
-    def clear(self) -> None:
-        """Clear the cache."""
-        with self._lock:
-            self.cache.clear()
-            self.hits = 0
-            self.misses = 0
-            self._version += 1
-    
-    def get_hit_rate(self) -> float:
-        """Get cache hit rate."""
-        total = self.hits + self.misses
-        return self.hits / total if total > 0 else 0.0
-    
-    def get_stats(self) -> Dict[str, Any]:
-        """Get detailed cache statistics."""
-        with self._lock:
-            return {
-                "size": len(self.cache),
-                "max_size": self.max_size,
-                "hits": self.hits,
-                "misses": self.misses,
-                "hit_rate": self.get_hit_rate(),
-                "version": self._version
-            }
 
 
 class CodeRetriever:
@@ -160,7 +123,7 @@ class CodeRetriever:
     """
     
     __slots__ = ('config', 'model', 'code_corpus', 'faiss_index', 'bm25_index', 
-                 'hybrid_search', 'enhanced_retrieval', 'enable_query_cache', 
+                 'hybrid_search', 'enable_query_cache',
                  'query_cache', 'stats', '_stats_lock')
 
     def __init__(self, model_name: str = "sentence-transformers/all-MiniLM-L6-v2",
@@ -184,7 +147,6 @@ class CodeRetriever:
         self.faiss_index = FAISSIndex(self.model, self.config.batch_size)
         self.bm25_index = BM25Index()
         self.hybrid_search = HybridSearch(self.faiss_index, self.bm25_index, self.config.hybrid_alpha)
-        self.enhanced_retrieval = EnhancedRetrieval(self.model)
 
         # Query result caching
         self.enable_query_cache = enable_query_cache
@@ -294,138 +256,3 @@ class CodeRetriever:
             )
 
         return [self.code_corpus[i] for i in result_indices]
-
-    def retrieve_similar_code_enhanced(
-        self,
-        query_code: str,
-        k: int = 3,
-        method: str = "faiss",
-        alpha: float = 0.5,
-        use_reranker: bool = False,
-        use_mmr: bool = False,
-        rerank_top_k: int = 20,
-        mmr_lambda: float = 0.5
-    ) -> List[Dict[str, Any]]:
-        """Enhanced retrieval with reranking and MMR.
-        
-        Results are cached to avoid redundant computations.
-        """
-        start_time = perf_counter()
-
-        if not self.code_corpus:
-            raise ValueError("Index/corpus is not loaded or built.")
-
-        method = (method or "faiss").lower()
-        if method not in _VALID_METHODS:
-            raise ValueError("method must be one of: faiss|bm25|hybrid")
-
-        # Check query cache first to avoid redundant computation
-        if self.enable_query_cache and self.query_cache is not None:
-            cached_result = self.query_cache.get(
-                query_code, k, method, alpha, use_reranker, use_mmr
-            )
-            if cached_result is not None:
-                with self._stats_lock:
-                    self.stats.total_queries += 1
-                    self.stats.cache_hits += 1
-                logger.debug("Query cache hit for: %.30s...", query_code)
-                return cached_result
-
-        # Update statistics
-        with self._stats_lock:
-            self.stats.total_queries += 1
-            self.stats.method_usage[method] += 1
-
-        # Get initial candidates
-        initial_k = max(k, rerank_top_k if use_reranker else k)
-
-        if method == "faiss":
-            distances, indices = self.faiss_index.search(query_code, initial_k)
-            candidates = []
-            for d, i in zip(distances[0], indices[0]):
-                sim = 1.0 / (1.0 + float(d))
-                candidates.append(RetrievalCandidate(
-                    content=self.code_corpus[int(i)],
-                    index=int(i),
-                    initial_score=sim,
-                    method=method
-                ))
-        elif method == "bm25":
-            scores, indices = self.bm25_index.search(query_code, initial_k)
-            candidates = []
-            for s, i in zip(scores, indices):
-                candidates.append(RetrievalCandidate(
-                    content=self.code_corpus[int(i)],
-                    index=int(i),
-                    initial_score=float(s),
-                    method=method
-                ))
-        else:  # hybrid
-            results = self.hybrid_search.search(query_code, initial_k)
-            candidates = []
-            for i, score in results:
-                candidates.append(RetrievalCandidate(
-                    content=self.code_corpus[i],
-                    index=i,
-                    initial_score=score,
-                    method=method
-                ))
-
-        # Apply enhancements
-        if use_reranker or use_mmr:
-            candidates = self.enhanced_retrieval.enhance_results(
-                query_code, candidates, use_reranker, use_mmr,
-                rerank_top_k, mmr_lambda
-            )
-
-            # Update enhancement statistics
-            with self._stats_lock:
-                if use_reranker:
-                    self.stats.rerank_usage += 1
-                if use_mmr:
-                    self.stats.mmr_usage += 1
-
-        # Limit to final k
-        candidates = candidates[:k]
-
-        # Update timing statistics
-        response_time = perf_counter() - start_time
-        with self._stats_lock:
-            self.stats.total_response_time += response_time
-            self.stats.avg_response_time = (
-                self.stats.total_response_time / self.stats.total_queries
-            )
-
-        # Convert to dict format for backward compatibility (use tuple unpacking for efficiency)
-        result = [
-            {
-                "content": content,
-                "index": index,
-                "initial_score": initial_score,
-                "method": method,
-                "rerank_score": rerank_score,
-                "final_score": final_score,
-                **metadata
-            }
-            for content, index, initial_score, method, rerank_score, final_score, metadata in (
-                (c.content, c.index, c.initial_score, c.method, c.rerank_score, c.final_score, c.metadata)
-                for c in candidates
-            )
-        ]
-
-        # Cache the result
-        if self.enable_query_cache and self.query_cache is not None:
-            self.query_cache.put(
-                query_code, k, method, alpha, result, use_reranker, use_mmr
-            )
-
-        return result
-
-    def size(self) -> int:
-        """Get the number of indexed code snippets."""
-        return len(self.code_corpus)
-
-    def get_stats(self) -> RetrievalStats:
-        """Get retrieval statistics."""
-        with self._stats_lock:
-            return self.stats
