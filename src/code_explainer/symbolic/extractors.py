@@ -26,11 +26,10 @@ _ast_unparse = ast.unparse
 class ConditionExtractors:
     """Methods for extracting various types of conditions from AST."""
 
-    __slots__ = ("variable_assignments", "function_calls")
+    __slots__ = ("variable_assignments",)
 
     def __init__(self):
         self.variable_assignments: dict = {}
-        self.function_calls: List[ast.Call] = []
 
     def _extract_input_conditions(self, tree: ast.AST) -> List[SymbolicCondition]:
         """Extract input validation conditions."""

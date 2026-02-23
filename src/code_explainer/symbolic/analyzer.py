@@ -10,7 +10,6 @@ from .analyzers import ComplexityAnalyzers
 
 # Pre-cache AST node types for faster isinstance checks
 _ASSIGN_TYPE = ast.Assign
-_CALL_TYPE = ast.Call
 _CONTROL_FLOW_TYPES = (ast.If, ast.While, ast.For)
 _NAME_TYPE = ast.Name
 
@@ -18,7 +17,7 @@ _NAME_TYPE = ast.Name
 class SymbolicAnalyzer(ConditionExtractors, PropertyGenerators, ComplexityAnalyzers):
     """Analyzes code to extract symbolic conditions and generate property tests."""
     
-    __slots__ = ('control_flow', 'variable_assignments', 'function_calls', '_ast_cache')
+    __slots__ = ('control_flow', 'variable_assignments', '_ast_cache')
 
     def __init__(self):
         ConditionExtractors.__init__(self)
@@ -28,7 +27,6 @@ class SymbolicAnalyzer(ConditionExtractors, PropertyGenerators, ComplexityAnalyz
         # Initialize state with pre-allocated capacity hints
         self.control_flow: List[ast.AST] = []
         self.variable_assignments: Dict[str, List[ast.AST]] = {}
-        self.function_calls: List[ast.Call] = []
         # Larger cache for parsed ASTs (from 100 to 256)
         self._ast_cache: Dict[str, ast.AST] = {}
         self._cache_size_limit = 256
@@ -97,13 +95,11 @@ class SymbolicAnalyzer(ConditionExtractors, PropertyGenerators, ComplexityAnalyz
     def _reset_state(self):
         """Reset analyzer state."""
         self.variable_assignments.clear()
-        self.function_calls.clear()
         self.control_flow.clear()
 
     def _analyze_ast(self, tree: ast.AST):
         """Analyze AST to build internal state (optimized with type caching)."""
         var_assigns = self.variable_assignments
-        func_calls = self.function_calls
         ctrl_flow = self.control_flow
         
         for node in ast.walk(tree):
@@ -114,7 +110,5 @@ class SymbolicAnalyzer(ConditionExtractors, PropertyGenerators, ComplexityAnalyz
                         if var_id not in var_assigns:
                             var_assigns[var_id] = []
                         var_assigns[var_id].append(node)
-            elif isinstance(node, _CALL_TYPE):
-                func_calls.append(node)
             elif isinstance(node, _CONTROL_FLOW_TYPES):
                 ctrl_flow.append(node)
