@@ -106,18 +106,14 @@ class ExplanationCache(BaseCache):
             return
         
         # Save index once for all pending writes
-        self._save_index(force=True)
+        self._save_index()
         
         # Clear pending writes queue
         self._pending_writes_queue.clear()
         self._last_flush_time = time.monotonic()
 
-    def _save_index(self, force: bool = False) -> None:
-        """Save the cache index.
-        
-        Args:
-            force: Force immediate save, even if no pending writes queued
-        """
+    def _save_index(self) -> None:
+        """Save the cache index."""
         # Use compact JSON for smaller file size
         data = json_dumps(self._index)
         safe_file_operation(self._index_file, "w", data)
@@ -284,7 +280,7 @@ class ExplanationCache(BaseCache):
             self._index.pop(key, None)
         
         # Single index save after all removals
-        self._save_index(force=True)
+        self._save_index()
 
     def clear(self) -> None:
         """Clear all cached explanations."""
@@ -298,7 +294,7 @@ class ExplanationCache(BaseCache):
                 self._index.clear()
                 self._memory_cache.clear()
                 self._pending_writes_queue.clear()
-                self._save_index(force=True)
+                self._save_index()
             except Exception:
                 pass
 
