@@ -116,7 +116,3 @@ class BatchCodeExplanationRequest(BaseModel):
         if v is not None and v not in _ALLOWED_STRATEGIES:
             raise ValidationError(_STRATEGY_ERROR_MSG, field_name='strategy', field_value=v)
         return v
-
-
-
-        return v

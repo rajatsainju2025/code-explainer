@@ -28,10 +28,6 @@ except ImportError:
             return json.load(f)
 
 
-# Pre-computed frozenset for valid split names
-_VALID_SPLITS = frozenset({"train", "eval", "test"})
-
-
 @dataclass(slots=True, frozen=True)
 class DatasetConfig:
     """Configuration for dataset loading (immutable for hashability)."""
