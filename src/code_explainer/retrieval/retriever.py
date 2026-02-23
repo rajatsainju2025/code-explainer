@@ -12,7 +12,7 @@ import logging
 import threading
 from pathlib import Path
 from time import perf_counter
-from typing import Dict, List, Optional
+from typing import List, Optional
 
 from sentence_transformers import SentenceTransformer
 

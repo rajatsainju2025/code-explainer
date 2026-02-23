@@ -7,7 +7,7 @@ Optimized with:
 """
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List
+from typing import Any, List
 
 
 @dataclass
