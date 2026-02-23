@@ -69,10 +69,3 @@ class PerformanceMetricsResponse(BaseModel):
     average_response_time: float = Field(..., description="Average response time in seconds")
     cache_hit_rate: float = Field(..., description="Cache hit rate percentage")
     model_inference_time: float = Field(..., description="Average model inference time")
-
-
-class ErrorResponse(BaseModel):
-    """Error response model."""
-    model_config = ConfigDict(extra="ignore")
-    detail: str = Field(..., description="Error description")
-    error_code: Optional[str] = Field(None, description="Error code")
