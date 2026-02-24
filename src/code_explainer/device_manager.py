@@ -70,6 +70,19 @@ class DeviceCapabilities:
             'device_name': self.device_name
         }
 
+    def __repr__(self) -> str:
+        mem = f", {self.memory_gb:.1f} GB" if self.memory_gb else ""
+        cc = f", cc={self.compute_capability}" if self.compute_capability else ""
+        dtypes = "/".join(
+            dt for dt, ok in [("fp16", self.supports_fp16),
+                               ("bf16", self.supports_bf16),
+                               ("8bit", self.supports_8bit)] if ok
+        ) or "fp32-only"
+        return (
+            f"DeviceCapabilities(device={self.device_type!r}"
+            f"{mem}{cc}, dtypes=[{dtypes}])"
+        )
+
 
 class DeviceManager:
     """Centralized device detection and management.
