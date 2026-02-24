@@ -154,7 +154,7 @@ class ExplanationCache(BaseCache):
                 return None
 
             try:
-                explanation = decompress_data(compressed_data)
+                explanation = decompress_data(compressed_data, entry.get("compressed", False))
 
                 # Update access metadata - queue for batched save
                 entry["access_count"] = entry.get("access_count", 0) + 1
