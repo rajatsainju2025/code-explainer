@@ -1,5 +1,6 @@
 """Code explanation mixin for CodeExplainer."""
 
+import ast
 import gc
 from typing import Any, List, Optional, Dict, TYPE_CHECKING, cast
 import torch
@@ -208,8 +209,6 @@ class CodeExplainerExplanationMixin:
 
         This is a lightweight, non-intrusive post-process and only appends a short prefix once.
         """
-        import ast
-
         try:
             tree = ast.parse(code)
         except Exception:
