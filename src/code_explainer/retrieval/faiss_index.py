@@ -4,7 +4,6 @@ import logging
 from collections import OrderedDict
 from pathlib import Path
 from typing import Any, List, Optional, Tuple
-
 import numpy as np
 from sentence_transformers import SentenceTransformer
 
@@ -36,12 +35,13 @@ class FAISSIndex:
         self._query_cache: OrderedDict = OrderedDict()  # LRU cache
         self._cache_max_size = 256  # Increased from 200 for better hit rate
 
-    def build_index(self, codes: List[str], use_ivf: bool = False, nlist: int = 100) -> None:
+    def build_index(self, codes: List[str], use_ivf: Optional[bool] = None, nlist: int = 100) -> None:
         """Build FAISS index from code snippets.
         
         Args:
             codes: List of code snippets to index
-            use_ivf: Use IVF index for faster search on large datasets (>10k)
+            use_ivf: Use IVF index for faster search on large datasets.
+                     None (default) = auto-select based on corpus size (>=5 000).
             nlist: Number of clusters for IVF index
         """
         num_codes = len(codes)
