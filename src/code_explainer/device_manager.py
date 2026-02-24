@@ -386,3 +386,12 @@ class DeviceManager:
 
 # Global device manager instance
 device_manager = DeviceManager()
+
+
+def get_device_manager() -> DeviceManager:
+    """Return the process-wide DeviceManager singleton.
+
+    Prefer this function over importing ``device_manager`` directly when
+    writing testable code — it can be monkey-patched more easily.
+    """
+    return device_manager
