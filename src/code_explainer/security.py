@@ -23,8 +23,12 @@ from collections import defaultdict, deque
 logger = logging.getLogger(__name__)
 
 
-# Cache time.time for micro-optimization
-_time_time = time.time
+# Request timestamps stored in the deque use time.time() (wall clock) so
+# they can be compared against the 60-second cutoff window.
+# The cleanup-interval check (last_cleanup) only measures elapsed duration
+# within the same process and uses time.monotonic() for robustness against
+# NTP / clock-skew adjustments.
+_monotonic = time.monotonic
 
 
 class RateLimiter:
@@ -36,53 +40,53 @@ class RateLimiter:
         self.requests_per_minute = requests_per_minute
         self.requests: Dict[str, deque] = defaultdict(deque)
         self.cleanup_interval = 60  # seconds
-        self.last_cleanup = _time_time()
+        self.last_cleanup = _monotonic()
 
     def is_allowed(self, client_id: str) -> Tuple[bool, Optional[str]]:
         """Check if request is allowed for client."""
-        current_time = _time_time()
-        
-        # Periodic cleanup
-        if current_time - self.last_cleanup > self.cleanup_interval:
+        current_time = time.time()
+
+        # Periodic cleanup: use monotonic for the interval guard
+        if _monotonic() - self.last_cleanup > self.cleanup_interval:
             self._cleanup_old_requests()
-        
+
         # Get client's request history
         client_requests = self.requests[client_id]
-        
+
         # Remove requests older than 1 minute
         cutoff_time = current_time - 60
         while client_requests and client_requests[0] < cutoff_time:
             client_requests.popleft()
-        
+
         # Check if limit exceeded
         if len(client_requests) >= self.requests_per_minute:
             wait_time = int(60 - (current_time - client_requests[0]))
             return False, f"Rate limit exceeded. Try again in {wait_time} seconds."
-        
+
         # Add current request
         client_requests.append(current_time)
         return True, None
 
     def _cleanup_old_requests(self):
         """Remove old client entries to prevent memory leak."""
-        current_time = _time_time()
+        current_time = time.time()
         cutoff_time = current_time - 300  # Keep 5 minutes of history
-        
+
         clients_to_remove = []
         for client_id, requests in self.requests.items():
             # Remove old requests
             while requests and requests[0] < cutoff_time:
                 requests.popleft()
-            
+
             # Mark empty clients for removal
             if not requests:
                 clients_to_remove.append(client_id)
-        
+
         # Remove empty clients
         for client_id in clients_to_remove:
             del self.requests[client_id]
-        
-        self.last_cleanup = current_time
+
+        self.last_cleanup = _monotonic()
         logger.debug("Cleaned up rate limiter, removed %d clients", len(clients_to_remove))
 
 
