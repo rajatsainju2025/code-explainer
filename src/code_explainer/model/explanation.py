@@ -5,8 +5,11 @@ from typing import Any, List, Optional, Dict, TYPE_CHECKING, cast
 import torch
 
 from ..exceptions import ValidationError, ModelError
-from ..validation import CodeExplanationRequest, BatchCodeExplanationRequest
+from ..validation import CodeExplanationRequest
 from ..utils import prompt_for_language
+
+# Max batch size (mirrors validation constant)
+_MAX_BATCH_SIZE = 100
 
 if TYPE_CHECKING:
     from transformers import PreTrainedModel, PreTrainedTokenizerBase
@@ -165,14 +168,22 @@ class CodeExplainerExplanationMixin:
         Returns:
             List of explanations corresponding to input requests
         """
-        validated_requests = BatchCodeExplanationRequest(requests=requests)
+        if not requests:
+            return []
+
+        if len(requests) > _MAX_BATCH_SIZE:
+            raise ValidationError(
+                f"Cannot process more than {_MAX_BATCH_SIZE} codes at once",
+                field_name="requests",
+                field_value=f"{len(requests)} items",
+            )
 
         # Pre-allocate results list for better memory efficiency
-        num_requests = len(validated_requests.requests)
+        num_requests = len(requests)
         explanations: List[str] = [""] * num_requests
-        
-        # Process each request
-        for i, req in enumerate(validated_requests.requests):
+
+        # Process each request individually; explain_code validates each item
+        for i, req in enumerate(requests):
             try:
                 explanation = self.explain_code(
                     code=req["code"],
