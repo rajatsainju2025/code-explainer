@@ -80,6 +80,8 @@ class DeviceManager:
     Use get_device_manager() for singleton access.
     """
 
+    __slots__ = ('_cached_capabilities', '_lock', '_cache_loaded')
+
     CACHE_DIR = Path.home() / ".cache" / "code-explainer"
     CACHE_FILE = CACHE_DIR / "device_cache.json"
 
