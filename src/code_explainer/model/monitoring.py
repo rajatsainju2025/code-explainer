@@ -62,28 +62,25 @@ class CodeExplainerMonitoringMixin:
 
     def validate_input_security(self, code: str) -> Tuple[bool, List[str]]:
         """Validate input for security issues."""
-        if self._security_manager is None:
-            self._security_manager = SecurityManager()
-        
-        return self._security_manager.validate_code(code)
+        return self._get_security_manager().validate_code(code)
 
     def check_rate_limit(self, client_id: str = "default") -> bool:
         """Check if request is within rate limits."""
-        if self._security_manager is None:
-            self._security_manager = SecurityManager()
-        
-        allowed, _ = self._security_manager.check_rate_limit(client_id)
+        allowed, _ = self._get_security_manager().check_rate_limit(client_id)
         return allowed
 
     def audit_security_event(self, event_type: str, details: Dict[str, Any]):
         """Log a security audit event."""
-        if self._security_manager is None:
-            self._security_manager = SecurityManager()
-        
-        self._security_manager.executor.audit_logger.log_event(
+        self._get_security_manager().executor.audit_logger.log_event(
             event_type,
             details
         )
+
+    def _get_security_manager(self) -> SecurityManager:
+        """Return the lazy-initialised SecurityManager (created once, reused)."""
+        if self._security_manager is None:
+            self._security_manager = SecurityManager()
+        return self._security_manager
 
     def get_setup_info(self) -> Dict[str, Any]:
         """Get comprehensive setup information."""
