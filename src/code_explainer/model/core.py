@@ -113,12 +113,13 @@ class CodeExplainer(
         # Flush cache if present
         if hasattr(self, 'explanation_cache') and self.explanation_cache is not None:
             self.explanation_cache.flush()
-        
-        # Clear model cache
-        if hasattr(self, 'model') and self.model is not None:
+
+        # Inspect _resources directly to avoid triggering the lazy-load
+        # property, which would load the model just to immediately discard it.
+        if getattr(self, '_resources', None) is not None:
             if hasattr(torch.cuda, 'empty_cache'):
                 torch.cuda.empty_cache()
-        
+
         # Trigger garbage collection
         gc.collect()
     
