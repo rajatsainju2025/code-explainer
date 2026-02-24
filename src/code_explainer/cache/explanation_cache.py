@@ -131,7 +131,9 @@ class ExplanationCache(BaseCache):
                     self._hits += 1
                     return entry['data']
                 else:
-                    self._memory_cache.put(cache_key, None)  # Mark as expired
+                    # Remove the stale entry from the in-memory LRU cache
+                    # (don't store None — that wastes an LRU slot)
+                    self._memory_cache._cache.pop(cache_key, None)
 
             # Check disk cache
             entry = self._index.get(cache_key)
