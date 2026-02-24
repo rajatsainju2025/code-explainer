@@ -34,9 +34,20 @@ def generate_cache_key(*components: str) -> str:
 
 
 def is_expired(timestamp: float, ttl_seconds: int) -> bool:
-    """Check if a timestamp is expired based on TTL.
-    
-    Uses monotonic time for reliable interval measurement.
+    """Check if a wall-clock timestamp is past its TTL.
+
+    Args:
+        timestamp: A value previously obtained from time.time() and stored
+                   in the cache index.
+        ttl_seconds: Maximum allowed age in seconds.
+
+    Returns:
+        True if the entry has expired, False otherwise.
+
+    Note: Uses time.time() (wall clock) because cached timestamps are
+    themselves recorded with time.time().  The monotonic clock is used
+    only for internal flush-interval tracking (self._last_flush_time) to
+    avoid sensitivity to system clock adjustments.
     """
     return time.time() - timestamp > ttl_seconds
 
