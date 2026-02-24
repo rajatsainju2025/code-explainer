@@ -66,11 +66,10 @@ class AdvancedHybridSearch:
 
         try:
             distances, indices = self.faiss_index.search(query, k)
-            results = []
-            for d, i in zip(distances[0], indices[0]):
-                # Convert distance to similarity score (higher is better)
-                similarity = 1.0 / (1.0 + float(d))
-                results.append((int(i), similarity))
+            # IndexFlatIP returns inner-product scores for L2-normalised vectors,
+            # which are cosine similarities in [-1, 1].  Use them directly as
+            # higher-is-better similarity scores; no further transformation needed.
+            results = [(int(i), float(d)) for d, i in zip(distances[0], indices[0])]
             return results
         except Exception as e:
             logger.warning("FAISS search failed: %s", e)
