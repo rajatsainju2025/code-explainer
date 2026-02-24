@@ -60,8 +60,16 @@ class CodeExplanationRequest(BaseModel):
 
 
 class BatchCodeExplanationRequest(BaseModel):
-    """Request model for batch code explanation with optimized validation."""
-    
+    """Validation model for a batch of plain code strings.
+
+    Use this when the caller provides a flat list of source-code snippets and
+    wants shared max_length / strategy settings applied to all of them.
+
+    **Not** the same as the HTTP API's BatchCodeExplanationRequest
+    (``api.models.BatchCodeExplanationRequest``) which accepts a list of
+    heterogeneous request dicts — each with its own code, strategy, etc.
+    """
+
     model_config = ConfigDict(
         validate_default=False,
         extra='ignore'
