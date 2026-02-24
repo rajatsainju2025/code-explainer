@@ -41,8 +41,8 @@ try:
         return orjson.loads(s)
 
     def json_dumps(obj: Any) -> str:
-        """Dump JSON using orjson with compact formatting."""
-        return orjson.dumps(obj, option=orjson.OPT_INDENT_2).decode()
+        """Dump JSON using orjson with compact (no-indent) formatting."""
+        return orjson.dumps(obj).decode()
 
 except ImportError:
     import json
