@@ -187,8 +187,8 @@ class ExplanationCache(BaseCache):
         with self._lock:
             try:
                 # Compress and write explanation to file
-                compressed_data = compress_data(explanation)
-                safe_file_operation(cache_file, "wb", compressed_data)
+                compressed_bytes, is_compressed = compress_data(explanation)
+                safe_file_operation(cache_file, "wb", compressed_bytes)
 
                 # Update index
                 current_time = time.time()
@@ -199,7 +199,7 @@ class ExplanationCache(BaseCache):
                     "model_name": model_name,
                     "timestamp": current_time,
                     "last_access": current_time,
-                    "compressed": self.config.compression_enabled and len(explanation) >= 1000
+                    "compressed": is_compressed,
                 }
 
                 # Add to memory cache
