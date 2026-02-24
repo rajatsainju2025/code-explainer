@@ -7,12 +7,13 @@ Optimized for performance with:
 """
 
 import gzip
-import json
 import logging
 import threading
 from pathlib import Path
 from time import perf_counter
 from typing import List, Optional
+
+from ..utils.hashing import json_dumps
 
 from sentence_transformers import SentenceTransformer
 
@@ -82,8 +83,8 @@ class CodeRetriever:
         corpus_path = Path(f"{path}.corpus.json.gz")
         corpus_path.parent.mkdir(parents=True, exist_ok=True)
         
-        # Use compact separators to reduce file size further
-        json_data = json.dumps(self.code_corpus, separators=(',', ':'), ensure_ascii=True)
+        # Use shared json_dumps for orjson acceleration when available
+        json_data = json_dumps(self.code_corpus)
         
         # Compress with gzip
         with gzip.open(corpus_path, 'wt', encoding='utf-8') as f:
