@@ -1,37 +1,24 @@
 """Cache utility functions.
 
 Optimized for performance with:
-- xxhash for faster hashing (with SHA256 fallback)
+- xxhash for faster hashing (with hashlib fallback) via shared hashing module
 - Pre-allocated compression buffers
-- Monotonic time for TTL checks
+- Monotonic time for flush-interval tracking; wall clock for TTL expiry
 - Efficient key generation with minimal allocations
 """
 
 import gzip
-import hashlib
 import time
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, Optional, Tuple
 
-# Try to use xxhash for faster hashing (10x faster than SHA256)
-try:
-    import xxhash
-    _FAST_HASH_AVAILABLE = True
-except ImportError:
-    _FAST_HASH_AVAILABLE = False
+# Re-use the shared fast-hash implementation (avoids duplicating
+# the xxhash/hashlib fallback pattern across the codebase).
+from ..utils.hashing import fast_hash_bytes as _fast_hash
 
 # Cache the separator to avoid repeated string creation
 _KEY_SEPARATOR = "|"
-
-
-def _fast_hash(data: bytes) -> str:
-    """Fast hash using xxhash if available, otherwise SHA256."""
-    if _FAST_HASH_AVAILABLE:
-        return xxhash.xxh64(data).hexdigest()
-    return hashlib.sha256(data).hexdigest()
-
-
 @lru_cache(maxsize=4096)
 def generate_cache_key(*components: str) -> str:
     """Generate a cache key from components (cached for repeated lookups).
