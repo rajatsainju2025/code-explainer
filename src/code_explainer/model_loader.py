@@ -19,7 +19,7 @@ from functools import lru_cache
 
 from .config import ModelConfig
 from .error_handling import ModelError, ConfigurationError, ResourceError
-from .device_manager import DeviceManager, DeviceCapabilities
+from .device_manager import DeviceManager, DeviceCapabilities, device_manager as _global_device_manager
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +49,8 @@ class ModelLoader:
             config: Model configuration
         """
         self.config = config
-        self.device_manager = DeviceManager()
+        # Reuse the module-level singleton to avoid probing devices twice
+        self.device_manager = _global_device_manager
 
         # Get device preference from config, fallback to "auto"
         device_pref = getattr(config, 'device', 'auto')
