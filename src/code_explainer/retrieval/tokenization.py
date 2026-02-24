@@ -1,5 +1,6 @@
 """Text tokenization utilities for retrieval."""
 
+import os
 import re
 from functools import lru_cache
 from typing import List, Tuple
@@ -43,13 +44,18 @@ class TextTokenizer:
         # For large batches, use parallel processing
         if self._executor is None:
             # Use optimal worker count based on CPU count
-            import os
             workers = min(8, os.cpu_count() or 4)
             self._executor = ThreadPoolExecutor(max_workers=workers)
-        
+
         # Process in parallel and convert tuples to lists
         results = list(self._executor.map(self.tokenize, texts))
         return [list(r) for r in results]
+
+    def __del__(self) -> None:
+        """Shutdown the thread-pool executor to release OS threads on GC."""
+        executor = self.__dict__.get('_executor')
+        if executor is not None:
+            executor.shutdown(wait=False)
 
 
 # Global tokenizer instance
