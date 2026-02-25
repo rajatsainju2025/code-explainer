@@ -9,10 +9,11 @@ from .models import AgentRole, ExplanationComponent
 class BaseAgent(ABC):
     """Base class for all code explanation agents."""
     
-    __slots__ = ('agent_id',)
+    __slots__ = ('agent_id', 'role')
 
     def __init__(self, agent_id: str, role: AgentRole):
         self.agent_id = agent_id
+        self.role = role
 
     @abstractmethod
     def analyze_code(self, code: str, context: Dict[str, Any]) -> ExplanationComponent:
