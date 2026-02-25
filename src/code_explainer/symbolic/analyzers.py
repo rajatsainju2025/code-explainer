@@ -119,4 +119,6 @@ class ComplexityAnalyzers:
         for node in ast.walk(expr):
             if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load):
                 dependencies.append(node.id)
-        return dependencies
+        # dict.fromkeys preserves insertion order while deduplicating in O(n),
+        # avoiding the list→set→list round-trip of list(set(dependencies)).
+        return list(dict.fromkeys(dependencies))
