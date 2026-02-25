@@ -9,8 +9,6 @@ from .models import PropertyTest
 _AST_FUNCTIONDEF = ast.FunctionDef
 _AST_BINOP = ast.BinOp
 _AST_MATH_OPS = frozenset({ast.Add, ast.Sub, ast.Mult, ast.Div, ast.Pow})
-_ast_walk = ast.walk
-
 # Pre-compile keyword sets for faster lookup
 _SORTING_KEYWORDS = frozenset({"sort", "order", "rank"})
 
@@ -24,7 +22,7 @@ class PropertyGenerators:
         """Generate property-based tests for the code."""
         tests = []
 
-        for node in _ast_walk(tree):
+        for node in ast.walk(tree):
             if type(node) is _AST_FUNCTIONDEF:
                 tests.extend(self._generate_function_property_tests(node, code))
 
@@ -78,7 +76,7 @@ class PropertyGenerators:
 
     def _appears_to_be_math_function(self, node: ast.FunctionDef) -> bool:
         """Check if function appears to be math-related."""
-        for stmt in _ast_walk(node):
+        for stmt in ast.walk(node):
             if type(stmt) is _AST_BINOP and type(stmt.op) in _AST_MATH_OPS:
                 return True
         return False
