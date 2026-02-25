@@ -107,9 +107,11 @@ class SymbolicAnalyzer(ConditionExtractors, PropertyGenerators, ComplexityAnalyz
         ctrl_flow = self.control_flow
         
         for node in ast.walk(tree):
-            if isinstance(node, _ASSIGN_TYPE):
+            # Use type-identity checks (no MRO traversal) for concrete node types.
+            ntype = type(node)
+            if ntype is _ASSIGN_TYPE:
                 for target in node.targets:
-                    if isinstance(target, _NAME_TYPE):
+                    if type(target) is _NAME_TYPE:
                         var_id = target.id
                         if var_id not in var_assigns:
                             var_assigns[var_id] = []
