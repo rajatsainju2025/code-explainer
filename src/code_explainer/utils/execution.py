@@ -8,7 +8,16 @@ from typing import Tuple
 # Pre-cache for faster access
 _TEMP_DIR = tempfile.gettempdir()
 _PYTHON_EXE = sys.executable
-_EMPTY_ENV: dict = {}
+
+# Minimal safe environment for the sandboxed subprocess.
+# Using env=None would inherit all parent vars (a security risk for untrusted code).
+# Passing only the bare minimum lets the Python interpreter start reliably while
+# still denying access to credentials, tokens, or other sensitive env vars.
+_SANDBOX_ENV: dict = {
+    "PATH": "/usr/bin:/bin",
+    "HOME": _TEMP_DIR,
+    "PYTHONDONTWRITEBYTECODE": "1",
+}
 
 
 def _safe_exec_subprocess(code: str, timeout_s: float = 1.0, mem_mb: int = 64) -> Tuple[str, str]:
@@ -18,11 +27,12 @@ def _safe_exec_subprocess(code: str, timeout_s: float = 1.0, mem_mb: int = 64) -
     # Wrapper to set resource limits (Unix only)
     cpu_limit = int(timeout_s)
     mem_limit = mem_mb * 1024 * 1024
+    # os.environ.clear() is no longer needed here: the subprocess already starts
+    # with only _SANDBOX_ENV, so there is nothing sensitive left to clear.
     prelude = (
-        f"import sys,resource,os\n"
+        f"import sys,resource\n"
         f"resource.setrlimit(resource.RLIMIT_CPU, ({cpu_limit}, {cpu_limit}))\n"
         f"resource.setrlimit(resource.RLIMIT_AS, ({mem_limit}, {mem_limit}))\n"
-        "os.environ.clear()\n"
         "\n"
     )
 
@@ -37,7 +47,7 @@ def _safe_exec_subprocess(code: str, timeout_s: float = 1.0, mem_mb: int = 64) -
             text=True,
             timeout=actual_timeout,
             cwd=_TEMP_DIR,
-            env=_EMPTY_ENV,
+            env=_SANDBOX_ENV,
         )
         out = (proc.stdout or "").strip()
         err = (proc.stderr or "").strip()
