@@ -3,6 +3,11 @@
 import ast
 from typing import Any, Dict, List, Tuple
 
+# Pre-compile the tuple of nesting-depth node types once at module load.
+# Re-building the same literal tuple inside a recursive inner function
+# (get_depth) on every recursive call is unnecessary allocation.
+_NESTING_TYPES = (ast.If, ast.While, ast.For, ast.With, ast.Try)
+
 
 class ComplexityAnalyzers:
     """Methods for analyzing code complexity and data flow."""
@@ -87,7 +92,7 @@ class ComplexityAnalyzers:
         def get_depth(node, current_depth=0):
             max_depth = current_depth
             for child in ast.iter_child_nodes(node):
-                if isinstance(child, (ast.If, ast.While, ast.For, ast.With, ast.Try)):
+                if isinstance(child, _NESTING_TYPES):
                     child_depth = get_depth(child, current_depth + 1)
                     max_depth = max(max_depth, child_depth)
                 else:
