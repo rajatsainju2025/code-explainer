@@ -64,19 +64,23 @@ class ContextAgent(BaseAgent):
             tree = ast.parse(code)
             context_notes = []
 
-            # Check for common patterns using cached types
+            # Single-pass AST walk with short-circuit flag guards.
+            # Use `type(node) is X` (identity check) instead of isinstance()
+            # for concrete, un-subclassed AST node types — avoids the MRO walk.
+            # Once a flag is set we skip its isinstance check on all future nodes.
             has_error_handling = False
             has_type_hints = False
             has_docstrings = False
             
             for node in ast.walk(tree):
-                if isinstance(node, _TRY_TYPE):
+                ntype = type(node)
+                if not has_error_handling and ntype is _TRY_TYPE:
                     has_error_handling = True
-                elif isinstance(node, _ARG_TYPE) and getattr(node, "annotation", None):
+                elif not has_type_hints and ntype is _ARG_TYPE and getattr(node, "annotation", None):
                     has_type_hints = True
-                elif isinstance(node, _CONSTANT_TYPE) and isinstance(node.value, str):
+                elif not has_docstrings and ntype is _CONSTANT_TYPE and isinstance(node.value, str):
                     has_docstrings = True
-                elif isinstance(node, _FUNC_DEF_TYPE):
+                elif ntype is _FUNC_DEF_TYPE:
                     name_lower = node.name.lower()
                     if "sort" in name_lower:
                         context_notes.append("- Implements a sorting algorithm")
