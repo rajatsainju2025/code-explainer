@@ -66,17 +66,21 @@ class ConditionExtractors:
         return conditions
 
     def _extract_postconditions(self, tree: ast.AST) -> List[SymbolicCondition]:
-        """Extract postconditions from return statements and end of functions."""
+        """Extract postconditions from return statements and end of functions.
+
+        A single ast.walk(tree) is sufficient: Return statements can only
+        appear inside functions (enforced by the parser), so filtering to
+        nodes inside FunctionDef subtrees via a nested walk is redundant.
+        The previous nested-walk approach visited Return nodes multiple times
+        for code containing nested function definitions.
+        """
         conditions = []
 
         for node in ast.walk(tree):
-            if type(node) is _AST_FUNCTIONDEF:
-                # Check return statements
-                for stmt in ast.walk(node):
-                    if type(stmt) is _AST_RETURN and stmt.value:
-                        condition = self._analyze_return_condition(stmt)
-                        if condition:
-                            conditions.append(condition)
+            if type(node) is _AST_RETURN and node.value:
+                condition = self._analyze_return_condition(node)
+                if condition:
+                    conditions.append(condition)
 
         return conditions
 
