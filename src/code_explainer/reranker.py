@@ -18,13 +18,6 @@ except Exception:  # pragma: no cover - environment dependent
     CrossEncoder = None  # type: ignore
     HAS_SENTENCE_TRANSFORMERS = False
 
-# Pre-cache numpy functions for micro-optimization
-_np_asarray = np.asarray
-_np_linalg_norm = np.linalg.norm
-_np_dot = np.dot
-_np_argmax = np.argmax
-_np_max = np.max
-
 
 class CrossEncoderReranker:
     """Thin wrapper over a CrossEncoder for pair scoring (query, doc)."""
@@ -51,7 +44,7 @@ class CrossEncoderReranker:
         # Create pairs efficiently with list comprehension
         pairs = [(query, c.get("content", "")) for c in candidates]
         scores = self.model.predict(pairs)  # type: ignore[operator]
-        scores = _np_asarray(scores)
+        scores = np.asarray(scores)
         
         # Create result list with scores in single pass
         ranked = [
@@ -76,15 +69,15 @@ class MaximalMarginalRelevance:
         self.lambda_param = float(lambda_param)
 
     def _cosine_similarity(self, a: np.ndarray, b: np.ndarray | List[np.ndarray]) -> np.ndarray | float:
-        a = _np_asarray(a, dtype=float)
-        b = _np_asarray(b, dtype=float)
+        a = np.asarray(a, dtype=float)
+        b = np.asarray(b, dtype=float)
         if b.ndim == 1:
             # single vector
-            denom = (_np_linalg_norm(a) * _np_linalg_norm(b)) or 1.0
-            return float(_np_dot(a, b) / denom)
+            denom = (np.linalg.norm(a) * np.linalg.norm(b)) or 1.0
+            return float(np.dot(a, b) / denom)
         # many vectors (N, D)
-        a_norm = _np_linalg_norm(a) or 1.0
-        b_norms = _np_linalg_norm(b, axis=1)
+        a_norm = np.linalg.norm(a) or 1.0
+        b_norms = np.linalg.norm(b, axis=1)
         b_norms[b_norms == 0] = 1.0
         sims = (b @ a) / (a_norm * b_norms)
         return sims
@@ -119,7 +112,7 @@ class MaximalMarginalRelevance:
             remaining_list = list(remaining)
             if not selected:
                 # First selection - just pick highest query similarity
-                best_idx = remaining_list[_np_argmax(q_sims[remaining_list])]
+                best_idx = remaining_list[np.argmax(q_sims[remaining_list])]
             else:
                 # Vectorized diversity calculation
                 selected_embs = cand_embs_array[selected]
@@ -133,13 +126,13 @@ class MaximalMarginalRelevance:
                     sim_matrix = sim_matrix.reshape(-1, 1)
                 
                 # Max similarity for each remaining item to any selected
-                max_divs = _np_max(sim_matrix, axis=1)
+                max_divs = np.max(sim_matrix, axis=1)
                 
                 # MMR scores
                 relevance_scores = q_sims[remaining_list]
                 mmr_scores = self.lambda_param * relevance_scores - (1.0 - self.lambda_param) * max_divs
                 
-                best_local_idx = _np_argmax(mmr_scores)
+                best_local_idx = np.argmax(mmr_scores)
                 best_idx = remaining_list[best_local_idx]
             
             selected.append(best_idx)
