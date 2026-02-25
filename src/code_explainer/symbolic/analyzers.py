@@ -92,12 +92,10 @@ class ComplexityAnalyzers:
         def get_depth(node, current_depth=0):
             max_depth = current_depth
             for child in ast.iter_child_nodes(node):
-                if isinstance(child, _NESTING_TYPES):
-                    child_depth = get_depth(child, current_depth + 1)
-                    max_depth = max(max_depth, child_depth)
-                else:
-                    child_depth = get_depth(child, current_depth)
-                    max_depth = max(max_depth, child_depth)
+                # Increment depth only for nesting constructs; collapse the
+                # redundant else branch into a single conditional expression.
+                next_depth = current_depth + (1 if isinstance(child, _NESTING_TYPES) else 0)
+                max_depth = max(max_depth, get_depth(child, next_depth))
             return max_depth
 
         return get_depth(tree)
