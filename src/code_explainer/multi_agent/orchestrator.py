@@ -27,6 +27,18 @@ class MultiAgentOrchestrator:
             "context": ContextAgent(),
             "verification": VerificationAgent(),
         }
+        # Create the executor once and reuse it across calls.
+        # Re-creating a ThreadPoolExecutor on every explain_code_collaborative()
+        # call spins up and tears down threads repeatedly — expensive for a
+        # fixed set of 4 agents that are always available.
+        self._executor = concurrent.futures.ThreadPoolExecutor(max_workers=4)
+
+    def __del__(self):
+        """Shut down the thread-pool executor when the orchestrator is garbage-collected."""
+        try:
+            self._executor.shutdown(wait=False)
+        except Exception:
+            pass
 
     def explain_code_collaborative(self, code: str) -> str:
         """Generate collaborative explanation using multiple agents (with parallelization)."""
@@ -44,13 +56,12 @@ class MultiAgentOrchestrator:
                 logger.error("Agent %s failed: %s", agent_name, e)
                 return None
         
-        # Use thread pool to run agents in parallel (I/O bound operations)
-        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
-            futures = [executor.submit(analyze_with_agent, item) for item in self.agents.items()]
-            for future in concurrent.futures.as_completed(futures):
-                result = future.result()
-                if result is not None:
-                    components.append(result)
+        # Reuse the persistent executor — no thread creation/teardown overhead per call
+        futures = [self._executor.submit(analyze_with_agent, item) for item in self.agents.items()]
+        for future in concurrent.futures.as_completed(futures):
+            result = future.result()
+            if result is not None:
+                components.append(result)
 
         # Synthesize final explanation
         return self._synthesize_explanation(components)
