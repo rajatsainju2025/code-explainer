@@ -116,14 +116,3 @@ class ComplexityAnalyzers:
             return "O(n³)"
         else:
             return f"O(n^{max_loop_nesting})"
-
-
-    def _get_variable_dependencies(self, expr: ast.AST) -> List[str]:
-        """Get variables that this expression depends on."""
-        dependencies = []
-        for node in ast.walk(expr):
-            if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load):
-                dependencies.append(node.id)
-        # dict.fromkeys preserves insertion order while deduplicating in O(n),
-        # avoiding the list→set→list round-trip of list(set(dependencies)).
-        return list(dict.fromkeys(dependencies))
