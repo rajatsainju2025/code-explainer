@@ -70,7 +70,9 @@ class ComplexityAnalyzers:
                 if isinstance(assign_node, ast.Assign):
                     deps = self._get_variable_dependencies(assign_node.value)
                     dependencies.extend(deps)
-            data_flow[var_name] = list(set(dependencies))
+            # dict.fromkeys preserves first-seen order while deduplicating,
+            # avoiding the unordered intermediate set of list(set(dependencies)).
+            data_flow[var_name] = list(dict.fromkeys(dependencies))
 
         return data_flow
 
