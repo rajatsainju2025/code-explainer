@@ -70,16 +70,30 @@ class StructuredLogger:
 
     def _create_log_entry(self, level: str, message: str,
                          extra_data: Optional[Dict[str, Any]] = None) -> LogEntry:
-        """Create a structured log entry."""
-        frame = sys._getframe(2)
-        code = frame.f_code
+        """Create a structured log entry.
+
+        Caller-frame inspection (sys._getframe) is an expensive CPython private
+        API that walks the call stack.  We only pay that cost for DEBUG entries
+        where the extra attribution is actually useful; higher-severity entries
+        record an empty module/function/line so the hot path stays fast.
+        """
+        if level == "DEBUG":
+            frame = sys._getframe(2)
+            code = frame.f_code
+            module = code.co_filename
+            function = code.co_name
+            line_number = frame.f_lineno
+        else:
+            module = ""
+            function = ""
+            line_number = 0
         return LogEntry(
             timestamp=_now(),
             level=level,
             message=message,
-            module=code.co_filename,
-            function=code.co_name,
-            line_number=frame.f_lineno,
+            module=module,
+            function=function,
+            line_number=line_number,
             extra_data=extra_data or {}
         )
 
