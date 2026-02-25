@@ -7,6 +7,7 @@ from .models import SymbolicExplanation
 from .extractors import ConditionExtractors
 from .generators import PropertyGenerators
 from .analyzers import ComplexityAnalyzers
+from ..utils.hashing import fast_hash_str as _fast_hash_str
 
 # Pre-cache AST node types for faster isinstance checks
 _ASSIGN_TYPE = ast.Assign
@@ -73,8 +74,11 @@ class SymbolicAnalyzer(ConditionExtractors, PropertyGenerators, ComplexityAnalyz
         if len(code) < 50:
             return ast.parse(code)
         
-        # Use hash for cache key to handle any code length efficiently
-        cache_key = hash(code)
+        # Use a stable, deterministic hash as the cache key.
+        # Python's built-in hash() is randomised per-process (PYTHONHASHSEED),
+        # so the same string produces different keys every run and the cache
+        # never warms across process restarts.
+        cache_key = _fast_hash_str(code)
         
         cached = self._ast_cache.get(cache_key)
         if cached is not None:
