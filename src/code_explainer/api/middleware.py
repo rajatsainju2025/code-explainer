@@ -1,5 +1,7 @@
 """Middleware setup for FastAPI application."""
 
+import asyncio
+import os
 import time
 import uuid
 import logging
@@ -130,6 +132,32 @@ class ErrorHandlingMiddleware(BaseHTTPMiddleware):
             )
 
 
+class TimeoutMiddleware(BaseHTTPMiddleware):
+    """Middleware to enforce request timeout for long-running inference calls.
+    
+    Configurable via CODE_EXPLAINER_REQUEST_TIMEOUT env var (default: 120s).
+    """
+
+    def __init__(self, app, timeout_seconds: float = 120.0):
+        super().__init__(app)
+        self.timeout = float(os.environ.get("CODE_EXPLAINER_REQUEST_TIMEOUT", timeout_seconds))
+
+    async def dispatch(self, request: Request, call_next: Callable) -> Response:
+        request_id = getattr(request.state, 'request_id', 'unknown')
+        try:
+            return await asyncio.wait_for(call_next(request), timeout=self.timeout)
+        except asyncio.TimeoutError:
+            logger.error("[%s] Request timed out after %.1fs", request_id, self.timeout)
+            return JSONResponse(
+                status_code=status.HTTP_504_GATEWAY_TIMEOUT,
+                content={
+                    "error": "Request Timeout",
+                    "detail": f"Request exceeded {self.timeout}s timeout limit.",
+                    "request_id": request_id,
+                }
+            )
+
+
 def setup_cors_middleware(app, allowed_origins=None):
     """Setup CORS middleware with security best practices.
     
@@ -211,6 +239,9 @@ def setup_all_middleware(app):
     
     # Add request ID middleware
     app.add_middleware(RequestIDMiddleware)
+    
+    # Add timeout middleware (before error handling so timeouts are caught)
+    app.add_middleware(TimeoutMiddleware)
     
     # Add error handling middleware (outermost)
     app.add_middleware(ErrorHandlingMiddleware)
