@@ -55,7 +55,10 @@ class CodeExplainerConfigValidationMixin:
 
                 if "strategy" in prompt_cfg:
                     strategy = prompt_cfg["strategy"]
-                    valid_strategies = ["vanilla", "ast_augmented", "multi_agent", "intelligent"]
+                    valid_strategies = [
+                        "vanilla", "ast_augmented", "retrieval_augmented",
+                        "execution_trace", "enhanced_rag", "multi_agent", "intelligent",
+                    ]
                     if strategy not in valid_strategies:
                         _logger.warning("Prompt strategy '%s' not in recommended strategies: %s", strategy, valid_strategies)
 
