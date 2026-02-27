@@ -85,11 +85,12 @@ def prompt_for_language(config: Dict[str, Any], code: str) -> str:
     prompt_cfg = config.get("prompt") or config.get("prompting") or {}
     strategy = prompt_cfg.get("strategy", _STRATEGY_VANILLA)
     
-    # Early exit for vanilla strategy (most common path)
+    # Build base prompt from template
     templates = prompt_cfg.get("language_templates", {})
     default_template = prompt_cfg.get("template") or _cached_default_template(lang)
     base_template = templates.get(lang, default_template)
-    code_stripped = code.strip()
+    # Strip only if code has leading/trailing whitespace (avoid copy for clean input)
+    code_stripped = code.strip() if code[0:1].isspace() or code[-1:].isspace() else code
     base_prompt = base_template.format(code=code_stripped)
 
     # Skip augmentation for non-Python code or vanilla strategy
