@@ -48,10 +48,11 @@ class ExplanationCache(BaseCache):
         self._memory_cache = MemoryCache(self.config.memory_cache_size)
         self._index = self._load_index()
         
-        # Write-behind batching configuration
+        # Write-behind batching: use a simple dirty counter instead of
+        # a deque of operation dicts (which were never read individually).
         self.write_behind_batch_size = write_behind_batch_size
         self.write_behind_flush_interval = write_behind_flush_interval
-        self._pending_writes_queue: deque = deque()
+        self._pending_write_count = 0
         self._last_flush_time = time.monotonic()  # Use monotonic for intervals
         self._write_behind_lock = threading.Lock()
         
@@ -70,46 +71,24 @@ class ExplanationCache(BaseCache):
         return {}
 
     def _should_flush_writes(self) -> bool:
-        """Check if pending writes should be flushed.
-        
-        Returns True if:
-        - Batch size threshold reached, OR
-        - Time interval elapsed since last flush
-        """
-        queue_len = len(self._pending_writes_queue)
-        if queue_len >= self.write_behind_batch_size:
+        """Check if pending writes should be flushed."""
+        if self._pending_write_count >= self.write_behind_batch_size:
             return True
-        
-        time_elapsed = time.monotonic() - self._last_flush_time
-        return time_elapsed >= self.write_behind_flush_interval
+        return (time.monotonic() - self._last_flush_time) >= self.write_behind_flush_interval
 
     def _queue_index_write(self, cache_key: str, operation: str = "update") -> None:
-        """Queue an index write operation for batched flushing.
-        
-        Args:
-            cache_key: Key of cache entry being modified
-            operation: Type of operation (update, delete, cleanup)
-        """
+        """Mark index as dirty and flush if batch threshold reached."""
         with self._write_behind_lock:
-            self._pending_writes_queue.append({
-                "key": cache_key,
-                "operation": operation,
-            })
-            
-            # Check if we should flush now
+            self._pending_write_count += 1
             if self._should_flush_writes():
                 self._flush_pending_writes_unsafe()
 
     def _flush_pending_writes_unsafe(self) -> None:
         """Internal flush without lock (must be called with _write_behind_lock held)."""
-        if not self._pending_writes_queue:
+        if self._pending_write_count == 0:
             return
-        
-        # Save index once for all pending writes
         self._save_index()
-        
-        # Clear pending writes queue
-        self._pending_writes_queue.clear()
+        self._pending_write_count = 0
         self._last_flush_time = time.monotonic()
 
     def _save_index(self) -> None:
@@ -295,7 +274,7 @@ class ExplanationCache(BaseCache):
                         pass
                 self._index.clear()
                 self._memory_cache.clear()
-                self._pending_writes_queue.clear()
+                self._pending_write_count = 0
                 self._save_index()
             except Exception:
                 pass
