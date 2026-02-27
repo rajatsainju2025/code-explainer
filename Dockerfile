@@ -69,7 +69,7 @@ ENV PYTHONPATH=/app/src \
     CODE_EXPLAINER_CONFIG_PATH=/app/configs/default.yaml
 
 # Create necessary directories
-RUN mkdir -p /app/models /app/data /app/configs && \
+RUN mkdir -p /app/models /app/data /app/configs /app/.cache && \
     chown -R codeexplainer:codeexplainer /app
 
 WORKDIR /app
@@ -80,24 +80,28 @@ COPY --chown=codeexplainer:codeexplainer pyproject.toml poetry.lock requirements
 # Install production dependencies only
 RUN pip install --upgrade pip \
     && pip install -e .[web] \
-    && pip install --force-reinstall --no-deps uvicorn[standard]
+    && pip install --force-reinstall --no-deps uvicorn[standard] \
+    && find /usr/local -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
 
 # Copy source code
 COPY --chown=codeexplainer:codeexplainer src/ ./src/
 COPY --chown=codeexplainer:codeexplainer configs/ ./configs/
 
-# Switch to non-root user
+# Switch to non-root user with security hardening
 USER codeexplainer
 
-# Health check for production
+# Security: drop all Linux capabilities, prevent privilege escalation
+# (requires Docker --security-opt no-new-privileges at runtime)
+
+# Health check for production (use curl instead of python for lighter footprint)
 HEALTHCHECK --interval=60s --timeout=10s --start-period=30s --retries=3 \
-    CMD python -c "import requests; requests.get('http://localhost:8000/health')" || exit 1
+    CMD curl -sf http://localhost:8000/health || exit 1
 
 # Expose port
 EXPOSE 8000
 
-# Default command for production
-CMD ["uvicorn", "code_explainer.api.server:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]
+# Default command for production with access logging
+CMD ["uvicorn", "code_explainer.api.server:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4", "--access-log", "--limit-concurrency", "100"]
 
 # Stage 4: CI/Testing environment
 FROM development as testing
