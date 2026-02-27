@@ -10,6 +10,14 @@ This module defines a hierarchy of exceptions with:
 
 from typing import Optional, Dict, Any, ClassVar
 
+__all__ = [
+    "CodeExplainerError",
+    "ConfigurationError",
+    "ModelError",
+    "ValidationError",
+    "ResourceError",
+]
+
 
 class CodeExplainerError(Exception):
     """Base exception for all Code Explainer errors."""
@@ -150,8 +158,14 @@ class ValidationError(CodeExplainerError):
 
 
 class ResourceError(CodeExplainerError):
-    """Raised when resource allocation or management fails."""
+    """Raised when resource allocation or management fails.
     
+    Examples: model files not found, CUDA OOM, cache directory inaccessible.
+    """
+    
+    __slots__ = ()
+    http_status: ClassVar[int] = 500
+
     def __init__(
         self,
         message: str,
