@@ -33,7 +33,7 @@ class ASTInfo:
     complexity_hints: Tuple[str, ...] = ()
 
 
-@lru_cache(maxsize=2048)
+@lru_cache(maxsize=256)
 def _parse_ast_cached(code: str) -> Optional[ast.Module]:
     """Parse code to AST with caching to avoid redundant parsing."""
     try:
@@ -42,7 +42,7 @@ def _parse_ast_cached(code: str) -> Optional[ast.Module]:
         return None
 
 
-@lru_cache(maxsize=1024)
+@lru_cache(maxsize=256)
 def analyze_code_comprehensive(code: str) -> ASTInfo:
     """Single-pass comprehensive AST analysis.
     
@@ -145,7 +145,7 @@ def _summarize_python_ast(code: str) -> str:
     return "\n".join(lines)
 
 
-@lru_cache(maxsize=512)
+@lru_cache(maxsize=128)
 def _extract_python_ast_info(code: str) -> Tuple[List[str], List[str], List[str]]:
     """Return (functions, classes, imports) lists for Python code via AST.
     Delegates to comprehensive analysis for cache efficiency.
@@ -154,7 +154,7 @@ def _extract_python_ast_info(code: str) -> Tuple[List[str], List[str], List[str]
     return list(info.functions), list(info.classes), list(info.imports)
 
 
-@lru_cache(maxsize=256)
+@lru_cache(maxsize=128)
 def _collect_docstrings_from_code(code: str) -> List[str]:
     """Collect module, class, and function docstrings from the snippet.
     Delegates to comprehensive analysis for cache efficiency.
