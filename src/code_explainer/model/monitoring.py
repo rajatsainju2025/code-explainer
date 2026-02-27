@@ -123,9 +123,10 @@ class CodeExplainerMonitoringMixin:
     def enable_gradient_checkpointing(self) -> Dict[str, Any]:
         """Enable gradient checkpointing for memory efficiency."""
         try:
-            if hasattr(self, 'model') and self.model is not None:
-                if hasattr(self.model, 'gradient_checkpointing_enable'):
-                    self.model.gradient_checkpointing_enable()
+            if getattr(self, 'is_model_loaded', False) and self._resources is not None:
+                model = self._resources.model
+                if hasattr(model, 'gradient_checkpointing_enable'):
+                    model.gradient_checkpointing_enable()
                     return {"success": True, "message": "Gradient checkpointing enabled"}
             
             return {"success": False, "message": "Model does not support gradient checkpointing"}
@@ -136,11 +137,12 @@ class CodeExplainerMonitoringMixin:
     def optimize_for_inference(self) -> Dict[str, Any]:
         """Optimize model for inference."""
         try:
-            if hasattr(self, 'model') and self.model is not None:
-                self.model.eval()
+            if getattr(self, 'is_model_loaded', False) and self._resources is not None:
+                model = self._resources.model
+                model.eval()
                 
                 # Disable dropout
-                for module in self.model.modules():
+                for module in model.modules():
                     if hasattr(module, 'dropout'):
                         module.dropout = 0.0
                 
