@@ -157,7 +157,10 @@ def validate_api_key(api_key: Optional[str] = None) -> bool:
     
     # Validate using constant-time comparison to prevent timing attacks
     api_key_hash = hashlib.sha256(api_key.encode()).hexdigest()
-    return secrets.compare_digest(api_key_hash, api_key_hash) and api_key_hash in valid_key_hashes
+    return any(
+        secrets.compare_digest(api_key_hash, stored_hash)
+        for stored_hash in valid_key_hashes
+    )
 
 
 def get_optional_api_key(
