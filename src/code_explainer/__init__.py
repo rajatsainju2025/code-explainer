@@ -7,7 +7,7 @@ to generate human-readable explanations of code snippets.
 
 __version__ = "0.4.0"
 __author__ = "Rajat Sainju"
-__email__ = "your.email@example.com"
+__email__ = "rajatsainju@proton.me"
 
 from .model import CodeExplainer
 from .utils import load_config, setup_logging
