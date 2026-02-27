@@ -161,27 +161,3 @@ class CodeExplainerMonitoringMixin:
         except Exception as e:
             logger.error("Failed to optimize tokenizer: %s", e)
             return {"error": str(e)}
-
-    def explain_code_batch(self, requests: List[Dict[str, Any]]) -> List[str]:
-        """Batch explain multiple code snippets.
-        
-        Args:
-            requests: List of dicts with 'code' and optional 'strategy' keys
-            
-        Returns:
-            List of explanations
-        """
-        explanations = []
-        
-        for request in requests:
-            code = request.get('code', '')
-            strategy = request.get('strategy', 'vanilla')
-            
-            try:
-                explanation = self.explain_code(code, strategy=strategy)
-                explanations.append(explanation)
-            except Exception as e:
-                logger.error("Failed to explain code: %s", e)
-                explanations.append(f"Error: {str(e)}")
-        
-        return explanations
