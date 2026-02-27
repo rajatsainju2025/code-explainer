@@ -208,10 +208,10 @@ class InputValidator:
 
     def __init__(self, max_length: int = 10000, allowed_imports: Optional[Set[str]] = None):
         self.max_length = max_length
-        self.allowed_imports = allowed_imports or {
+        self.allowed_imports = frozenset(allowed_imports) if allowed_imports else frozenset({
             'typing', 'dataclasses', 'enum', 'collections',
-            'itertools', 'functools', 'math', 'random'
-        }
+            'itertools', 'functools', 'math', 'random',
+        })
 
     def validate(self, code: str) -> Tuple[bool, List[str]]:
         """Validate input code."""
@@ -309,6 +309,10 @@ class CodeSecurityValidator:
         return len(all_issues) == 0, all_issues
 
 
+    # Pre-built frozensets for O(1) membership tests
+    _DANGEROUS_IMPORTS = frozenset({'os', 'subprocess', 'sys'})
+    _DANGEROUS_CALLS = frozenset({'eval', 'exec', 'open'})
+
     def _analyze_ast(self, tree: ast.AST) -> List[str]:
         """Analyze AST for security issues."""
         issues = []
@@ -316,11 +320,11 @@ class CodeSecurityValidator:
         for node in ast.walk(tree):
             if isinstance(node, ast.Import):
                 for alias in node.names:
-                    if alias.name in ['os', 'subprocess', 'sys']:
+                    if alias.name in self._DANGEROUS_IMPORTS:
                         issues.append(f"Dangerous import: {alias.name}")
             elif isinstance(node, ast.Call):
                 if isinstance(node.func, ast.Name):
-                    if node.func.id in ['eval', 'exec', 'open']:
+                    if node.func.id in self._DANGEROUS_CALLS:
                         issues.append(f"Dangerous function call: {node.func.id}")
 
         return issues
