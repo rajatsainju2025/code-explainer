@@ -62,6 +62,19 @@ def create_app() -> FastAPI:
             content={"detail": "Internal server error"}
         )
 
+    # Graceful shutdown: cleanup model resources on shutdown
+    @app.on_event("shutdown")
+    async def shutdown_event():
+        """Cleanup resources on server shutdown."""
+        logger.info("Shutting down - cleaning up resources...")
+        try:
+            from .dependencies import _global_explainer
+            if _global_explainer is not None:
+                _global_explainer.cleanup_memory()
+                logger.info("Model resources cleaned up successfully")
+        except Exception as e:
+            logger.warning("Error during shutdown cleanup: %s", e)
+
     return app
 
 
