@@ -206,11 +206,11 @@ async def explain_code_batch(
                 ]
                 chunk_results = await asyncio.gather(*tasks, return_exceptions=True)
                 for (idx, _), explanation in zip(chunk, chunk_results):
-                    # Handle exceptions gracefully
+                    # Place result at correct index to preserve order
                     if isinstance(explanation, Exception):
-                        results.append(f"Error: {str(explanation)}")
+                        results[idx] = f"Error: {str(explanation)}"
                     else:
-                        results.append(explanation)
+                        results[idx] = explanation
 
         if to_compute:
             await compute_batch()
