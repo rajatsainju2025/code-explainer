@@ -195,14 +195,19 @@ class ModelLoader:
             if not use_8bit or not self.device_capabilities.supports_8bit:
                 try:
                     model = model.to(self.device)
-                except Exception as e:
-                    logger.warning("Could not move model to device %s: %s", self.device, e)
-                    # Try OOM fallback if available
-                    fallback_device = self.device_manager.handle_oom_error(e, self.device_capabilities.device_type)
-                    if fallback_device:
-                        self.device_capabilities = fallback_device
-                        self.device = fallback_device.device
-                        model = model.to(self.device)
+                except RuntimeError as e:
+                    if "out of memory" in str(e).lower() or "CUDA" in str(e):
+                        logger.warning("OOM moving model to %s, attempting fallback", self.device)
+                        # Clear GPU memory before fallback
+                        if torch.cuda.is_available():
+                            torch.cuda.empty_cache()
+                        fallback_device = self.device_manager.handle_oom_error(e, self.device_capabilities.device_type)
+                        if fallback_device:
+                            self.device_capabilities = fallback_device
+                            self.device = fallback_device.device
+                            model = model.to(self.device)
+                        else:
+                            raise
                     else:
                         raise
 
