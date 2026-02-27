@@ -55,7 +55,8 @@ class CodeExplainerExplanationMixin:
 
         # Get strategy for caching
         used_strategy: str = strategy or self._cfg_get_str("prompt.strategy", "vanilla",
-                                                          ["vanilla", "ast_augmented", "multi_agent", "intelligent"])
+                                                          ["vanilla", "ast_augmented", "retrieval_augmented",
+                                                           "execution_trace", "enhanced_rag", "multi_agent", "intelligent"])
         model_name: str = getattr(self, 'model_name', 'unknown')
 
         # Check cache first (hot path optimization)

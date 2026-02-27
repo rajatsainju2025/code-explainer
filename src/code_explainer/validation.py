@@ -13,7 +13,10 @@ from pydantic import BaseModel, Field, field_validator, ConfigDict
 from .exceptions import ValidationError
 
 # Pre-computed sets for constant-time validation
-_ALLOWED_STRATEGIES = frozenset({"vanilla", "ast_augmented", "retrieval_augmented", "execution_trace", "multi_agent", "intelligent"})
+_ALLOWED_STRATEGIES = frozenset({
+    "vanilla", "ast_augmented", "retrieval_augmented",
+    "execution_trace", "enhanced_rag", "multi_agent", "intelligent",
+})
 # Pre-formatted error messages (avoid repeated string formatting)
 _STRATEGY_ERROR_MSG = f"Strategy must be one of: {', '.join(sorted(_ALLOWED_STRATEGIES))}"
 
