@@ -130,6 +130,9 @@ class CodeExplainerExplanationMixin:
                 use_cache=True,  # Enable KV cache for faster generation
             )
 
+        # Free input tensors immediately to reduce peak GPU memory
+        del inputs
+
         # Handle different return shapes for backward compatibility
         try:
             first_seq = outputs[0]  # type: ignore[index]
@@ -141,6 +144,10 @@ class CodeExplainerExplanationMixin:
                 first_seq = outputs
 
         generated_text = tok.decode(first_seq, skip_special_tokens=True)  # type: ignore[arg-type]
+
+        # Free output tensors after decoding
+        del outputs, first_seq
+
         prompt_len = len(prompt)
         explanation = generated_text[prompt_len:].strip() if len(generated_text) > prompt_len else generated_text
 
