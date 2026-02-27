@@ -83,10 +83,11 @@ class CodeExplainerMonitoringMixin:
         return self._security_manager
 
     def get_setup_info(self) -> Dict[str, Any]:
-        """Get comprehensive setup information."""
-        info = {
-            "model_loaded": hasattr(self, 'model') and self.model is not None,
-            "device": str(getattr(self, 'device', 'cpu')),
+        """Get comprehensive setup information without triggering lazy model loading."""
+        model_loaded = getattr(self, 'is_model_loaded', False)
+        info: Dict[str, Any] = {
+            "model_loaded": model_loaded,
+            "device": str(getattr(self._resources, 'device', 'cpu')) if model_loaded else 'not loaded',
             "config": {}
         }
         
@@ -96,10 +97,10 @@ class CodeExplainerMonitoringMixin:
                 "max_length": getattr(self.config, 'max_length', 512)
             }
         
-        if hasattr(self, 'model') and self.model is not None:
+        if model_loaded and self._resources is not None:
             try:
                 info["model_parameters"] = sum(
-                    p.numel() for p in self.model.parameters()
+                    p.numel() for p in self._resources.model.parameters()
                 )
             except Exception:
                 pass

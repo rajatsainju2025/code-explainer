@@ -243,8 +243,8 @@ async def health_check(
         # Import here to get version
         from .. import __version__
         
-        # Basic health checks
-        model_loaded = hasattr(explainer, 'model') and explainer.model is not None
+        # Use is_model_loaded to avoid triggering expensive lazy model loading
+        model_loaded = getattr(explainer, 'is_model_loaded', False)
         
         # Check retrieval service readiness
         retrieval_ready = False
