@@ -196,8 +196,11 @@ class ExplanationCache(BaseCache):
                 # Queue index write for batched flushing
                 self._queue_index_write(cache_key, "update")
 
-            except Exception:
-                pass  # Silent failure for caching
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).warning(
+                    "Failed to cache explanation for key %s: %s", cache_key, e
+                )
     
     def _schedule_cleanup(self) -> None:
         """Schedule cleanup without blocking the main operation."""
@@ -224,7 +227,9 @@ class ExplanationCache(BaseCache):
             pass
 
         self._index.pop(cache_key, None)
-        self._memory_cache.put(cache_key, None)  # Mark as removed
+        # Properly evict from LRU instead of storing None tombstone
+        # (storing None wastes an LRU slot and returns None on future gets)
+        self._memory_cache._cache.pop(cache_key, None)
 
     def _cleanup_if_needed(self) -> None:
         """Remove least recently used entries if cache is too large.
