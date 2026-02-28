@@ -23,7 +23,7 @@ class CodeExplainerTrainer:
 
     def setup_training(self) -> None:
         """Setup training environment."""
-        logger.info("Setting up training environment...")
+        raise NotImplementedError("Training is not yet implemented. See roadmap.")
 
     def train(self, train_dataset: Any, eval_dataset: Optional[Any] = None) -> Dict[str, Any]:
         """Train the model.
@@ -35,8 +35,7 @@ class CodeExplainerTrainer:
         Returns:
             Dictionary with training results
         """
-        logger.info("Starting training...")
-        return {"status": "training_completed"}
+        raise NotImplementedError("Training is not yet implemented. See roadmap.")
 
     def save_model(self, output_dir: str) -> None:
         """Save trained model.
@@ -44,7 +43,7 @@ class CodeExplainerTrainer:
         Args:
             output_dir: Directory to save model to
         """
-        logger.info("Saving model to %s", output_dir)
+        raise NotImplementedError("Training is not yet implemented. See roadmap.")
 
     def load_model(self, model_path: str) -> None:
         """Load a trained model.
@@ -52,4 +51,4 @@ class CodeExplainerTrainer:
         Args:
             model_path: Path to model to load
         """
-        logger.info("Loading model from %s", model_path)
+        raise NotImplementedError("Training is not yet implemented. See roadmap.")

@@ -122,7 +122,12 @@ class ModelLoader:
             PreTrainedTokenizerBase: Configured tokenizer
         """
         tokenizer = _cached_load_tokenizer(path)
+        # The cached tokenizer is a shared object — don't mutate it directly.
+        # If we need to set pad_token, copy first to avoid poisoning the cache
+        # for callers that need different pad token settings.
         if getattr(tokenizer, "pad_token", None) is None:
+            import copy
+            tokenizer = copy.copy(tokenizer)
             tokenizer.pad_token = tokenizer.eos_token
         return tokenizer
 
