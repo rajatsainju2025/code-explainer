@@ -361,6 +361,7 @@ class SafeCodeExecutor:
         import tempfile
         import os
 
+        temp_file = None
         try:
             # Write code to temporary file
             with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
@@ -370,15 +371,12 @@ class SafeCodeExecutor:
             # Execute with timeout and capture output
             start_time = time.time()
             result = subprocess.run(
-                ['python', temp_file],
+                ['python', '-I', temp_file],  # -I = isolated mode (no user site, no env vars)
                 capture_output=True,
                 text=True,
                 timeout=self.timeout
             )
             execution_time = time.time() - start_time
-
-            # Clean up
-            os.unlink(temp_file)
             
             # Audit successful execution
             self.audit_logger.log_event(
@@ -425,6 +423,13 @@ class SafeCodeExecutor:
                 "execution_time": 0.1,
                 "code_hash": code_hash
             }
+        finally:
+            # Always clean up the temp file, even on exceptions
+            if temp_file is not None:
+                try:
+                    os.unlink(temp_file)
+                except OSError:
+                    pass
 
 
 def hash_code(code: str) -> str:
