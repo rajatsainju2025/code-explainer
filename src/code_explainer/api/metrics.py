@@ -33,7 +33,8 @@ class MetricsCollector:
         '_lock', '_requests', '_max_history', '_total_requests',
         '_endpoint_counts', '_error_counts', '_response_times',
         '_model_inference_times', '_cache_hits', '_cache_misses',
-        '_response_time_sum', '_response_time_count'
+        '_response_time_sum', '_response_time_count',
+        '_inference_time_sum', '_inference_time_count'
     )
     
     def __init__(self, max_history: int = 10000):
@@ -58,6 +59,8 @@ class MetricsCollector:
         
         # Model-specific metrics
         self._model_inference_times: Deque[float] = deque(maxlen=1000)
+        self._inference_time_sum = 0.0
+        self._inference_time_count = 0
         self._cache_hits = 0
         self._cache_misses = 0
     
@@ -124,6 +127,8 @@ class MetricsCollector:
         """
         with self._lock:
             self._model_inference_times.append(duration)
+            self._inference_time_sum += duration
+            self._inference_time_count += 1
     
     def record_cache_hit(self) -> None:
         """Record a cache hit."""
@@ -156,12 +161,10 @@ class MetricsCollector:
                 else 0.0
             )
             
-            # Calculate average model inference time using running sum
-            # (O(1) instead of O(n) sum operation)
-            inference_times = self._model_inference_times
+            # Calculate average model inference time using running sum (O(1))
             avg_inference = (
-                sum(inference_times) / len(inference_times)
-                if inference_times
+                self._inference_time_sum / self._inference_time_count
+                if self._inference_time_count > 0
                 else 0.0
             )
             
