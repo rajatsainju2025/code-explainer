@@ -12,7 +12,10 @@ from functools import lru_cache
 # Ordered by likelihood/frequency for early exit optimization
 _CPP_PATTERNS = ('#include', 'std::', '::')
 _JAVA_PATTERNS = ('public static void main', 'system.out', 'public class')
-_JS_PATTERNS = ('function ', '=>', 'console.log', 'const ', 'let ')
+# JS patterns refined to avoid false positives on Python code.
+# 'const ' and 'let ' were too broad — Python variables like 'constants'
+# or 'letter' triggered JavaScript detection.
+_JS_PATTERNS = ('function ', '=>', 'console.log', 'const ', 'let ', 'var ')
 _PYTHON_PATTERNS = ('def ', 'import ', 'class ', 'print(', 'self.')
 
 
@@ -29,7 +32,13 @@ def _detect_language_cached(code_prefix: str) -> str:
     """
     code_l = code_prefix.lower()
     
-    # Early exit pattern matching - check most distinctive patterns first
+    # Check Python FIRST — it's the most common input for this tool,
+    # and checking JS first produces false positives on Python code
+    # containing 'const ' (constants=...) or 'let ' (letter=...).
+    for p in _PYTHON_PATTERNS:
+        if p in code_l:
+            return "python"
+    
     # C++ detection (most distinctive markers)
     for p in _CPP_PATTERNS:
         if p in code_l:
@@ -40,15 +49,10 @@ def _detect_language_cached(code_prefix: str) -> str:
         if p in code_l:
             return "java"
     
-    # JavaScript detection
+    # JavaScript detection (after Python to avoid false positives)
     for p in _JS_PATTERNS:
         if p in code_l:
             return "javascript"
-    
-    # Python is default but check for confirmation
-    for p in _PYTHON_PATTERNS:
-        if p in code_l:
-            return "python"
     
     return "python"
 
