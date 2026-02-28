@@ -38,17 +38,10 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-# Cache for frequently accessed attributes to reduce getattr overhead
-_MODEL_NAME_CACHE: Dict[CodeExplainer, str] = {}
-_CACHE_LOCK = __import__('threading').RLock()
-
 
 def _get_model_name(explainer: CodeExplainer) -> str:
-    """Get model name from explainer with caching to avoid repeated getattr calls."""
-    with _CACHE_LOCK:
-        if explainer not in _MODEL_NAME_CACHE:
-            _MODEL_NAME_CACHE[explainer] = getattr(explainer, 'model_name', 'unknown')
-        return _MODEL_NAME_CACHE[explainer]
+    """Get model name from explainer."""
+    return getattr(explainer, 'model_name', 'unknown')
 
 
 def _build_response_fast(explanation: str, strategy: str, processing_time: float, model_name: str) -> CodeExplanationResponse:
@@ -87,34 +80,11 @@ async def explain_code(
         # Track inference timing
         start_inference = time.time()
         
-        # Cache model name for response building (reduce getattr overhead)
         model_name = _get_model_name(explainer)
 
-        # Check cache first and return early on hit (avoids model compute)
-        cached = None
-        cache = getattr(explainer, 'explanation_cache', None)
-        if cache is not None:
-            cached = cache.get(
-                request.code,
-                request.strategy or "vanilla",
-                model_name
-            )
-            if cached is not None:
-                metrics_collector.record_cache_hit()
-                processing_time = time.time() - request_metrics.start_time
-                response = _build_response_fast(
-                    cached,
-                    request.strategy or "vanilla",
-                    processing_time,
-                    model_name
-                )
-                metrics_collector.end_request(request_metrics, status_code=200)
-                logger.debug("[%s] Served from cache in %.4fs", request_id, processing_time)
-                return response
-            else:
-                metrics_collector.record_cache_miss()
-
         # Generate explanation in a worker thread to avoid blocking the event loop
+        # Note: explain_code() already checks the cache internally —
+        # no need to duplicate the cache lookup here.
         explanation = await run_in_threadpool(
             explainer.explain_code,
             request.code,
