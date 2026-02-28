@@ -241,11 +241,12 @@ def setup_all_middleware(app):
     # Add logging middleware
     app.add_middleware(LoggingMiddleware)
     
-    # Add request ID middleware
-    app.add_middleware(RequestIDMiddleware)
-    
-    # Add timeout middleware (before error handling so timeouts are caught)
+    # Add timeout middleware (fires after request ID is set)
     app.add_middleware(TimeoutMiddleware)
+    
+    # Add request ID middleware (outermost after error handler,
+    # so request_id is available to all inner middleware including timeout)
+    app.add_middleware(RequestIDMiddleware)
     
     # Add error handling middleware (outermost)
     app.add_middleware(ErrorHandlingMiddleware)
