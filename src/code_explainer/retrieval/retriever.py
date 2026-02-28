@@ -7,6 +7,7 @@ Optimized for performance with:
 """
 
 import gzip
+import json
 import logging
 import threading
 from pathlib import Path

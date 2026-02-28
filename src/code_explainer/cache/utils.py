@@ -17,16 +17,18 @@ from typing import Any, Optional, Tuple
 # the xxhash/hashlib fallback pattern across the codebase).
 from ..utils.hashing import fast_hash_bytes as _fast_hash
 
-# Cache the separator to avoid repeated string creation
-_KEY_SEPARATOR = "|"
+# Use null byte separator to prevent key collisions.
+# A pipe '|' is ambiguous: ('a|b', 'c') and ('a', 'b|c') produce the
+# same key. Null bytes cannot appear in normal text, making collisions
+# impossible.
+_KEY_SEPARATOR = "\x00"
 @lru_cache(maxsize=4096)
 def generate_cache_key(*components: str) -> str:
     """Generate a cache key from components (cached for repeated lookups).
     
     Uses xxhash for speed when available (10x faster than SHA256).
-    Increased cache size from 1024 to 4096 for better hit rates.
+    Null-byte separator prevents ambiguous key collisions.
     """
-    # Use join with pre-computed separator
     content = _KEY_SEPARATOR.join(str(c) for c in components)
     return _fast_hash(content.encode('utf-8'))
 
