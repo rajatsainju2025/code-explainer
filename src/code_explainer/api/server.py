@@ -3,9 +3,11 @@
 Performance-focused tweaks applied:
 - Use ORJSONResponse when available for faster JSON serialization
 - Configure gzip compression via middleware (set up in middleware.py)
+- Uses lifespan context manager (replaces deprecated on_event)
 """
 
 import logging
+from contextlib import asynccontextmanager
 import uvicorn
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
@@ -24,6 +26,26 @@ from .endpoints import router as api_router
 logger = logging.getLogger(__name__)
 
 
+@asynccontextmanager
+async def _lifespan(app: FastAPI):
+    """Lifespan context manager for startup/shutdown events.
+    
+    Replaces the deprecated @app.on_event("shutdown") pattern.
+    """
+    # --- startup ---
+    logger.info("Code Explainer API starting up")
+    yield
+    # --- shutdown ---
+    logger.info("Shutting down - cleaning up resources...")
+    try:
+        from .dependencies import _global_explainer
+        if _global_explainer is not None:
+            _global_explainer.cleanup_memory()
+            logger.info("Model resources cleaned up successfully")
+    except Exception as e:
+        logger.warning("Error during shutdown cleanup: %s", e)
+
+
 def create_app() -> FastAPI:
     """Create and configure the FastAPI application."""
     app = FastAPI(
@@ -33,6 +55,7 @@ def create_app() -> FastAPI:
         docs_url="/docs",
         redoc_url="/redoc",
         default_response_class=DefaultJSONResponse,
+        lifespan=_lifespan,
     )
 
     # Setup middleware
@@ -61,19 +84,6 @@ def create_app() -> FastAPI:
             status_code=500,
             content={"detail": "Internal server error"}
         )
-
-    # Graceful shutdown: cleanup model resources on shutdown
-    @app.on_event("shutdown")
-    async def shutdown_event():
-        """Cleanup resources on server shutdown."""
-        logger.info("Shutting down - cleaning up resources...")
-        try:
-            from .dependencies import _global_explainer
-            if _global_explainer is not None:
-                _global_explainer.cleanup_memory()
-                logger.info("Model resources cleaned up successfully")
-        except Exception as e:
-            logger.warning("Error during shutdown cleanup: %s", e)
 
     return app
 
