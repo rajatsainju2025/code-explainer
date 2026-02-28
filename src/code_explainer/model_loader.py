@@ -178,8 +178,8 @@ class ModelLoader:
         if not self.device_manager.validate_device_compatibility(path, self.device_capabilities.device_type):
             logger.warning("Model %s may have compatibility issues with %s", path, self.device_capabilities.device_type)
 
-        # Load model with torch.no_grad for reduced memory overhead
-        with torch.no_grad():
+        # Load model with torch.inference_mode for reduced memory overhead
+        with torch.inference_mode():
             # Load appropriate model type
             if self.config.arch == "seq2seq":
                 model = AutoModelForSeq2SeqLM.from_pretrained(path, **model_kwargs)
