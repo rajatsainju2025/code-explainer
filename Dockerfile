@@ -38,7 +38,7 @@ RUN mkdir -p /app && chown codeexplainer:codeexplainer /app
 WORKDIR /app
 
 # Copy dependency files first for better caching
-COPY --chown=codeexplainer:codeexplainer pyproject.toml poetry.lock requirements*.txt ./
+COPY --chown=codeexplainer:codeexplainer pyproject.toml ./
 
 # Install Python dependencies
 RUN pip install --upgrade pip \
@@ -75,7 +75,7 @@ RUN mkdir -p /app/models /app/data /app/configs /app/.cache && \
 WORKDIR /app
 
 # Copy dependency files
-COPY --chown=codeexplainer:codeexplainer pyproject.toml poetry.lock requirements*.txt ./
+COPY --chown=codeexplainer:codeexplainer pyproject.toml ./
 
 # Install production dependencies only
 RUN pip install --upgrade pip \
