@@ -113,7 +113,8 @@ class CodeExplainerInitializationMixin:
             # Initialize explanation cache if configured
             cache_enabled = self._cfg_get_bool("cache.enabled", False)
             if cache_enabled:
-                cache_dir = self._cfg_get_str("cache.dir", "./cache")
+                # Config dataclass uses 'directory', not 'dir'
+                cache_dir = self._cfg_get_str("cache.directory", "./cache")
                 cache_size = self._cfg_get_int("cache.max_size", 1000)
 
                 self.explanation_cache = ExplanationCache(
