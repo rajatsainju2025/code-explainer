@@ -17,7 +17,7 @@ import hashlib
 import json
 import logging
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 from collections import defaultdict, deque
 
 logger = logging.getLogger(__name__)
@@ -114,7 +114,7 @@ class AuditLogger:
             return
         
         event = {
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "event_type": event_type,
             "severity": severity,
             "details": details
@@ -441,13 +441,10 @@ class SafeCodeExecutor:
 def hash_code(code: str) -> str:
     """Generate a hash for code content.
     
-    Uses xxhash when available (6x faster) with sha256 fallback.
+    Delegates to the canonical fast_hash_str in utils/hashing.py.
     """
-    try:
-        import xxhash
-        return xxhash.xxh64(code.encode('utf-8')).hexdigest()
-    except ImportError:
-        return hashlib.sha256(code.encode('utf-8')).hexdigest()
+    from code_explainer.utils.hashing import fast_hash_str
+    return fast_hash_str(code)
 
 
 class SecurityManager:
