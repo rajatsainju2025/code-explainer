@@ -181,10 +181,14 @@ def setup_cors_middleware(app, allowed_origins=None):
                 "Set CORS_ALLOWED_ORIGINS env variable in production."
             )
 
+    # CORS spec forbids allow_credentials=True with allow_origins=["*"]
+    # Browsers will reject credentialed cross-origin requests in that case
+    use_credentials = "*" not in allowed_origins
+
     app.add_middleware(
         CORSMiddleware,
         allow_origins=allowed_origins,
-        allow_credentials=True,
+        allow_credentials=use_credentials,
         allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
         allow_headers=["*"],
         expose_headers=["X-Request-ID", "X-Response-Time"],
