@@ -34,13 +34,14 @@ _monotonic = time.monotonic
 class RateLimiter:
     """Rate limiter using sliding window algorithm."""
 
-    __slots__ = ("requests_per_minute", "requests", "cleanup_interval", "last_cleanup")
+    __slots__ = ("requests_per_minute", "requests", "cleanup_interval", "last_cleanup", "max_clients")
 
-    def __init__(self, requests_per_minute: int = 60):
+    def __init__(self, requests_per_minute: int = 60, max_clients: int = 10000):
         self.requests_per_minute = requests_per_minute
         self.requests: Dict[str, deque] = defaultdict(deque)
         self.cleanup_interval = 60  # seconds
         self.last_cleanup = _monotonic()
+        self.max_clients = max_clients  # Prevent unbounded memory growth
 
     def is_allowed(self, client_id: str) -> Tuple[bool, Optional[str]]:
         """Check if request is allowed for client."""
@@ -49,6 +50,11 @@ class RateLimiter:
         # Periodic cleanup: use monotonic for the interval guard
         if _monotonic() - self.last_cleanup > self.cleanup_interval:
             self._cleanup_old_requests()
+
+        # Reject new clients if tracking too many (prevents memory exhaustion
+        # from a flood of unique/forged client IDs)
+        if client_id not in self.requests and len(self.requests) >= self.max_clients:
+            return False, "Too many tracked clients. Try again later."
 
         # Get client's request history
         client_requests = self.requests[client_id]
