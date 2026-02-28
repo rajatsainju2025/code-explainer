@@ -91,7 +91,12 @@ def prompt_for_language(config: Dict[str, Any], code: str) -> str:
     base_template = templates.get(lang, default_template)
     # Strip only if code has leading/trailing whitespace (avoid copy for clean input)
     code_stripped = code.strip() if code[0:1].isspace() or code[-1:].isspace() else code
-    base_prompt = base_template.format(code=code_stripped)
+    # Use str.replace instead of str.format to avoid KeyError/ValueError
+    # when code contains curly braces (dicts, f-strings, sets)
+    if "{code}" in base_template:
+        base_prompt = base_template.replace("{code}", code_stripped)
+    else:
+        base_prompt = base_template + "\n" + code_stripped
 
     # Skip augmentation for non-Python code or vanilla strategy
     if lang != "python" or strategy == _STRATEGY_VANILLA:
