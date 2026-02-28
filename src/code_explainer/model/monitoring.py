@@ -112,11 +112,10 @@ class CodeExplainerMonitoringMixin:
         if bits not in [4, 8, 16]:
             return {"error": f"Unsupported quantization: {bits} bits"}
         
-        # Placeholder for quantization logic
         logger.info("Quantization to %d-bit requested", bits)
         return {
-            "success": True,
-            "message": f"{bits}-bit quantization enabled",
+            "success": False,
+            "message": f"{bits}-bit quantization is not yet implemented",
             "bits": bits
         }
 
@@ -141,10 +140,12 @@ class CodeExplainerMonitoringMixin:
                 model = self._resources.model
                 model.eval()
                 
-                # Disable dropout
+                # Disable dropout safely — check module type, not arbitrary attributes.
+                # Setting module.dropout = 0.0 on non-Dropout modules corrupts them.
+                import torch.nn as nn
                 for module in model.modules():
-                    if hasattr(module, 'dropout'):
-                        module.dropout = 0.0
+                    if isinstance(module, nn.Dropout):
+                        module.p = 0.0
                 
                 return {"success": True, "message": "Model optimized for inference"}
             
