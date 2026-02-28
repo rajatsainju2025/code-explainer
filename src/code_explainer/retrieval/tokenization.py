@@ -53,7 +53,7 @@ class TextTokenizer:
 
     def __del__(self) -> None:
         """Shutdown the thread-pool executor to release OS threads on GC."""
-        executor = self.__dict__.get('_executor')
+        executor = getattr(self, '_executor', None)
         if executor is not None:
             executor.shutdown(wait=False)
 
