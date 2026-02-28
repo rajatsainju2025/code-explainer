@@ -1,12 +1,12 @@
 """
 Caching utilities for code explanations and embeddings.
 
-NOTE: This module has been refactored into a modular structure.
-All functionality is now available through the cache package.
+DEPRECATED: This module is a backward-compatibility shim.
+Import directly from ``code_explainer.cache`` (the package) instead.
 """
 
-# Import everything from the new modular structure for backward compatibility
-from .cache import (
+# Re-export everything from the cache package for backward compatibility
+from .cache import (  # noqa: F811
     BaseCache,
     CacheConfig,
     CacheStats,
@@ -23,3 +23,11 @@ __all__ = [
     "CacheConfig",
     "CacheStats",
 ]
+
+import warnings as _warnings
+_warnings.warn(
+    "Importing from 'code_explainer.cache' (the shim module) is deprecated. "
+    "Import from the 'code_explainer.cache' package directly.",
+    DeprecationWarning,
+    stacklevel=2,
+)
