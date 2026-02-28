@@ -104,9 +104,15 @@ class CodeExplainerExplanationMixin:
                 try:
                     ids = cast(List[int], tok.encode(prompt))  # type: ignore[attr-defined]
                 except (AttributeError, TypeError):
-                    ids = [1, 2, 3]
+                    raise ModelError(
+                        "Tokenizer failed to encode the prompt. "
+                        "Ensure the tokenizer is properly initialized."
+                    )
             else:
-                ids = [1, 2, 3]
+                raise ModelError(
+                    "Tokenizer does not support __call__ or encode(). "
+                    "Cannot tokenize the input prompt."
+                )
             input_ids = torch.tensor([ids], dtype=torch.long, device=device)
             attention_mask = torch.ones_like(input_ids)
             inputs = {"input_ids": input_ids, "attention_mask": attention_mask}
@@ -254,7 +260,9 @@ class CodeExplainerExplanationMixin:
                 prefix_parts.append(f"function {primary_fn}")
             if needs_rec_hint:
                 prefix_parts.append("recursive")
-            prefix = f"This is a {' '.join(prefix_parts)} "
-            explanation = prefix + explanation[0].lower() + explanation[1:] if explanation else prefix
+            prefix = f"This is a {' '.join(prefix_parts)}. "
+            # Don't lowercase the first character — it may be an acronym
+            # (e.g. "AST", "HTTP"), class name, or proper noun.
+            explanation = prefix + explanation
 
         return explanation
