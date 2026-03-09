@@ -218,11 +218,11 @@ class PersistentModelCache:
         """
         try:
             disk_size_mb = self.get_cache_size() / (1024 * 1024)
-            disk_models = list(self.cache_dir.glob("*.pkl"))
-            
+            disk_models_count = sum(1 for _ in self.cache_dir.glob("*.pkl"))
+
             return {
                 "in_memory_models": len(self._local_cache),
-                "disk_models": len(disk_models),
+                "disk_models": disk_models_count,
                 "disk_size_mb": round(disk_size_mb, 2),
                 "cache_dir": str(self.cache_dir)
             }
