@@ -190,10 +190,11 @@ class ContentFilter:
         # Compile patterns at class-level once for better performance
         if ContentFilter._CLASS_COMPILED_PATTERNS is None:
             ContentFilter._CLASS_COMPILED_PATTERNS = {
-                category: [re.compile(pattern, re.IGNORECASE) for pattern in patterns]
+                category: tuple(re.compile(pattern, re.IGNORECASE) for pattern in patterns)
                 for category, patterns in self.sensitive_pattern_strings.items()
             }
 
+        # Use tuple-of-tuples for slightly faster iteration and immutability
         self.compiled_patterns = ContentFilter._CLASS_COMPILED_PATTERNS
 
     def scan(self, code: str) -> Dict[str, List[str]]:
