@@ -6,7 +6,11 @@ from .ast_analysis import (
     summarize_code_structure,
 )
 from .config import load_config, setup_logging
-from .device import get_device
+def get_device(*args, **kwargs):
+    """Lazy wrapper that delegates to `utils.device.get_device` to avoid
+    importing device-heavy modules at package import time."""
+    from .device import get_device as _get_device
+    return _get_device(*args, **kwargs)
 from .hashing import fast_hash_bytes, fast_hash_str, json_loads, json_dumps
 from .language import detect_language
 from .prompting import prompt_for_language
