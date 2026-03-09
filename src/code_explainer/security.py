@@ -158,6 +158,9 @@ class ContentFilter:
     
     __slots__ = ('sensitive_pattern_strings', 'compiled_patterns')
 
+    # Compile patterns once per class to avoid recompiling on each instance
+    _CLASS_COMPILED_PATTERNS = None
+
     def __init__(self):
         # Define pattern strings
         self.sensitive_pattern_strings = {
@@ -184,11 +187,14 @@ class ContentFilter:
             ]
         }
         
-        # Compile all patterns once for better performance
-        self.compiled_patterns = {
-            category: [re.compile(pattern, re.IGNORECASE) for pattern in patterns]
-            for category, patterns in self.sensitive_pattern_strings.items()
-        }
+        # Compile patterns at class-level once for better performance
+        if ContentFilter._CLASS_COMPILED_PATTERNS is None:
+            ContentFilter._CLASS_COMPILED_PATTERNS = {
+                category: [re.compile(pattern, re.IGNORECASE) for pattern in patterns]
+                for category, patterns in self.sensitive_pattern_strings.items()
+            }
+
+        self.compiled_patterns = ContentFilter._CLASS_COMPILED_PATTERNS
 
     def scan(self, code: str) -> Dict[str, List[str]]:
         """Scan code for sensitive content using pre-compiled patterns."""
