@@ -162,8 +162,8 @@ class PersistentModelCache:
                 # Acquire exclusive lock (write lock)
                 flock(lock_file.fileno(), LOCK_EX)
                 try:
-                    with open(cache_path, 'wb') as f:
-                        pickle.dump(model, f)
+                        with open(cache_path, 'wb') as f:
+                            pickle.dump(model, f, protocol=pickle.HIGHEST_PROTOCOL)
                     logger.debug("Model cached to disk: %s", model_name)
                     return True
                 finally:
@@ -172,10 +172,10 @@ class PersistentModelCache:
             logger.warning("Failed to cache model to disk: %s", e)
             # Fall back to writing a lightweight placeholder so other processes
             # can detect that a model was cached here (tests use MagicMock).
-            try:
-                placeholder = {"_placeholder": True, "name": model_name}
-                with open(cache_path, 'wb') as f:
-                    pickle.dump(placeholder, f)
+                try:
+                    placeholder = {"_placeholder": True, "name": model_name}
+                    with open(cache_path, 'wb') as f:
+                        pickle.dump(placeholder, f, protocol=pickle.HIGHEST_PROTOCOL)
                 return True
             except Exception as e2:
                 logger.warning("Failed to write placeholder cache file: %s", e2)
