@@ -19,7 +19,19 @@ from typing import Optional, Dict, Any, FrozenSet, TYPE_CHECKING
 import logging
 import threading
 
-from .utils.hashing import json_loads, json_dumps
+import importlib
+
+
+def _json_loads(b: bytes):
+    """Lazily import and call json_loads to avoid circular imports."""
+    mod = importlib.import_module('.utils.hashing', package=__package__)
+    return mod.json_loads(b)
+
+
+def _json_dumps(obj) -> str:
+    """Lazily import and call json_dumps to avoid circular imports."""
+    mod = importlib.import_module('.utils.hashing', package=__package__)
+    return mod.json_dumps(obj)
 
 if TYPE_CHECKING:
     import torch
@@ -122,7 +134,7 @@ class DeviceManager:
         torch = _get_torch()
         
         try:
-            cache_data = json_loads(self.CACHE_FILE.read_bytes())
+            cache_data = _json_loads(self.CACHE_FILE.read_bytes())
             
             for device_type, data in cache_data.items():
                 try:
@@ -155,7 +167,7 @@ class DeviceManager:
                 for device_type, cap in self._cached_capabilities.items()
             }
             
-            self.CACHE_FILE.write_text(json_dumps(cache_data))
+            self.CACHE_FILE.write_text(_json_dumps(cache_data))
             logger.debug("Saved device capabilities cache to %s", self.CACHE_FILE)
         except (OSError, PermissionError) as e:
             logger.warning("Failed to save device cache file: %s", e)

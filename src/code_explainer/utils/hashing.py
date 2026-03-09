@@ -5,27 +5,38 @@ fallback patterns that were previously copy-pasted across 5+ modules.
 """
 
 from typing import Any
+from functools import lru_cache
 
 # --- Fast hashing (xxhash with hashlib fallback) ---
 
 try:
     import xxhash
 
+    @lru_cache(maxsize=2048)
     def fast_hash_bytes(data: bytes) -> str:
-        """Hash bytes using xxhash (fast) with hashlib fallback."""
+        """Hash bytes using xxhash (fast) with hashlib fallback.
+
+        Cached for repeated short inputs to avoid re-hashing identical strings.
+        """
         return xxhash.xxh64(data).hexdigest()
 
+    @lru_cache(maxsize=2048)
     def fast_hash_str(data: str) -> str:
-        """Hash a string using xxhash (fast) with hashlib fallback."""
+        """Hash a string using xxhash (fast) with hashlib fallback.
+
+        Cached to avoid recomputing hashes for repeated identifiers.
+        """
         return xxhash.xxh64(data.encode()).hexdigest()
 
 except ImportError:
     import hashlib
 
+    @lru_cache(maxsize=2048)
     def fast_hash_bytes(data: bytes) -> str:
         """Hash bytes using hashlib MD5 fallback."""
         return hashlib.md5(data, usedforsecurity=False).hexdigest()
 
+    @lru_cache(maxsize=2048)
     def fast_hash_str(data: str) -> str:
         """Hash a string using hashlib MD5 fallback."""
         return hashlib.md5(data.encode(), usedforsecurity=False).hexdigest()

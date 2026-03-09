@@ -447,6 +447,27 @@ def hash_code(code: str) -> str:
     return fast_hash_str(code)
 
 
+def sanitize_code_for_display(code: str, max_length: int = 1000) -> str:
+    """Sanitize code for display by masking sensitive values and truncating.
+
+    - Masks values assigned to common sensitive variable names (password, api_key, token, secret).
+    - Truncates to `max_length` characters and appends '...' when truncated.
+    """
+    # Mask common sensitive assignments like password = "secret"
+    masked = re.sub(r"(password|api_key|api\-key|token|secret)\s*=\s*(['\"])(.*?)(['\"])",
+                    lambda m: f"{m.group(1)} = {m.group(2)}***{m.group(4)}",
+                    code, flags=re.IGNORECASE)
+
+    # Additionally mask any long string literals that look sensitive
+    masked = re.sub(r"(['\"])(.{50,}?)\1", lambda m: f"{m.group(1)}***{m.group(1)}", masked)
+
+    # Truncate if necessary
+    if max_length is not None and len(masked) > max_length:
+        return masked[:max_length] + "..."
+
+    return masked
+
+
 class SecurityManager:
     """Central security manager coordinating all security components."""
 
