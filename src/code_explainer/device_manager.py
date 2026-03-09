@@ -98,14 +98,12 @@ class DeviceCapabilities:
 
 class DeviceManager:
     """Centralized device detection and management.
-    
+
     Caches device capabilities to ~/.cache/code-explainer/device_cache.json
     to avoid repeated CUDA/MPS probes in subsequent runs.
-    
+
     Use get_device_manager() for singleton access.
     """
-
-    __slots__ = ('_cached_capabilities', '_lock', '_cache_loaded')
 
     CACHE_DIR = Path.home() / ".cache" / "code-explainer"
     CACHE_FILE = CACHE_DIR / "device_cache.json"
@@ -420,3 +418,13 @@ def get_device_manager() -> DeviceManager:
     writing testable code — it can be monkey-patched more easily.
     """
     return device_manager
+
+
+def get_device_capabilities(prefer_device: Optional[str] = None) -> DeviceCapabilities:
+    """Convenience module-level function returning optimal device capabilities."""
+    return device_manager.get_optimal_device(prefer_device)
+
+
+def get_recommended_dtype(device_caps: DeviceCapabilities, prefer_precision: Optional[str] = None):
+    """Convenience wrapper for recommended dtype selection."""
+    return device_manager.get_recommended_dtype(device_caps, prefer_precision)
