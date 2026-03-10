@@ -407,3 +407,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - README updated with presets and strategy usage
 - Version bumped to 0.3.0
+
+## Unreleased (local tweaks)
+
+- Small, conservative performance and test-friendliness tweaks applied locally:
+	- LRU caching for `fast_hash_*` utilities to speed repeated hashing.
+	- Class-level caching for `ContentFilter` regex compilation to reduce instantiation overhead.
+	- Use of highest pickle protocol and a more memory-friendly disk counting path in model cache.
+	- Lazy import for `get_device()` to reduce import-time and avoid circular imports.
