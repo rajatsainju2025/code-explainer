@@ -545,3 +545,13 @@ Endpoints:
 - POST /explain {code: str, strategy?: str} → {explanation: str}
 
 More: see `docs/api.md` and `docs/strategies.md`.
+
+## Local Performance Notes
+
+The local branch includes a few conservative performance tweaks focused on startup and hot-paths:
+
+- LRU caching for hashing utilities to speed repeated hash computations.
+- Cached compiled regexes for `ContentFilter` to reduce repeated compilation overhead.
+- Improved model cache serialization and disk counting for slightly faster cache operations.
+
+Run the small benchmarks in `scripts/` to validate improvements locally.
