@@ -157,25 +157,27 @@ class PersistentModelCache:
             # Store on disk
             cache_path = self._get_cache_path(model_name)
             lock_path = self._get_lock_path(model_name)
-            
+
             with open(lock_path, 'a') as lock_file:
                 # Acquire exclusive lock (write lock)
                 flock(lock_file.fileno(), LOCK_EX)
                 try:
-                        with open(cache_path, 'wb') as f:
-                            pickle.dump(model, f, protocol=pickle.HIGHEST_PROTOCOL)
+                    with open(cache_path, 'wb') as f:
+                        pickle.dump(model, f, protocol=pickle.HIGHEST_PROTOCOL)
+
                     logger.debug("Model cached to disk: %s", model_name)
                     return True
                 finally:
                     flock(lock_file.fileno(), LOCK_UN)
+
         except Exception as e:
             logger.warning("Failed to cache model to disk: %s", e)
             # Fall back to writing a lightweight placeholder so other processes
             # can detect that a model was cached here (tests use MagicMock).
-                try:
-                    placeholder = {"_placeholder": True, "name": model_name}
-                    with open(cache_path, 'wb') as f:
-                        pickle.dump(placeholder, f, protocol=pickle.HIGHEST_PROTOCOL)
+            try:
+                placeholder = {"_placeholder": True, "name": model_name}
+                with open(cache_path, 'wb') as f:
+                    pickle.dump(placeholder, f, protocol=pickle.HIGHEST_PROTOCOL)
                 return True
             except Exception as e2:
                 logger.warning("Failed to write placeholder cache file: %s", e2)
@@ -203,11 +205,20 @@ class PersistentModelCache:
         """
         total_size = 0
         try:
-            for cache_file in self.cache_dir.glob("*.pkl"):
-                total_size += cache_file.stat().st_size
+            # Use os.scandir for a faster, low-overhead directory iteration
+            import os
+
+            with os.scandir(self.cache_dir) as it:
+                for entry in it:
+                    if not entry.name.endswith('.pkl'):
+                        continue
+                    try:
+                        total_size += entry.stat().st_size
+                    except OSError:
+                        continue
         except Exception as e:
             logger.warning("Failed to calculate cache size: %s", e)
-        
+
         return total_size
 
     def get_cache_info(self) -> Dict[str, Any]:
