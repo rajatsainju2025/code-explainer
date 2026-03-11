@@ -212,9 +212,9 @@ class DeviceManager:
         torch = _get_torch()
 
         try:
-            if device_type == 'cuda' and torch.cuda.is_available():
+            if device_type == 'cuda' and getattr(torch, 'cuda', None) and torch.cuda.is_available():
                 capabilities = self._analyze_cuda_device()
-            elif device_type == 'mps' and torch.backends.mps.is_available():
+            elif device_type == 'mps' and getattr(getattr(torch, 'backends', None), 'mps', None) and torch.backends.mps.is_available():
                 capabilities = self._analyze_mps_device()
             elif device_type == 'cpu':
                 capabilities = self._analyze_cpu_device()
