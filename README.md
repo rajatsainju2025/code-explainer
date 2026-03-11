@@ -58,6 +58,17 @@ Device portability and intelligent explanations:
 - **CLI Tools**: Comprehensive command-line interface with rich output
 - **Python SDK**: Direct integration for developers
 
+## Compatibility Notes
+
+Small compatibility shims have been added to improve testability and
+backwards compatibility with prior consumer code. Notable shims include:
+
+- `CodeExplainer.explain_code_with_symbolic(...)` — convenience method that
+  returns combined symbolic + textual explanations.
+- `CodeExplainerTrainer` accepts a `config_path` parameter for older callers.
+- `clear_model_cache` and `get_model_cache_info` are exported at the package
+  level for convenience when managing cached model artifacts.
+
 ### 🔒 **Security & Safety**
 - **Code Redaction**: Automatic PII and credential detection and redaction
 - **Security Validation**: AST-based dangerous pattern detection
