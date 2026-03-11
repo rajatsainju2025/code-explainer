@@ -53,6 +53,11 @@ class CodeExplainerPropertiesMixin:
     def device(self) -> torch.device:
         """Get the compute device; default to CPU if not initialized."""
         if self._resources is None:
+            # If tests or callers injected a mock model/tokenizer, prefer CPU
+            # so flows that rely on `device` can proceed without loading
+            # heavy model resources.
+            if getattr(self, '_injected_model', None) is not None or getattr(self, '_injected_tokenizer', None) is not None:
+                return torch.device('cpu')
             raise RuntimeError("Model resources not initialized")  # Backward-compat: tests expect RuntimeError here
         return self._resources.device
 
