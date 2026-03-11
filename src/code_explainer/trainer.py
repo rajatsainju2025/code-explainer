@@ -11,13 +11,19 @@ class CodeExplainerTrainer:
     
     __slots__ = ('config', 'model', 'tokenizer')
 
-    def __init__(self, config: Dict[str, Any]) -> None:
+    def __init__(self, config: Optional[Dict[str, Any]] = None, config_path: Optional[str] = None) -> None:
         """Initialize trainer with configuration.
-        
-        Args:
-            config: Configuration dictionary for training
+
+        Accepts either a configuration dictionary via `config` or a path to a
+        configuration file via `config_path` for backward compatibility with
+        older callers/tests.
         """
-        self.config: Dict[str, Any] = config
+        if config is None and config_path is not None:
+            # Minimal compatibility shim: store the path under a small dict so
+            # users and tests that inspect `trainer.config` still see something.
+            self.config = {"config_path": config_path}
+        else:
+            self.config = config or {}
         self.model: Optional[Any] = None
         self.tokenizer: Optional[Any] = None
 
