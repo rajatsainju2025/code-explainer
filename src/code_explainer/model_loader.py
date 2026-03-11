@@ -19,7 +19,7 @@ from functools import lru_cache
 
 from .config import ModelConfig
 from .error_handling import ModelError, ConfigurationError, ResourceError
-from .device_manager import DeviceManager, DeviceCapabilities, device_manager as _global_device_manager
+from .device_manager import DeviceCapabilities, device_manager as _global_device_manager
 
 logger = logging.getLogger(__name__)
 
