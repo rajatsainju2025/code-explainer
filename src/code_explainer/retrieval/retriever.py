@@ -36,7 +36,7 @@ class CodeRetriever:
     Supports FAISS vector search, BM25 lexical search, and hybrid fusion.
     """
     
-    __slots__ = ('config', 'model', 'code_corpus', 'faiss_index', 'bm25_index', 
+    __slots__ = ('config', 'model', 'model_name', 'code_corpus', 'faiss_index', 'bm25_index', 
                  'hybrid_search', 'stats', '_stats_lock')
 
     def __init__(self, model_name: str = "sentence-transformers/all-MiniLM-L6-v2",
@@ -48,6 +48,8 @@ class CodeRetriever:
             model: Pre-loaded model instance (optional)
         """
         self.config = RetrievalConfig()
+        # Expose model_name for backward compatibility and testing
+        self.model_name = model_name
         # Use provided model or get from persistent cache
         self.model = model if model is not None else get_cached_model(model_name)
 
@@ -161,3 +163,8 @@ class CodeRetriever:
             )
 
         return [self.code_corpus[i] for i in result_indices]
+
+    @property
+    def index(self):
+        """Backward-compatible alias for the underlying FAISS index instance."""
+        return self.faiss_index

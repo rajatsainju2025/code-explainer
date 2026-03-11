@@ -21,8 +21,10 @@ class FAISSIndex:
     """Manages FAISS index for vector similarity search."""
     
     # Use __slots__ to reduce memory overhead
+    # Allow instance dict for test-time monkeypatching while keeping most
+    # attributes in slots to reduce memory overhead in production.
     __slots__ = ('model', 'batch_size', 'index', '_dimension', '_query_cache', 
-                 '_cache_max_size')
+                 '_cache_max_size', '__dict__')
 
     def __init__(self, model: SentenceTransformer, batch_size: int = 32):
         if not HAS_FAISS:
