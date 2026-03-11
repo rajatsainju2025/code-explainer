@@ -17,8 +17,6 @@ if str(SRC) not in sys.path:
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from code_explainer.config import Config, ModelConfig
-from code_explainer.model_loader import ModelLoader, ModelResources
 
 # Thread-safe fixture cache for parallel test execution
 _fixture_cache: Dict[str, Any] = {}
@@ -182,8 +180,6 @@ def optimize_test_performance():
     logging.getLogger().setLevel(logging.WARNING)
 
     # Pre-warm common imports
-    import torch
-    import numpy as np
 
     yield
 

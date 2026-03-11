@@ -1,6 +1,5 @@
 """Tests for security functionality."""
 
-import pytest
 
 from code_explainer.security import CodeSecurityValidator, SafeCodeExecutor, hash_code, sanitize_code_for_display
 

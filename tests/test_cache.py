@@ -3,7 +3,6 @@
 import tempfile
 from pathlib import Path
 
-import pytest
 
 from code_explainer.cache import EmbeddingCache, ExplanationCache
 

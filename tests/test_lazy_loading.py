@@ -2,8 +2,7 @@
 
 import pytest
 import time
-from unittest.mock import Mock, patch, MagicMock
-from pathlib import Path
+from unittest.mock import patch, MagicMock
 
 from src.code_explainer.model.core import CodeExplainer
 

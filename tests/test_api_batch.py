@@ -1,6 +1,5 @@
 """Tests for batch explanation endpoint."""
 
-import json
 from fastapi.testclient import TestClient
 
 from code_explainer.api.server import create_app

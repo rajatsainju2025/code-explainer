@@ -4,8 +4,7 @@ import json
 import gzip
 from functools import lru_cache
 from pathlib import Path
-from typing import Dict, List, Any, Optional, Union
-from io import StringIO
+from typing import Dict, Any, Optional, Union
 
 
 @lru_cache(maxsize=16)

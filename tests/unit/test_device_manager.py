@@ -1,8 +1,7 @@
 """Tests for device management functionality."""
 
 import os
-import unittest.mock as mock
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 import pytest
 import torch
 

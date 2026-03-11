@@ -254,7 +254,6 @@ class TestCodeExplainerBackwardCompatibility:
     def test_config_loading_compatibility(self):
         """Test that config loading works with intelligent features added."""
         from src.code_explainer.config import Config
-        from pathlib import Path
 
         # Should be able to create config without issues
         try:

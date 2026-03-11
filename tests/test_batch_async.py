@@ -4,8 +4,7 @@ import pytest
 import asyncio
 import inspect
 from typing import List, Optional
-from unittest.mock import AsyncMock, MagicMock, patch
-from fastapi.testclient import TestClient
+from unittest.mock import MagicMock
 
 # These imports will work when test runs in the project environment
 try:

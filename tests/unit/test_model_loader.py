@@ -2,13 +2,12 @@
 
 import pytest
 import torch
-from pathlib import Path
 
 from code_explainer.model_loader import (
     ModelLoader,
     ModelResources,
 )
-from code_explainer.error_handling import ModelError, ResourceError, ConfigurationError
+from code_explainer.error_handling import ConfigurationError
 
 
 def test_model_loader_initialization(test_model_config):

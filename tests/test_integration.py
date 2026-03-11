@@ -1,9 +1,7 @@
 """Integration tests for the code explainer."""
 
 import pytest
-import tempfile
 import time
-from pathlib import Path
 from typing import Dict, Any
 
 # Integration test markers and utilities

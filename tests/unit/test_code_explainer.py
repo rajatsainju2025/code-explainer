@@ -1,10 +1,8 @@
 """Unit tests for the CodeExplainer class."""
 
 import pytest
-from pathlib import Path
 
 from code_explainer.model import CodeExplainer
-from code_explainer.error_handling import ModelError
 
 
 def test_code_explainer_initialization(test_config, mock_model, mock_tokenizer, monkeypatch):
@@ -78,8 +76,6 @@ def test_code_explainer_explain_code(
 def test_code_explainer_caching(test_config, mock_model, mock_tokenizer, monkeypatch, temp_dir):
     """Test explanation caching functionality."""
     import torch
-    import os
-    from code_explainer.cache import ExplanationCache
 
     # Create the cache directory manually
     cache_dir = temp_dir / "cache"

@@ -1,6 +1,5 @@
 """Test result caching for faster test reruns and performance tracking."""
 
-import json
 import hashlib
 from pathlib import Path
 from typing import Dict, Any, Optional
