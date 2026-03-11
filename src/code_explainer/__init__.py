@@ -11,6 +11,7 @@ __email__ = "rajatsainju@proton.me"
 
 from .model import CodeExplainer
 from .utils import load_config, setup_logging
+from .retrieval.model_cache import clear_model_cache, get_model_cache_info
 
 # Optional imports
 try:
@@ -22,6 +23,8 @@ __all__ = [
     "CodeExplainer",
     "load_config",
     "setup_logging",
+    "clear_model_cache",
+    "get_model_cache_info",
 ]
 
 if CodeExplainerTrainer is not None:
