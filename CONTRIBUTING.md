@@ -76,6 +76,20 @@ pytest
 pytest --cov=code_explainer  # with coverage
 ```
 
+## Device testing and CI notes
+
+- To run device-sensitive tests locally, set environment overrides to avoid
+    hardware dependence. Example:
+
+```bash
+export CODE_EXPLAINER_DEVICE=cpu
+export CODE_EXPLAINER_PRECISION=fp32
+pytest -q tests/unit/test_device_manager_fallback.py
+```
+
+This repository provides fast mocked integration tests under `tests/integration`
+that do not require GPU or large model downloads; CI runs these by default.
+
 ## Documentation
 
 We use docstrings for API documentation. Please follow the Google style:
