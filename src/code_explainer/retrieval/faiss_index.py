@@ -142,5 +142,37 @@ class FAISSIndex:
         if not p.exists():
             raise FileNotFoundError(f"Index file not found: {path}")
 
-        self.index = faiss.read_index(str(p))
-        logger.info("FAISS index loaded from %s. Index size: %d", path, self.index.ntotal)
+        # Wrap faiss read_index in a safe loader that validates the index
+        try:
+            self.index = faiss.read_index(str(p))
+        except Exception as e:
+            logger.error("Failed to read FAISS index from %s: %s", path, e)
+            raise
+
+        # Sanity check: ensure index has a non-negative number of vectors
+        try:
+            ntotal = int(getattr(self.index, 'ntotal', 0) or 0)
+        except Exception:
+            ntotal = 0
+
+        if ntotal <= 0:
+            logger.warning("Loaded FAISS index has zero entries: %s", path)
+
+        logger.info("FAISS index loaded from %s. Index size: %d", path, ntotal)
+
+    def load_index_safe(self, path: str) -> None:
+        """Compatibility wrapper that loads and validates a FAISS index.
+
+        This helper is callable by tests that want to ensure the index file is
+        present and contains vectors. It returns without raising if the index
+        is loaded but empty (caller can decide to rebuild).
+        """
+        try:
+            self.load_index(path)
+        except FileNotFoundError:
+            # Bubble up missing file as-is
+            raise
+        except Exception:
+            # For other errors, log and re-raise as ResourceError for consistency
+            from ..exceptions import ResourceError
+            raise ResourceError("Failed to load FAISS index", resource_type="faiss_index")
