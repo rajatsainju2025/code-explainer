@@ -98,7 +98,8 @@ class FAISSIndex:
     def search(self, query_code: str, k: int) -> Tuple[np.ndarray, np.ndarray]:
         """Search for similar codes using FAISS."""
         if self.index is None:
-            raise ValueError("FAISS index is not loaded.")
+            from ..exceptions import ResourceError
+            raise ResourceError("FAISS index is not loaded.", resource_type="faiss_index")
 
         # Check cache for repeated queries
         cache_key = (query_code, k)
@@ -127,7 +128,8 @@ class FAISSIndex:
     def save_index(self, path: str) -> None:
         """Save FAISS index to disk."""
         if self.index is None:
-            raise ValueError("Index has not been built yet.")
+            from ..exceptions import ResourceError
+            raise ResourceError("Index has not been built yet.", resource_type="faiss_index")
 
         p = Path(path)
         p.parent.mkdir(parents=True, exist_ok=True)

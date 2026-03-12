@@ -134,11 +134,13 @@ class CodeRetriever:
                              method: str = "faiss", alpha: float = 0.5) -> List[str]:
         """Retrieve similar code snippets."""
         if not self.code_corpus:
-            raise ValueError("Index is not loaded or built")
+            from ..exceptions import ResourceError
+            raise ResourceError("Index is not loaded or built", resource_type="faiss_index")
 
         method = (method or "faiss").lower()
         if method not in _VALID_METHODS:
-            raise ValueError("method must be one of: faiss|bm25|hybrid")
+            from ..exceptions import ValidationError
+            raise ValidationError("method must be one of: faiss|bm25|hybrid", field_name="method", field_value=method)
 
         start_time = perf_counter()
 
