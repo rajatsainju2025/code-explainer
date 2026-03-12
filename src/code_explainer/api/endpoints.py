@@ -119,7 +119,7 @@ async def explain_code(
 
 @router.post("/explain/batch")
 async def explain_code_batch(
-    payload: Dict[str, Any],
+    payload: "BatchCodeExplanationRequest",
     explainer: CodeExplainer = Depends(get_code_explainer),
     request_id: str = Depends(get_request_id),
     api_key: Optional[str] = Depends(get_optional_api_key)
@@ -132,7 +132,11 @@ async def explain_code_batch(
     metrics_collector = get_metrics_collector()
     req_metrics = metrics_collector.start_request(request_id, "/explain/batch")
     try:
-        codes = payload.get("codes") or []
+        # Accept BatchCodeExplanationRequest model or legacy dict payload
+        if hasattr(payload, 'requests'):
+            codes = [r.get('code') for r in payload.requests if isinstance(r, dict) and r.get('code')]
+        else:
+            codes = payload.get("codes") or []
         if not isinstance(codes, list) or not codes:
             metrics_collector.end_request(req_metrics, status_code=400)
             raise HTTPException(status_code=400, detail="'codes' must be a non-empty list")
