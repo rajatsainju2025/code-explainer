@@ -340,6 +340,19 @@ class DeviceManager:
 
         return False
 
+    def get_fallback_order(self, current_device: str) -> list:
+        """Return ordered fallback devices for a given current device.
+
+        This centralizes fallback policies so tests and callers can reason about
+        the order without peeking into implementation details.
+        """
+        fallback_map = {
+            'cuda': ['mps', 'cpu'],
+            'mps': ['cpu'],
+            'cpu': [],
+        }
+        return fallback_map.get(current_device, [])
+
     def validate_device_compatibility(self, model_name: str, device_type: str) -> bool:
         """Check if a model is compatible with a device."""
         capabilities = self._get_device_capabilities(device_type)
