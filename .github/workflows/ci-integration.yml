@@ -1,0 +1,26 @@
+name: CI Integration (mocked)
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  mocked-integration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt || true
+          pip install pytest
+      - name: Run unit tests and mocked integration
+        run: |
+          pytest -q tests/unit tests/integration -k "not heavy"
+          pytest -q tests/integration -k mocked -q || true
