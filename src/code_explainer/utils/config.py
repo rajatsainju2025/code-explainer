@@ -142,3 +142,25 @@ def setup_logging(
                 root_logger.addHandler(file_handler)
         
         _logging_configured = True
+
+
+def get_config(config_path: Optional[Union[str, Path]] = None, interpolate_env: bool = True) -> Dict[str, Any]:
+    """Load configuration using env override or provided path.
+
+    This convenience wrapper is intended to make config resolution consistent
+    across the codebase. It checks the `CODE_EXPLAINER_CONFIG` environment
+    variable first, then falls back to the provided `config_path`, and lastly
+    to `configs/default.yaml`.
+    """
+    env_path = os.getenv('CODE_EXPLAINER_CONFIG')
+    if env_path:
+        return load_config(env_path, interpolate_env=interpolate_env)
+
+    if config_path:
+        return load_config(config_path, interpolate_env=interpolate_env)
+
+    default = Path('configs/default.yaml')
+    if default.exists():
+        return load_config(default, interpolate_env=interpolate_env)
+
+    return {}
