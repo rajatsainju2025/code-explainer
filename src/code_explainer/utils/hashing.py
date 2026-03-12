@@ -12,7 +12,7 @@ from functools import lru_cache
 try:
     import xxhash
 
-    @lru_cache(maxsize=2048)
+    @lru_cache(maxsize=8192)
     def fast_hash_bytes(data: bytes) -> str:
         """Hash bytes using xxhash (fast) with hashlib fallback.
 
@@ -20,7 +20,7 @@ try:
         """
         return xxhash.xxh64(data).hexdigest()
 
-    @lru_cache(maxsize=2048)
+    @lru_cache(maxsize=8192)
     def fast_hash_str(data: str) -> str:
         """Hash a string using xxhash (fast) with hashlib fallback.
 
@@ -31,12 +31,10 @@ try:
 except ImportError:
     import hashlib
 
-    @lru_cache(maxsize=2048)
     def fast_hash_bytes(data: bytes) -> str:
         """Hash bytes using hashlib MD5 fallback."""
         return hashlib.md5(data, usedforsecurity=False).hexdigest()
 
-    @lru_cache(maxsize=2048)
     def fast_hash_str(data: str) -> str:
         """Hash a string using hashlib MD5 fallback."""
         return hashlib.md5(data.encode(), usedforsecurity=False).hexdigest()
