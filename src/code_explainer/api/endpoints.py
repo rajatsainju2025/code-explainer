@@ -65,7 +65,39 @@ async def explain_code(
     request_id: str = Depends(get_request_id),
     api_key: Optional[str] = Depends(get_optional_api_key)
 ) -> CodeExplanationResponse:
-    """Explain code using the Code Explainer model."""
+    """Explain code using the Code Explainer model.
+    
+    Generates natural language explanations for source code snippets using
+    transformer-based models with optional retrieval augmentation.
+    
+    Args:
+        request: CodeExplanationRequest with code, language, model, strategy
+        background_tasks: FastAPI background task manager
+        explainer: Injected CodeExplainer instance
+        request_id: Unique request identifier for tracking
+        api_key: Optional API key for authentication
+    
+    Returns:
+        CodeExplanationResponse with explanation, strategy, timing, model info
+    
+    Raises:
+        HTTPException 400: Code is empty or validation fails
+        HTTPException 500: Model inference or processing error
+    
+    Performance:
+        - Uses thread pool to avoid blocking event loop
+        - Integrates with metrics collector for observability
+        - Caches results internally per request
+    
+    Example:
+        POST /api/v1/explain
+        {
+            "code": "def add(a, b):\\n    return a + b",
+            "language": "python",
+            "model": "codet5-base",
+            "strategy": "retrieval-augmented"
+        }
+    """
     metrics_collector = get_metrics_collector()
     request_metrics = metrics_collector.start_request(request_id, "/explain")
     
@@ -126,8 +158,42 @@ async def explain_code_batch(
 ) -> Dict[str, Any]:
     """Batch code explanation endpoint with optimized chunking.
 
-    Expected payload:
-    {"codes": ["code1", "code2", ...], "max_length": 512, "strategy": "vanilla", "batch_size": 8}
+    Process multiple code snippets in a single request for efficiency.
+    Explanations are generated sequentially to ensure consistent resource usage.
+    
+    Args:
+        payload: BatchCodeExplanationRequest with list of code items
+        explainer: Injected CodeExplainer instance
+        request_id: Unique request identifier for tracking
+        api_key: Optional API key for authentication
+    
+    Returns:
+        Dict with results array, total counts, and execution timing
+    
+    Raises:
+        HTTPException 400: Invalid payload or empty codes list
+        HTTPException 500: Processing error during batch inference
+    
+    Performance:
+        - Configurable batch_size for memory-efficient chunking
+        - Uses thread pool for async inference
+        - Tracks individual item errors without failing entire batch
+    
+    Limits:
+        - Max 100 items per batch
+        - Max 100KB per code snippet
+    
+    Example:
+        POST /api/v1/explain/batch
+        {
+            "codes": [
+                "x = 1",
+                "y = x + 2"
+            ],
+            "language": "python",
+            "strategy": "vanilla",
+            "batch_size": 8
+        }
     """
     metrics_collector = get_metrics_collector()
     req_metrics = metrics_collector.start_request(request_id, "/explain/batch")
