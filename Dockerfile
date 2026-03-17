@@ -78,14 +78,16 @@ WORKDIR /app
 COPY --chown=codeexplainer:codeexplainer pyproject.toml ./
 
 # Install production dependencies only
-RUN pip install --upgrade pip \
-    && pip install -e .[web] \
-    && pip install --force-reinstall --no-deps uvicorn[standard] \
+RUN pip install --upgrade pip setuptools wheel \
+    && pip install -e .[web] alembic \
+    && pip install --force-reinstall --no-deps uvicorn[standard] gunicorn \
+    && pip install alembic  # For production database migrations \
     && find /usr/local -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
 
 # Copy source code
 COPY --chown=codeexplainer:codeexplainer src/ ./src/
 COPY --chown=codeexplainer:codeexplainer configs/ ./configs/
+COPY --chown=codeexplainer:codeexplainer alembic/ ./alembic/
 
 # Switch to non-root user with security hardening
 USER codeexplainer
@@ -101,7 +103,7 @@ HEALTHCHECK --interval=60s --timeout=10s --start-period=30s --retries=3 \
 EXPOSE 8000
 
 # Default command for production with access logging
-CMD ["uvicorn", "code_explainer.api.server:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4", "--access-log", "--limit-concurrency", "100"]
+CMD ["gunicorn", "code_explainer.api.server:app", "--worker-class", "uvicorn.workers.UvicornWorker", "--workers", "4", "--bind", "0.0.0.0:8000", "--access-logfile", "-", "--error-logfile", "-", "--log-level", "info"]
 
 # Stage 4: CI/Testing environment
 FROM development as testing
