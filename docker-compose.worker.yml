@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  # Celery worker for async tasks
+  celery-worker:
+    build:
+      context: .
+      target: development
+    command: celery -A src.code_explainer.tasks worker --loglevel=info --concurrency=4
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/1
+      - CELERY_RESULT_BACKEND=redis://redis:6379/2
+      - DATABASE_URL=postgresql://codeexplainer:changeme@postgres:5432/code_explainer
+      - REDIS_URL=redis://redis:6379/0
+      - LOG_LEVEL=INFO
+    depends_on:
+      - redis
+      - postgres
+    networks:
+      - code-explainer-net
+    restart: unless-stopped
+
+  # Celery beat scheduler for periodic tasks
+  celery-beat:
+    build:
+      context: .
+      target: development
+    command: celery -A src.code_explainer.tasks beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/1
+      - CELERY_RESULT_BACKEND=redis://redis:6379/2
+      - DATABASE_URL=postgresql://codeexplainer:changeme@postgres:5432/code_explainer
+      - REDIS_URL=redis://redis:6379/0
+      - LOG_LEVEL=INFO
+    depends_on:
+      - redis
+      - postgres
+    networks:
+      - code-explainer-net
+    restart: unless-stopped
+    profiles:
+      - worker
+
+  # Flower monitoring for Celery tasks
+  celery-flower:
+    image: mher/flower:2.0
+    command: celery --broker=redis://redis:6379/1 flower --port=5555
+    ports:
+      - "5555:5555"
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/1
+      - CELERY_RESULT_BACKEND=redis://redis:6379/2
+    depends_on:
+      - redis
+    networks:
+      - code-explainer-net
+    profiles:
+      - worker
