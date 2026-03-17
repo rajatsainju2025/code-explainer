@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: code-explainer
+  labels:
+    name: code-explainer
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  namespace: code-explainer
+  name: code-explainer-config
+data:
+  LOG_LEVEL: "INFO"
+  CODE_EXPLAINER_CONFIG_PATH: "/etc/config/default.yaml"
+  DATABASE_URL: "postgresql://codeexplainer:changeme@postgres:5432/code_explainer"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  namespace: code-explainer
+  name: code-explainer-secrets
+type: Opaque
+stringData:
+  DB_PASSWORD: "changeme"  # Override in production
+  API_KEY: "prod-secret-key-change-me"

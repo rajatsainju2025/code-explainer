@@ -1,0 +1,16 @@
+apiVersion: v2
+name: code-explainer
+description: A Helm chart for deploying Code Explainer on Kubernetes
+type: application
+version: 1.0.0
+appVersion: 1.0.0
+keywords:
+  - code-explanation
+  - ai
+  - machine-learning
+home: https://github.com/yourusername/code-explainer
+sources:
+  - https://github.com/yourusername/code-explainer
+maintainers:
+  - name: Development Team
+    email: dev@example.com
