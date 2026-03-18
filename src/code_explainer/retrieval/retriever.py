@@ -4,17 +4,17 @@ Optimized for performance with:
 - Fast xxhash-based cache key generation
 - Pre-computed method validation sets
 - Efficient memory usage with __slots__
+- orjson for faster JSON serialization
 """
 
 import gzip
-import json
 import logging
 import threading
 from pathlib import Path
 from time import perf_counter
 from typing import List, Optional
 
-from ..utils.hashing import json_dumps
+from ..utils.hashing import json_dumps, json_loads
 
 from sentence_transformers import SentenceTransformer
 
@@ -108,7 +108,7 @@ class CodeRetriever:
             # Load compressed corpus
             try:
                 with gzip.open(corpus_path_gz, 'rt', encoding='utf-8') as f:
-                    self.code_corpus = json.load(f)
+                    self.code_corpus = json_loads(f.read())
                 logger.debug("Loaded compressed corpus from %s", corpus_path_gz)
             except Exception as e:
                 logger.error("Failed to load compressed corpus: %s", e)
@@ -117,7 +117,7 @@ class CodeRetriever:
             # Load uncompressed corpus (backward compatibility)
             try:
                 with open(corpus_path, "r") as f:
-                    self.code_corpus = json.load(f)
+                    self.code_corpus = json_loads(f.read())
                 logger.debug("Loaded uncompressed corpus from %s", corpus_path)
             except Exception as e:
                 logger.error("Failed to load uncompressed corpus: %s", e)
