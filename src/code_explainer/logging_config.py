@@ -1,7 +1,6 @@
 """Structured logging configuration for production."""
 
 import logging
-import json
 import sys
 from logging.handlers import RotatingFileHandler
 from pythonjsonlogger import jsonlogger
