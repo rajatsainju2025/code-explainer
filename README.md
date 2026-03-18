@@ -557,26 +557,28 @@ Endpoints:
 
 More: see `docs/api.md` and `docs/strategies.md`.
 
-## ⚡ Performance Optimizations (v2.3.0)
+## ⚡ Performance Optimizations (v2.4.0)
 
-Code Explainer includes several performance optimizations for production deployments:
+Code Explainer includes comprehensive performance optimizations for production deployments:
 
 ### JSON Serialization
-- **orjson Integration**: 3-10x faster JSON serialization/deserialization across Redis caching and security modules
+- **orjson Integration**: 3-10x faster JSON serialization across Redis caching, security, retrieval, config loading, and data governance modules
 - **Shared Utilities**: Centralized `json_loads`/`json_dumps` in `utils/hashing.py` for consistency
 
 ### Memory Efficiency
-- **`__slots__` Dataclasses**: 20-30% memory reduction on `CacheStats`, `CacheConfig`, `RetrievalConfig`, `CodeExplainerException`
-- **`frozenset` Lookups**: O(1) language validation in input sanitization
+- **`__slots__` Everywhere**: 20-30% memory reduction on `CacheStats`, `CacheConfig`, `RetrievalConfig`, `CodeExplainerException`, `DatabaseConfig`, `DataGovernanceConfig`, `StructuredLogger`
+- **`frozenset` Lookups**: O(1) validation for strategies, languages, and retrieval methods
 
 ### Timing & Caching
 - **`perf_counter()` Timing**: Sub-millisecond precision for API latency measurements
-- **`@lru_cache` Confidence**: Cached multi-agent confidence computations for repeated score combinations
+- **`@lru_cache` Confidence**: Cached multi-agent confidence computations
+- **AST Caching**: Bounded cache for parsed syntax trees in symbolic analyzer
 - **Precompiled Regex**: Input sanitization patterns compiled once at module load
 
 ### Code Quality
-- **Named TTL Constants**: `ONE_HOUR`, `TWO_HOURS`, `ONE_DAY` for self-documenting cache expiration
-- **Type Safety**: `Optional[T]` annotations throughout error handling
+- **Named Constants**: `ONE_HOUR`, `TWO_HOURS`, `ONE_DAY` for TTL; `_MIN_CODE_LENGTH_FOR_CACHE`, etc. for symbolic analyzer
+- **Type Safety**: `Optional[T]` annotations throughout error handling and logging
+- **`__all__` Exports**: Explicit public API in validation and cache modules
 
 Run benchmarks to validate:
 ```bash
