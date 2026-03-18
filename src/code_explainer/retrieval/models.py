@@ -11,9 +11,9 @@ from dataclasses import dataclass, field
 from typing import Dict
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class RetrievalConfig:
-    """Configuration for retrieval behavior (immutable for hashability)."""
+    """Configuration for retrieval (immutable, memory-efficient)."""
     batch_size: int = 32
     hybrid_alpha: float = 0.5
 

@@ -10,9 +10,9 @@ from dataclasses import dataclass, field
 from typing import Any, List
 
 
-@dataclass
+@dataclass(slots=True)
 class CacheStats:
-    """Cache statistics."""
+    """Cache statistics with reduced memory via __slots__."""
     size: int = 0
     total_access_count: int = 0
     avg_access_count: float = 0.0
@@ -26,9 +26,9 @@ class CacheStats:
         return getattr(self, key)
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class CacheConfig:
-    """Configuration for cache behavior (immutable for hashability)."""
+    """Configuration for cache behavior (immutable, memory-efficient)."""
     cache_dir: str = ".cache"
     max_size: int = 1000
     ttl_seconds: int = 86400  # 24 hours
