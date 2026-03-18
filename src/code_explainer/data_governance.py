@@ -216,7 +216,7 @@ class DataProvenance:
         Returns:
             Path to saved card
         """
-        import json
+        from .utils.hashing import json_dumps
         
         card_path = os.path.join(
             self.provenance_dir,
@@ -224,7 +224,9 @@ class DataProvenance:
         )
         
         with open(card_path, "w") as f:
-            json.dump(card, f, indent=2)
+            # Use orjson for faster serialization (fallback to stdlib)
+            # Note: indent not supported in orjson, but we prioritize speed
+            f.write(json_dumps(card))
         
         logger.info(f"Saved provenance card: {card_path}")
         return card_path
