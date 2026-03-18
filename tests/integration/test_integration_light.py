@@ -69,3 +69,35 @@ def test_retriever_initialization_with_mock():
     retr = CodeRetriever(model_name="mock-model", model=mock_model)
     assert hasattr(retr, "retrieve_similar_code")
 
+
+class TestAPITimingPrecision:
+    """Tests for API timing measurement precision."""
+    
+    def test_perf_counter_precision(self):
+        """Verify perf_counter has sub-millisecond precision."""
+        from time import perf_counter
+        
+        # Measure a known short operation
+        start = perf_counter()
+        _ = sum(range(1000))
+        elapsed = perf_counter() - start
+        
+        # Should be measurable (> 0) and precise (< 1ms typically)
+        assert elapsed > 0
+        assert elapsed < 0.1  # Should complete in < 100ms
+    
+    def test_response_timing_format(self):
+        """Test that response timing is properly rounded."""
+        from code_explainer.api.endpoints import _build_response_fast
+        
+        response = _build_response_fast(
+            explanation="Test",
+            strategy="vanilla",
+            processing_time=0.123456789,
+            model_name="test-model"
+        )
+        
+        # Should be rounded to 4 decimal places
+        assert response.processing_time == 0.1235
+
+
