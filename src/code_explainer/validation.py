@@ -12,6 +12,11 @@ from typing import List, Optional
 from pydantic import BaseModel, Field, field_validator, ConfigDict
 from .exceptions import ValidationError
 
+__all__ = [
+    "CodeExplanationRequest",
+    "BatchCodeExplanationRequest",
+]
+
 # Pre-computed sets for constant-time validation
 _ALLOWED_STRATEGIES = frozenset({
     "vanilla", "ast_augmented", "retrieval_augmented",
