@@ -5,9 +5,9 @@ Optimized for:
 - Lazy YAML parser import
 - Thread-safe logging setup
 - Environment variable interpolation support
+- orjson for faster JSON parsing
 """
 
-import json
 import logging
 import os
 import re
@@ -15,6 +15,8 @@ import threading
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, Dict, Optional, Union
+
+from .hashing import json_loads
 
 # Lazy YAML import for faster startup
 _yaml = None
@@ -83,7 +85,7 @@ def load_config(config_path: Union[str, Path], interpolate_env: bool = True) -> 
             # Use fast C-based loader if available
             config = yaml_mod.load(f, Loader=yaml_loader)
         elif suffix == ".json":
-            config = json.load(f)
+            config = json_loads(f.read())
         else:
             raise ValueError(f"Unsupported config file format: {suffix}")
     
