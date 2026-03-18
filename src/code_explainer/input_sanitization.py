@@ -9,6 +9,12 @@ import re
 from typing import Optional, FrozenSet, Tuple
 
 
+__all__ = [
+    "InputSanitizer",
+    "InputValidator",
+]
+
+
 # Precompile dangerous patterns for faster matching
 _DANGEROUS_PATTERNS: Tuple[re.Pattern, ...] = tuple(
     re.compile(pattern, re.IGNORECASE) for pattern in [
