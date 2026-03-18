@@ -1,17 +1,17 @@
-"""Security input sanitization and validation."""
+"""Security input sanitization and validation.
+
+Optimized with:
+- Precompiled regex patterns for faster matching
+- frozenset for O(1) language lookup
+"""
 
 import re
-from typing import Optional
+from typing import Optional, FrozenSet, Tuple
 
 
-class InputSanitizer:
-    """Sanitizes and validates user inputs for security."""
-    
-    # Maximum code size (100 KB)
-    MAX_CODE_SIZE = 100 * 1024
-    
-    # Dangerous patterns
-    DANGEROUS_PATTERNS = [
+# Precompile dangerous patterns for faster matching
+_DANGEROUS_PATTERNS: Tuple[re.Pattern, ...] = tuple(
+    re.compile(pattern, re.IGNORECASE) for pattern in [
         r"__import__",
         r"eval\s*\(",
         r"exec\s*\(",
@@ -20,13 +20,25 @@ class InputSanitizer:
         r"subprocess",
         r"open\s*\(",
     ]
+)
+
+# Use frozenset for O(1) membership testing
+_ALLOWED_LANGUAGES: FrozenSet[str] = frozenset({
+    "python", "java", "javascript", "typescript",
+    "cpp", "c", "csharp", "go", "rust", "php",
+    "sql", "html", "css", "yaml", "json", "xml"
+})
+
+
+class InputSanitizer:
+    """Sanitizes and validates user inputs for security."""
     
-    # Allowed languages
-    ALLOWED_LANGUAGES = {
-        "python", "java", "javascript", "typescript",
-        "cpp", "c", "csharp", "go", "rust", "php",
-        "sql", "html", "css", "yaml", "json", "xml"
-    }
+    # Maximum code size (100 KB)
+    MAX_CODE_SIZE = 100 * 1024
+    
+    # Reference module-level constants for backward compatibility
+    DANGEROUS_PATTERNS = [p.pattern for p in _DANGEROUS_PATTERNS]
+    ALLOWED_LANGUAGES = _ALLOWED_LANGUAGES
     
     @classmethod
     def sanitize_code(cls, code: str) -> str:
@@ -48,9 +60,9 @@ class InputSanitizer:
         if len(code.encode()) > cls.MAX_CODE_SIZE:
             raise ValueError(f"Code exceeds maximum size of {cls.MAX_CODE_SIZE} bytes")
         
-        # Check for dangerous patterns (warning only, not rejection)
-        for pattern in cls.DANGEROUS_PATTERNS:
-            if re.search(pattern, code, re.IGNORECASE):
+        # Check for dangerous patterns using precompiled regex (faster)
+        for pattern in _DANGEROUS_PATTERNS:
+            if pattern.search(code):
                 # Log warning but allow (may be legitimate code review)
                 pass
         
