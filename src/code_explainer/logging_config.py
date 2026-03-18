@@ -4,7 +4,7 @@ import logging
 import sys
 from logging.handlers import RotatingFileHandler
 from pythonjsonlogger import jsonlogger
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 import os
 
 
@@ -49,13 +49,13 @@ class StructuredLogger:
         error_handler = RotatingFileHandler(
             error_log_file,
             maxBytes=100 * 1024 * 1024,
-            backupCount=10,
-            level=logging.ERROR
+            backupCount=10
         )
+        error_handler.setLevel(logging.ERROR)
         error_handler.setFormatter(json_formatter)
         self.logger.addHandler(error_handler)
 
-    def _add_context(self, extra: Dict[str, Any] = None) -> Dict[str, Any]:
+    def _add_context(self, extra: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Add context to log message.
 
         Args:
