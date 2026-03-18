@@ -5,7 +5,7 @@ This package provides tools for training and using language models
 to generate human-readable explanations of code snippets.
 """
 
-__version__ = "0.4.0"
+__version__ = "0.6.0"
 __author__ = "Rajat Sainju"
 __email__ = "rajatsainju@proton.me"
 
