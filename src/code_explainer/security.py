@@ -13,11 +13,12 @@ from typing import Dict, Any, List, Tuple, Optional, Set
 import ast
 import re
 import time
-import json
 import logging
 from pathlib import Path
 from datetime import datetime, timezone
 from collections import defaultdict, deque
+
+from .utils.hashing import json_dumps
 
 logger = logging.getLogger(__name__)
 
@@ -123,13 +124,13 @@ class AuditLogger:
         if self.log_path:
             try:
                 with open(self.log_path, "a") as f:
-                    f.write(json.dumps(event) + "\n")
+                    f.write(json_dumps(event) + "\n")
             except Exception as e:
                 logger.error("Failed to write audit log: %s", e)
         
         # Also log to standard logger
         log_method = getattr(logger, severity.lower(), logger.info)
-        log_method("[AUDIT] %s: %s", event_type, json.dumps(details))
+        log_method("[AUDIT] %s: %s", event_type, json_dumps(details))
 
     def log_validation_failure(self, code_hash: str, issues: List[str], client_id: Optional[str] = None):
         """Log security validation failure."""
