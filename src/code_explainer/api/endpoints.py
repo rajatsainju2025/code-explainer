@@ -1,7 +1,7 @@
 """API endpoints for the Code Explainer service."""
 
 import asyncio
-import time
+from time import perf_counter
 import logging
 from typing import Dict, Any, Optional, List
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
@@ -109,8 +109,8 @@ async def explain_code(
             metrics_collector.end_request(request_metrics, status_code=400)
             raise HTTPException(status_code=400, detail="Code cannot be empty")
 
-        # Track inference timing
-        start_inference = time.time()
+        # Track inference timing (perf_counter is more precise than time.time)
+        start_inference = perf_counter()
         
         model_name = _get_model_name(explainer)
 
@@ -125,10 +125,10 @@ async def explain_code(
         )
         
         # Record inference time
-        inference_time = time.time() - start_inference
+        inference_time = perf_counter() - start_inference
         metrics_collector.record_model_inference(inference_time)
 
-        processing_time = time.time() - request_metrics.start_time
+        processing_time = perf_counter() - request_metrics.start_time
         
         response = _build_response_fast(
             explanation,
@@ -255,7 +255,7 @@ async def explain_code_batch(
         if to_compute:
             await compute_batch()
 
-        processing_time = time.time() - req_metrics.start_time
+        processing_time = perf_counter() - req_metrics.start_time
         metrics_collector.end_request(req_metrics, status_code=200)
         return {
             "explanations": results,
