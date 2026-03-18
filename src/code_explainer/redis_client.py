@@ -1,8 +1,9 @@
 """Redis caching and queue infrastructure for scalable deployments."""
 
 import redis
-import json
 from typing import Optional, Any, Dict
+
+from .utils.hashing import json_loads, json_dumps
 from datetime import timedelta
 import logging
 from config_manager import settings
@@ -60,7 +61,7 @@ class RedisClient:
         try:
             value = self.conn.get(key)
             if value:
-                return json.loads(value)
+                return json_loads(value)
             return None
         except Exception as e:
             logger.error(f"Error reading from cache: {str(e)}")
@@ -84,7 +85,7 @@ class RedisClient:
         """
         try:
             ttl = ttl or settings.redis_ttl
-            serialized = json.dumps(value)
+            serialized = json_dumps(value)
             self.conn.setex(key, ttl, serialized)
             return True
         except Exception as e:
