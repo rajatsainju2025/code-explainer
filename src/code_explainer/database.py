@@ -1,4 +1,10 @@
-"""Database models and persistence layer for Code Explainer."""
+"""Database models and persistence layer for Code Explainer.
+
+Optimized for:
+- __slots__ on DatabaseConfig for memory efficiency
+- Connection pooling with configurable limits
+- Indexed lookups on frequently queried columns
+"""
 
 import os
 from datetime import datetime, timedelta

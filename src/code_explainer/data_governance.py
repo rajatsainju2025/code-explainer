@@ -1,4 +1,10 @@
-"""Data governance, lineage tracking, and retention management."""
+"""Data governance, lineage tracking, and retention management.
+
+Optimized for:
+- orjson for faster provenance card serialization
+- __slots__ for memory-efficient config objects
+- Environment-based configuration loading
+"""
 
 import os
 import time
