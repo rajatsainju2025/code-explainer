@@ -1,7 +1,8 @@
 """Multi-agent orchestration and collaborative explanation patterns."""
 
 from dataclasses import dataclass
-from typing import List, Dict, Any, Optional
+from functools import lru_cache
+from typing import List, Dict, Any, Optional, Tuple
 from enum import Enum
 
 
@@ -136,16 +137,18 @@ class MultiAgentOrchestrator:
         if not explanations:
             return 0.0
         
-        # Simple metric: if all explanations are identical, confidence = 1.0
-        # Otherwise, compute based on similarity
+        # Use cached helper for repeated calls with same explanations
+        return self._compute_confidence_cached(tuple(explanations))
+    
+    @staticmethod
+    @lru_cache(maxsize=128)
+    def _compute_confidence_cached(explanations: Tuple[str, ...]) -> float:
+        """Cached confidence computation for repeated calls."""
         if len(set(explanations)) == 1:
             return 1.0
         
-        # Approximate confidence based on number of unique explanations
         unique_count = len(set(explanations))
         total_count = len(explanations)
-        
-        # Confidence decreases with diversity
         return max(0.0, 1.0 - (unique_count - 1) / total_count)
     
     def clear_message_queue(self) -> None:
