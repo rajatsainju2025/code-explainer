@@ -1,3 +1,39 @@
+## [2.4.0] - March 2026
+
+### Performance & Code Quality Optimizations (20 Commits)
+
+#### Performance Improvements
+- ✅ **Logging Config**: Remove unused json import, add `__slots__` to StructuredLogger
+- ✅ **Retrieval**: Use orjson utilities for faster corpus JSON parsing
+- ✅ **Config Utilities**: Use orjson for JSON config loading
+- ✅ **Database**: Add `__slots__` to DatabaseConfig
+- ✅ **Data Governance**: Use orjson for provenance serialization, add `__slots__`
+- ✅ **Symbolic Analyzer**: Replace magic numbers with named constants
+
+#### Code Quality
+- ✅ **Type Hints**: Fix `Optional[Dict]` in logging config
+- ✅ **Error Handler**: Fix RotatingFileHandler level setting
+- ✅ **Validation**: Add `__all__` exports for API clarity
+
+#### Testing (5 New Test Files)
+- ✅ `test_config_utils.py`: Config loading, env interpolation, caching
+- ✅ `test_retriever_optimizations.py`: JSON roundtrip, validation constants
+- ✅ `test_symbolic_analyzer.py`: Caching constants, __slots__ verification
+- ✅ `test_logging_config.py`: StructuredLogger __slots__ and type safety
+- ✅ `test_validation_exports.py`: __all__ exports and optimization constants
+
+#### Documentation
+- ✅ Updated CHANGELOG with v2.4.0 improvements
+- ✅ Updated README performance section
+- ✅ Bumped version to 0.6.0
+
+### Performance Impact
+- **JSON Operations**: orjson throughout config, retrieval, and governance
+- **Memory Usage**: Additional `__slots__` on DatabaseConfig, DataGovernanceConfig, StructuredLogger
+- **Code Quality**: Named constants eliminate magic numbers
+
+---
+
 ## [2.3.0] - March 2026
 
 ### Performance & Efficiency Optimizations (20 Commits)
