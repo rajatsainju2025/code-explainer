@@ -13,6 +13,8 @@ logger = logging.getLogger(__name__)
 class DataGovernanceConfig:
     """Configuration for data governance policies."""
     
+    __slots__ = ('retention_days', 'cleanup_enabled', 'storage_disabled', 'audit_log_path')
+    
     def __init__(
         self,
         retention_days: int = 30,
@@ -158,6 +160,8 @@ def log_data_lineage(
 
 class DataProvenance:
     """Manages data provenance and provenance cards."""
+    
+    __slots__ = ('provenance_dir',)
     
     def __init__(self, provenance_dir: str = "data/provenance"):
         """Initialize provenance manager.
