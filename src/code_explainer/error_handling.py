@@ -45,7 +45,7 @@ class CodeExplainerException(Exception):
 class ValidationError(CodeExplainerException):
     """Raised when input validation fails."""
 
-    def __init__(self, message: str, field: str = None):
+    def __init__(self, message: str, field: Optional[str] = None):
         super().__init__(
             message,
             code="VALIDATION_ERROR",
@@ -57,7 +57,7 @@ class ValidationError(CodeExplainerException):
 class ModelError(CodeExplainerException):
     """Raised when model inference fails."""
 
-    def __init__(self, message: str, model_name: str = None):
+    def __init__(self, message: str, model_name: Optional[str] = None):
         super().__init__(
             message,
             code="MODEL_ERROR",
@@ -69,7 +69,7 @@ class ModelError(CodeExplainerException):
 class DatabaseError(CodeExplainerException):
     """Raised when database operation fails."""
 
-    def __init__(self, message: str, operation: str = None):
+    def __init__(self, message: str, operation: Optional[str] = None):
         super().__init__(
             message,
             code="DATABASE_ERROR",
@@ -81,7 +81,7 @@ class DatabaseError(CodeExplainerException):
 class CacheError(CodeExplainerException):
     """Raised when cache operation fails."""
 
-    def __init__(self, message: str, cache_type: str = None):
+    def __init__(self, message: str, cache_type: Optional[str] = None):
         super().__init__(
             message,
             code="CACHE_ERROR",
@@ -90,7 +90,7 @@ class CacheError(CodeExplainerException):
         )
 
 
-def handle_exception(exc: Exception, context: Dict[str, Any] = None) -> Dict[str, Any]:
+def handle_exception(exc: Exception, context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     """Centralized exception handler.
 
     Args:
