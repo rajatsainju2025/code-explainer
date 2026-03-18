@@ -6,7 +6,9 @@ from logging_config import logger
 
 
 class CodeExplainerException(Exception):
-    """Base exception for Code Explainer."""
+    """Base exception for Code Explainer with __slots__ for efficiency."""
+
+    __slots__ = ('message', 'code', 'status_code', 'details')
 
     def __init__(
         self,
