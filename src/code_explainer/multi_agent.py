@@ -143,7 +143,23 @@ class MultiAgentOrchestrator:
     @staticmethod
     @lru_cache(maxsize=128)
     def _compute_confidence_cached(explanations: Tuple[str, ...]) -> float:
-        """Cached confidence computation for repeated calls."""
+        """Cached confidence computation for repeated explanation patterns.
+        
+        Uses LRU caching to avoid recomputing confidence scores when the
+        same set of explanations is evaluated multiple times (e.g., during
+        batch processing or testing).
+        
+        Args:
+            explanations: Tuple of explanation strings (immutable for caching)
+        
+        Returns:
+            Confidence score between 0.0 and 1.0:
+            - 1.0: All explanations identical (perfect consensus)
+            - 0.0: All explanations unique (no consensus)
+        
+        Note:
+            The tuple parameter ensures hashability for LRU cache.
+        """
         if len(set(explanations)) == 1:
             return 1.0
         
