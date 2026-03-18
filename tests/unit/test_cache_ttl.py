@@ -10,9 +10,20 @@ from code_explainer.cache_ttl import CacheTTLConfig, TTLCache
 
 def test_cache_ttl_config_defaults():
     config = CacheTTLConfig()
-    assert config.embedding_cache_ttl_seconds == 3600
-    assert config.explanation_cache_ttl_seconds == 7200
+    # Test named constants are used
+    from code_explainer.cache_ttl import ONE_HOUR, TWO_HOURS, ONE_DAY
+    assert config.embedding_cache_ttl_seconds == ONE_HOUR
+    assert config.explanation_cache_ttl_seconds == TWO_HOURS
+    assert config.model_info_cache_ttl_seconds == ONE_DAY
     assert config.enable_ttl_enforcement is True
+
+
+def test_named_constants():
+    \"\"\"Test that named constants have correct values.\"\"\"
+    from code_explainer.cache_ttl import ONE_HOUR, TWO_HOURS, ONE_DAY
+    assert ONE_HOUR == 3600
+    assert TWO_HOURS == 7200
+    assert ONE_DAY == 86400
 
 
 def test_cache_ttl_config_from_env(monkeypatch):
