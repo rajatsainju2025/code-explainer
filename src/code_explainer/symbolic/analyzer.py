@@ -1,7 +1,7 @@
 """Main symbolic analyzer combining all analysis components."""
 
 import ast
-from typing import Dict, List
+from typing import Dict, Final, List
 
 from .models import SymbolicExplanation
 from .extractors import ConditionExtractors
@@ -13,6 +13,11 @@ from ..utils.hashing import fast_hash_str as _fast_hash_str
 _ASSIGN_TYPE = ast.Assign
 _CONTROL_FLOW_TYPES = (ast.If, ast.While, ast.For)
 _NAME_TYPE = ast.Name
+
+# Constants for caching thresholds (avoid magic numbers)
+_MIN_CODE_LENGTH_FOR_CACHE: Final[int] = 50
+_MAX_CODE_LENGTH_FOR_CACHE: Final[int] = 5000
+_DEFAULT_AST_CACHE_SIZE: Final[int] = 256
 
 
 class SymbolicAnalyzer(ConditionExtractors, PropertyGenerators, ComplexityAnalyzers):
@@ -28,9 +33,9 @@ class SymbolicAnalyzer(ConditionExtractors, PropertyGenerators, ComplexityAnalyz
         # Initialize state with pre-allocated capacity hints
         self.control_flow: List[ast.AST] = []
         self.variable_assignments: Dict[str, List[ast.AST]] = {}
-        # Larger cache for parsed ASTs (from 100 to 256)
+        # Larger cache for parsed ASTs
         self._ast_cache: Dict[str, ast.AST] = {}
-        self._cache_size_limit = 256
+        self._cache_size_limit = _DEFAULT_AST_CACHE_SIZE
 
     def analyze_code(self, code: str) -> SymbolicExplanation:
         """Analyze code and return symbolic explanation."""
@@ -71,7 +76,7 @@ class SymbolicAnalyzer(ConditionExtractors, PropertyGenerators, ComplexityAnalyz
     def _get_or_parse_ast(self, code: str) -> ast.AST:
         """Get cached AST or parse new one."""
         # For very short code, don't cache (hash overhead not worth it)
-        if len(code) < 50:
+        if len(code) < _MIN_CODE_LENGTH_FOR_CACHE:
             return ast.parse(code)
         
         # Use a stable, deterministic hash as the cache key.
@@ -87,7 +92,7 @@ class SymbolicAnalyzer(ConditionExtractors, PropertyGenerators, ComplexityAnalyz
         tree = ast.parse(code)
         
         # Cache with size limit (use LRU-like eviction)
-        if len(code) < 5000:
+        if len(code) < _MAX_CODE_LENGTH_FOR_CACHE:
             if len(self._ast_cache) >= self._cache_size_limit:
                 # Remove oldest (first) item for simple LRU behavior
                 first_key = next(iter(self._ast_cache))
