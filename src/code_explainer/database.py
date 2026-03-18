@@ -107,6 +107,9 @@ class ModelMetrics(Base):
 
 class DatabaseConfig:
     """Database configuration with environment variable support."""
+    
+    __slots__ = ('url', 'echo', 'pool_size', 'max_overflow', 'pool_timeout', 
+                 'pool_recycle', 'enable_migrations')
 
     def __init__(
         self,
