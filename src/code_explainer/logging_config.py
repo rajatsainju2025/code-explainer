@@ -10,6 +10,8 @@ import os
 
 class StructuredLogger:
     """Structured JSON logger for production deployments."""
+    
+    __slots__ = ('logger',)
 
     def __init__(self, name: str, level: str = "INFO"):
         """Initialize structured logger.
