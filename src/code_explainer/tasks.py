@@ -67,7 +67,8 @@ def async_code_explanation(
     self,
     code: str,
     model_name: str = None,
-    use_cache: bool = True
+    use_cache: bool = True,
+    strategy: str = "vanilla"
 ) -> dict:
     """Async task for code explanation inference.
 
@@ -76,6 +77,7 @@ def async_code_explanation(
         code: Source code to explain
         model_name: Model to use (default: settings.model_name)
         use_cache: Whether to use cache
+        strategy: Explanation strategy (default: vanilla)
 
     Returns:
         Explanation result
@@ -87,11 +89,17 @@ def async_code_explanation(
     )
     
     try:
-        # TODO: Implement actual inference logic
+        # Import here to avoid circular dependency and heavy startup
+        from .model.core import CodeExplainer
+        
+        explainer = CodeExplainer()
+        explanation = explainer.explain_code(code, strategy=strategy)
+        
         return {
             "task_id": self.request.id,
             "status": "completed",
-            "explanation": "Code explanation would be here"
+            "explanation": explanation,
+            "model_name": model_name
         }
     except Exception as exc:
         logger.error(f"Async explanation failed: {str(exc)}")
@@ -101,7 +109,7 @@ def async_code_explanation(
 @app.task(base=CodeExplainerTask)
 def cleanup_expired_cache():
     """Periodic task to clean up expired cache entries."""
-    from database import DatabaseManager
+    from .database import DatabaseManager
     logger.info("Running cache cleanup task")
     
     try:
@@ -117,7 +125,7 @@ def cleanup_expired_cache():
 @app.task(base=CodeExplainerTask)
 def generate_metrics_report():
     """Periodic task to generate performance metrics report."""
-    from database import DatabaseManager
+    from .database import DatabaseManager
     logger.info("Generating metrics report")
     
     try:
