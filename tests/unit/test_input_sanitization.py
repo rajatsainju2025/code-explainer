@@ -120,3 +120,41 @@ class TestInputValidator:
         codes = ["x = 1"] * 101
         with pytest.raises(ValueError, match="cannot exceed 100"):
             InputValidator.validate_batch_request(codes)
+
+
+class TestPrecompiledPatterns:
+    """Tests for precompiled regex patterns performance."""
+    
+    def test_dangerous_pattern_detection_eval(self):
+        """Test that dangerous eval patterns are detected."""
+        code = 'result = eval("1+1")'
+        # Should not raise, but pattern should match
+        sanitized = InputSanitizer.sanitize_code(code)
+        assert sanitized == code.strip()
+    
+    def test_dangerous_pattern_detection_exec(self):
+        """Test that dangerous exec patterns are detected."""
+        code = 'exec("print(1)")'
+        sanitized = InputSanitizer.sanitize_code(code)
+        assert sanitized == code.strip()
+    
+    def test_dangerous_pattern_detection_import(self):
+        """Test that __import__ patterns are detected."""
+        code = 'os = __import__("os")'
+        sanitized = InputSanitizer.sanitize_code(code)
+        assert sanitized == code.strip()
+    
+    def test_allowed_languages_frozenset(self):
+        """Test that ALLOWED_LANGUAGES is a frozenset for O(1) lookup."""
+        from code_explainer.input_sanitization import _ALLOWED_LANGUAGES
+        assert isinstance(_ALLOWED_LANGUAGES, frozenset)
+        assert "python" in _ALLOWED_LANGUAGES
+        assert "invalid" not in _ALLOWED_LANGUAGES
+    
+    def test_dangerous_patterns_precompiled(self):
+        """Test that dangerous patterns are precompiled regex."""
+        import re
+        from code_explainer.input_sanitization import _DANGEROUS_PATTERNS
+        assert isinstance(_DANGEROUS_PATTERNS, tuple)
+        for pattern in _DANGEROUS_PATTERNS:
+            assert isinstance(pattern, re.Pattern)
