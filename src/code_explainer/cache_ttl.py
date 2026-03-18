@@ -1,9 +1,18 @@
-"""Cache TTL (Time-To-Live) configuration and management."""
+"""Cache TTL (Time-To-Live) configuration and management.
+
+Defines TTL constants and cache expiration policies.
+"""
 
 import time
 import os
 from dataclasses import dataclass
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Final
+
+
+# Named constants for TTL durations (in seconds)
+ONE_HOUR: Final[int] = 3600
+TWO_HOURS: Final[int] = 7200
+ONE_DAY: Final[int] = 86400
 
 
 @dataclass
@@ -11,14 +20,14 @@ class CacheTTLConfig:
     """Configuration for cache expiration times.
     
     Attributes:
-        embedding_cache_ttl_seconds: TTL for embedding lookup cache (default: 3600)
-        explanation_cache_ttl_seconds: TTL for explanation result cache (default: 7200)
-        model_info_cache_ttl_seconds: TTL for model metadata cache (default: 86400)
+        embedding_cache_ttl_seconds: TTL for embedding lookup cache (default: 1 hour)
+        explanation_cache_ttl_seconds: TTL for explanation result cache (default: 2 hours)
+        model_info_cache_ttl_seconds: TTL for model metadata cache (default: 24 hours)
         enable_ttl_enforcement: Whether to enforce TTL expiration (default: True)
     """
-    embedding_cache_ttl_seconds: int = 3600  # 1 hour
-    explanation_cache_ttl_seconds: int = 7200  # 2 hours
-    model_info_cache_ttl_seconds: int = 86400  # 24 hours
+    embedding_cache_ttl_seconds: int = ONE_HOUR
+    explanation_cache_ttl_seconds: int = TWO_HOURS
+    model_info_cache_ttl_seconds: int = ONE_DAY
     enable_ttl_enforcement: bool = True
     
     @classmethod
