@@ -48,6 +48,8 @@ class BaseCache(ABC):
 class MemoryCache:
     """Simple in-memory LRU cache (backward compatibility)."""
 
+    __slots__ = ('max_size', '_cache')
+
     def __init__(self, max_size: int = 100):
         self.max_size = max_size
         self._cache = OrderedDict()

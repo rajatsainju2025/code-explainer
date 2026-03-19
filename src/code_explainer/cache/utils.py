@@ -29,7 +29,7 @@ def generate_cache_key(*components: str) -> str:
     Uses xxhash for speed when available (10x faster than SHA256).
     Null-byte separator prevents ambiguous key collisions.
     """
-    content = _KEY_SEPARATOR.join(str(c) for c in components)
+    content = _KEY_SEPARATOR.join(components)
     return _fast_hash(content.encode('utf-8'))
 
 # Use monotonic time for TTL calculations (more reliable than wall clock)
