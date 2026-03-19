@@ -238,16 +238,14 @@ class InputValidator:
         if not code or not code.strip():
             issues.append("Empty code provided")
         
-        # Basic syntax check
+        # Basic syntax check + import validation (parse once)
         try:
-            ast.parse(code)
+            tree = ast.parse(code)
         except SyntaxError as e:
             issues.append(f"Syntax error: {e}")
             return False, issues
         
-        # Import validation
         try:
-            tree = ast.parse(code)
             for node in ast.walk(tree):
                 if isinstance(node, ast.Import):
                     for alias in node.names:
