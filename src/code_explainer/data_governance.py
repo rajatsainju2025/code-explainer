@@ -161,7 +161,7 @@ def log_data_lineage(
         "metadata": metadata or {},
     }
     
-    logger.info(f"Data lineage: {lineage}")
+    logger.info("Data lineage: %s", lineage)
 
 
 class DataProvenance:
@@ -238,5 +238,5 @@ class DataProvenance:
             # Note: indent not supported in orjson, but we prioritize speed
             f.write(json_dumps(card))
         
-        logger.info(f"Saved provenance card: {card_path}")
+        logger.info("Saved provenance card: %s", card_path)
         return card_path
