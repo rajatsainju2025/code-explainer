@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 _MODEL_INSTANCE_CACHE: weakref.WeakValueDictionary = weakref.WeakValueDictionary()
 
 
-@dataclass
+@dataclass(slots=True)
 class ModelResources:
     """Container for loaded model resources."""
     model: PreTrainedModel

@@ -108,6 +108,15 @@ class DeviceManager:
     CACHE_DIR = Path.home() / ".cache" / "code-explainer"
     CACHE_FILE = CACHE_DIR / "device_cache.json"
 
+    # Centralised fallback order – avoids rebuilding dict in two methods
+    _FALLBACK_ORDER: Dict[str, list] = {
+        'cuda': ['mps', 'cpu'],
+        'mps': ['cpu'],
+        'cpu': [],
+    }
+    # Models known to be problematic on MPS
+    _MPS_PROBLEMATIC = frozenset({'gpt-j', 'gpt-neox'})
+
     def __init__(self):
         self._cached_capabilities: Dict[str, DeviceCapabilities] = {}
         self._lock = threading.Lock()
@@ -346,11 +355,7 @@ class DeviceManager:
         This centralizes fallback policies so tests and callers can reason about
         the order without peeking into implementation details.
         """
-        fallback_map = {
-            'cuda': ['mps', 'cpu'],
-            'mps': ['cpu'],
-            'cpu': [],
-        }
+        fallback_map = self._FALLBACK_ORDER
         return fallback_map.get(current_device, [])
 
     def validate_device_compatibility(self, model_name: str, device_type: str) -> bool:
@@ -362,8 +367,7 @@ class DeviceManager:
         # Basic compatibility checks
         if device_type == 'mps':
             # Some models have issues with MPS
-            problematic_models = ['gpt-j', 'gpt-neox']  # Add more as discovered
-            if any(model in model_name.lower() for model in problematic_models):
+            if any(model in model_name.lower() for model in self._MPS_PROBLEMATIC):
                 logger.warning("Model %s may have issues with MPS", model_name)
                 return False
 
@@ -380,11 +384,7 @@ class DeviceManager:
         logger.warning("OOM error on %s: %s", current_device, error)
 
         # Try fallback devices
-        fallback_order = {
-            'cuda': ['mps', 'cpu'],
-            'mps': ['cpu'],
-            'cpu': []  # No fallback from CPU
-        }.get(current_device, [])
+        fallback_order = self._FALLBACK_ORDER.get(current_device, [])
 
         for fallback_device in fallback_order:
             capabilities = self._get_device_capabilities(fallback_device)
