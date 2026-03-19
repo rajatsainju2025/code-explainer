@@ -179,6 +179,9 @@ class MetricsCollector:
             for times in self._response_times.values():
                 all_times.extend(times)
             
+            # Sort once for all percentile calculations (was sorting 3x)
+            all_times.sort()
+            
             return {
                 "total_requests": self._total_requests,
                 "recent_requests_1h": recent_count,
@@ -194,20 +197,19 @@ class MetricsCollector:
                 "p99_response_time": self._calculate_percentile(all_times, 0.99),
             }
     
-    def _calculate_percentile(self, values: List[float], percentile: float) -> float:
-        """Calculate percentile from values.
+    def _calculate_percentile(self, sorted_values: List[float], percentile: float) -> float:
+        """Calculate percentile from pre-sorted values.
         
         Args:
-            values: List of values
+            sorted_values: Pre-sorted list of values
             percentile: Percentile to calculate (0.0-1.0)
             
         Returns:
             Percentile value
         """
-        if not values:
+        if not sorted_values:
             return 0.0
         
-        sorted_values = sorted(values)
         index = int(len(sorted_values) * percentile)
         index = min(index, len(sorted_values) - 1)
         return round(sorted_values[index], 4)
