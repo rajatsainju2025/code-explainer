@@ -12,11 +12,12 @@ import logging
 import threading
 from pathlib import Path
 from time import perf_counter
-from typing import List, Optional
+from typing import List, Optional, TYPE_CHECKING
 
 from ..utils.hashing import json_dumps, json_loads
 
-from sentence_transformers import SentenceTransformer
+if TYPE_CHECKING:
+    from sentence_transformers import SentenceTransformer
 
 from .bm25_index import BM25Index
 from .faiss_index import FAISSIndex
@@ -40,7 +41,7 @@ class CodeRetriever:
                  'hybrid_search', 'stats', '_stats_lock')
 
     def __init__(self, model_name: str = "sentence-transformers/all-MiniLM-L6-v2",
-                 model: Optional[SentenceTransformer] = None):
+                 model: Optional["SentenceTransformer"] = None):
         """Initialize the code retriever.
         
         Args:
