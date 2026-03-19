@@ -3,12 +3,14 @@
 import os
 import gc
 import hashlib
+import logging
 import secrets
 from typing import Optional, FrozenSet
 from fastapi import Depends, HTTPException, Request, Header
 from ..model.core import CodeExplainer
 from ..config import Config
 
+logger = logging.getLogger(__name__)
 
 # Global model instance for dependency injection
 _global_explainer: Optional[CodeExplainer] = None
@@ -52,9 +54,16 @@ def _load_api_keys() -> FrozenSet[str]:
     return _cached_api_keys or frozenset()
 
 
+# Cached Config singleton (immutable after creation)
+_cached_config: Optional[Config] = None
+
+
 def get_config() -> Config:
-    """Get configuration instance."""
-    return Config()
+    """Get configuration instance (cached singleton)."""
+    global _cached_config
+    if _cached_config is None:
+        _cached_config = Config()
+    return _cached_config
 
 
 def get_code_explainer(config: Config = Depends(get_config)) -> CodeExplainer:
@@ -105,9 +114,8 @@ def reload_code_explainer(config: Optional[Config] = None) -> CodeExplainer:
                 gc.collect()
             except Exception as e:
                 # Log but don't fail if cleanup has issues
-                import logging
-                logging.getLogger(__name__).warning(
-                    f"Model cleanup had issues: {str(e)}"
+                logger.warning(
+                    "Model cleanup had issues: %s", e
                 )
         
         # Load new model
