@@ -22,6 +22,15 @@ _EMPTY_DICT: Dict[str, Any] = {}
 class CodeExplainerExplanationMixin:
     """Mixin class containing explanation generation methods for CodeExplainer."""
 
+    # Cached config dict – avoids OmegaConf resolve on every explain_code call
+    _cached_config_dict: Optional[Dict[str, Any]] = None
+
+    def _get_config_dict(self) -> Dict[str, Any]:
+        """Return config as a plain dict, caching the result."""
+        if self._cached_config_dict is None:
+            self._cached_config_dict = self._config_to_dict(self.config)
+        return self._cached_config_dict
+
     def explain_code(
         self,
         code: str,
@@ -74,7 +83,7 @@ class CodeExplainerExplanationMixin:
             raise ModelError("Model and tokenizer must be initialized before generating explanations")
 
         # Language-aware prompt with optional strategy override
-        base_cfg = self._config_to_dict(self.config)
+        base_cfg = self._get_config_dict()
         if strategy is not None:
             # Override strategy in a copy of config dict
             cfg = dict(base_cfg)
