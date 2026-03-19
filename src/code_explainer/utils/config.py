@@ -61,7 +61,6 @@ def _interpolate_env_vars(value: Any) -> Any:
     return value
 
 
-@lru_cache(maxsize=32)
 def load_config(config_path: Union[str, Path], interpolate_env: bool = True) -> Dict[str, Any]:
     """Load configuration from JSON or YAML file with caching.
 
@@ -72,7 +71,14 @@ def load_config(config_path: Union[str, Path], interpolate_env: bool = True) -> 
     Returns:
         Dictionary containing configuration parameters
     """
-    config_path = Path(config_path)
+    # Normalise to str so lru_cache sees one key for both str and Path callers
+    return _load_config_cached(str(config_path), interpolate_env)
+
+
+@lru_cache(maxsize=32)
+def _load_config_cached(config_path_str: str, interpolate_env: bool) -> Dict[str, Any]:
+    """Internal cached loader – key is always str for consistent cache hits."""
+    config_path = Path(config_path_str)
 
     if not config_path.exists():
         raise FileNotFoundError(f"Configuration file not found: {config_path}")
