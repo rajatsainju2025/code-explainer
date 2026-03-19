@@ -20,7 +20,7 @@ class ExplanationStyle(Enum):
     STEP_BY_STEP = "step_by_step"
 
 
-@dataclass
+@dataclass(slots=True)
 class EnhancedExplanation:
     """Enhanced explanation with metadata."""
     explanation: str
@@ -34,24 +34,23 @@ class EnhancedExplanation:
 class IntelligentExplanationGenerator:
     """Generates intelligent, adaptive explanations based on audience and context."""
 
-    def __init__(self):
-        self.audience_profiles = {
-            ExplanationAudience.BEGINNER: {
-                "vocabulary_level": "simple",
-                "technical_depth": "low",
-                "examples_needed": True
-            },
-            ExplanationAudience.INTERMEDIATE: {
-                "vocabulary_level": "moderate",
-                "technical_depth": "medium",
-                "examples_needed": True
-            },
-            ExplanationAudience.EXPERT: {
-                "vocabulary_level": "advanced",
-                "technical_depth": "high",
-                "examples_needed": False
-            }
+    _AUDIENCE_PROFILES = {
+        ExplanationAudience.BEGINNER: {
+            "vocabulary_level": "simple",
+            "technical_depth": "low",
+            "examples_needed": True
+        },
+        ExplanationAudience.INTERMEDIATE: {
+            "vocabulary_level": "moderate",
+            "technical_depth": "medium",
+            "examples_needed": True
+        },
+        ExplanationAudience.EXPERT: {
+            "vocabulary_level": "advanced",
+            "technical_depth": "high",
+            "examples_needed": False
         }
+    }
 
     def generate_explanation(
         self,
@@ -76,8 +75,6 @@ class IntelligentExplanationGenerator:
 
     def _adapt_for_audience(self, explanation: str, audience: ExplanationAudience) -> str:
         """Adapt explanation for specific audience."""
-        profile = self.audience_profiles[audience]
-
         if audience == ExplanationAudience.BEGINNER:
             explanation = explanation.replace("function", "mini-program")
             explanation = explanation.replace("algorithm", "step-by-step process")
