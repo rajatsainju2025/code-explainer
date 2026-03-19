@@ -165,8 +165,6 @@ def setup_cors_middleware(app, allowed_origins=None):
         app: FastAPI application instance
         allowed_origins: List of allowed origins, defaults to environment variable
     """
-    import os
-    
     if allowed_origins is None:
         # Get from environment or use safe default
         origins_env = os.environ.get('CORS_ALLOWED_ORIGINS', '')
