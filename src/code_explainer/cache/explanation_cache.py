@@ -100,6 +100,7 @@ class ExplanationCache(BaseCache):
     def get(self, code: str, strategy: str, model_name: str) -> Optional[str]:
         """Get a cached explanation if available."""
         cache_key = generate_cache_key(code, strategy, model_name)
+        cache_file = self.cache_dir / f"{cache_key}.txt"
 
         with self._lock:
             # Check memory cache first (fastest path)
@@ -125,35 +126,43 @@ class ExplanationCache(BaseCache):
                 self._misses += 1
                 return None
 
-            cache_file = self.cache_dir / f"{cache_key}.txt"
-            compressed_data = safe_file_operation(cache_file, "rb")
-            if compressed_data is None:
+        compressed_data = safe_file_operation(cache_file, "rb")
+        if compressed_data is None:
+            with self._lock:
                 # Remove stale index entry
-                del self._index[cache_key]
-                self._queue_index_write(cache_key, "delete")
+                if cache_key in self._index:
+                    del self._index[cache_key]
+                    self._queue_index_write(cache_key, "delete")
+                self._misses += 1
+            return None
+
+        try:
+            explanation = decompress_data(compressed_data, entry.get("compressed", False))
+        except (OSError, ValueError, KeyError):
+            # Handle decompression or data corruption errors
+            with self._lock:
+                self._misses += 1
+            return None
+
+        with self._lock:
+            current_entry = self._index.get(cache_key)
+            if current_entry is None:
                 self._misses += 1
                 return None
 
-            try:
-                explanation = decompress_data(compressed_data, entry.get("compressed", False))
+            # Update access metadata - queue for batched save
+            current_entry["access_count"] = current_entry.get("access_count", 0) + 1
+            current_entry["last_access"] = time.time()
+            self._queue_index_write(cache_key, "update")
 
-                # Update access metadata - queue for batched save
-                entry["access_count"] = entry.get("access_count", 0) + 1
-                entry["last_access"] = time.time()
-                self._queue_index_write(cache_key, "update")
+            # Add to memory cache
+            self._memory_cache.put(cache_key, {
+                'data': explanation,
+                'timestamp': current_entry['timestamp']
+            })
 
-                # Add to memory cache
-                self._memory_cache.put(cache_key, {
-                    'data': explanation,
-                    'timestamp': entry['timestamp']
-                })
-
-                self._hits += 1
-                return explanation
-            except (OSError, ValueError, KeyError):
-                # Handle decompression or data corruption errors
-                self._misses += 1
-                return None
+            self._hits += 1
+            return explanation
     
     def get_hit_rate(self) -> float:
         """Get cache hit rate for monitoring."""
@@ -165,12 +174,19 @@ class ExplanationCache(BaseCache):
         cache_key = generate_cache_key(code, strategy, model_name)
         cache_file = self.cache_dir / f"{cache_key}.txt"
 
+        try:
+            # Compress outside the lock to avoid blocking concurrent cache reads.
+            compressed_bytes, is_compressed = compress_data(explanation)
+            safe_file_operation(cache_file, "wb", compressed_bytes)
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning(
+                "Failed to cache explanation for key %s: %s", cache_key, e
+            )
+            return
+
         with self._lock:
             try:
-                # Compress and write explanation to file
-                compressed_bytes, is_compressed = compress_data(explanation)
-                safe_file_operation(cache_file, "wb", compressed_bytes)
-
                 # Update index
                 current_time = time.time()
                 self._index[cache_key] = {
