@@ -129,25 +129,17 @@ class AdvancedHybridSearch:
         """Reciprocal Rank Fusion with vectorized operations."""
         rrf_scores: Dict[int, float] = {}
 
-        # Vectorized RRF calculation for FAISS results
+        # Pure Python RRF - faster than numpy for typical k=5-20
         if faiss_results:
-            faiss_indices = np.array([idx for idx, _ in faiss_results])
-            faiss_ranks = np.arange(1, len(faiss_results) + 1)
-            faiss_rrf_scores = 1.0 / (self.rrf_k + faiss_ranks)
-            for idx, score in zip(faiss_indices, faiss_rrf_scores):
-                rrf_scores[idx] = rrf_scores.get(idx, 0.0) + score
+            for rank, (idx, _) in enumerate(faiss_results, 1):
+                rrf_scores[idx] = rrf_scores.get(idx, 0.0) + 1.0 / (self.rrf_k + rank)
 
-        # Vectorized RRF calculation for BM25 results
         if bm25_results:
-            bm25_indices = np.array([idx for idx, _ in bm25_results])
-            bm25_ranks = np.arange(1, len(bm25_results) + 1)
-            bm25_rrf_scores = 1.0 / (self.rrf_k + bm25_ranks)
-            for idx, score in zip(bm25_indices, bm25_rrf_scores):
-                rrf_scores[idx] = rrf_scores.get(idx, 0.0) + score
+            for rank, (idx, _) in enumerate(bm25_results, 1):
+                rrf_scores[idx] = rrf_scores.get(idx, 0.0) + 1.0 / (self.rrf_k + rank)
 
         # Sort by RRF score
-        fused_results = [(idx, score) for idx, score in rrf_scores.items()]
-        fused_results.sort(key=lambda x: x[1], reverse=True)
+        fused_results = sorted(rrf_scores.items(), key=lambda x: x[1], reverse=True)
         return fused_results[:k]
 
     def _distribution_fusion(self,
