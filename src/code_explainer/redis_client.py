@@ -39,7 +39,7 @@ class RedisClient:
                 self._redis_conn.ping()
                 logger.info("Redis connection established")
             except Exception as e:
-                logger.error(f"Failed to connect to Redis: {str(e)}")
+                logger.error("Failed to connect to Redis: %s", e)
                 raise
 
     @property
@@ -64,7 +64,7 @@ class RedisClient:
                 return json_loads(value)
             return None
         except Exception as e:
-            logger.error(f"Error reading from cache: {str(e)}")
+            logger.error("Error reading from cache: %s", e)
             return None
 
     def set(
@@ -89,7 +89,7 @@ class RedisClient:
             self.conn.setex(key, ttl, serialized)
             return True
         except Exception as e:
-            logger.error(f"Error writing to cache: {str(e)}")
+            logger.error("Error writing to cache: %s", e)
             return False
 
     def delete(self, key: str) -> bool:
@@ -105,7 +105,7 @@ class RedisClient:
             self.conn.delete(key)
             return True
         except Exception as e:
-            logger.error(f"Error deleting from cache: {str(e)}")
+            logger.error("Error deleting from cache: %s", e)
             return False
 
     def exists(self, key: str) -> bool:
@@ -120,7 +120,7 @@ class RedisClient:
         try:
             return self.conn.exists(key) > 0
         except Exception as e:
-            logger.error(f"Error checking cache: {str(e)}")
+            logger.error("Error checking cache: %s", e)
             return False
 
     def clear_pattern(self, pattern: str) -> int:
@@ -138,7 +138,7 @@ class RedisClient:
                 return self.conn.delete(*keys)
             return 0
         except Exception as e:
-            logger.error(f"Error clearing pattern: {str(e)}")
+            logger.error("Error clearing pattern: %s", e)
             return 0
 
     def get_stats(self) -> Dict[str, Any]:
@@ -157,7 +157,7 @@ class RedisClient:
                 "uptime_seconds": info.get("uptime_in_seconds"),
             }
         except Exception as e:
-            logger.error(f"Error getting stats: {str(e)}")
+            logger.error("Error getting stats: %s", e)
             return {}
 
 
