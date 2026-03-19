@@ -53,7 +53,9 @@ class TestExplanationCache:
             for i in range(3):
                 cache.put(f"def func{i}(): pass", "vanilla", "model", f"explanation {i}")
 
-            # Should only keep 2 entries
+            cache.flush()
+
+            # Should only keep 2 entries after pending cleanup is applied
             assert cache.size() <= 2
 
     def test_cache_stats(self):
@@ -107,7 +109,8 @@ class TestEmbeddingCache:
 
             # Get embedding
             retrieved = cache.get(code, model)
-            assert retrieved == embedding
+            assert retrieved is not None
+            assert list(retrieved) == embedding
 
     def test_embedding_cache_miss(self):
         """Test embedding cache miss."""

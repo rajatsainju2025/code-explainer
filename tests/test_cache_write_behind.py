@@ -22,8 +22,8 @@ class TestWriteBehindCaching:
         """Test that pending writes queue is initialized."""
         with tempfile.TemporaryDirectory() as tmpdir:
             cache = ExplanationCache(cache_dir=tmpdir)
-            assert hasattr(cache, '_pending_writes_queue')
-            assert len(cache._pending_writes_queue) == 0
+            assert hasattr(cache, '_pending_write_count')
+            assert cache._pending_write_count == 0
 
     def test_should_flush_on_batch_size_threshold(self):
         """Test that flush is triggered when batch size threshold is reached."""
@@ -113,8 +113,8 @@ class TestWriteBehindCaching:
             # Add entry and verify tracking
             cache.put("code", "vanilla", "model", "explanation")
             
-            # Queue should record the operation
-            assert cache._pending_writes_queue is not None
+            # Pending write counter should record the operation
+            assert cache._pending_write_count == 1
 
     def test_index_file_saved_after_batch_flush(self):
         """Test that index file is properly saved after batch flush."""
@@ -147,7 +147,9 @@ class TestWriteBehindCaching:
             for i in range(5):
                 cache.put(f"code{i}", "vanilla", "model", f"explanation{i}")
             
-            # Cleanup should be triggered but queued
+            # Cleanup is scheduled immediately, then applied on flush
+            assert getattr(cache, '_cleanup_pending', False) is True
+            cache.flush()
             assert cache.size() <= 3
 
     def test_cache_consistency_during_batching(self):
