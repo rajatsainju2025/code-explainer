@@ -102,7 +102,7 @@ def async_code_explanation(
             "model_name": model_name
         }
     except Exception as exc:
-        logger.error(f"Async explanation failed: {str(exc)}")
+        logger.error("Async explanation failed: %s", exc)
         raise
 
 
@@ -115,10 +115,10 @@ def cleanup_expired_cache():
     try:
         db = DatabaseManager()
         removed = db.cleanup_expired_cache()
-        logger.info(f"Removed {removed} expired cache entries")
+        logger.info("Removed %d expired cache entries", removed)
         return {"removed": removed}
     except Exception as exc:
-        logger.error(f"Cache cleanup failed: {str(exc)}")
+        logger.error("Cache cleanup failed: %s", exc)
         raise
 
 
@@ -131,10 +131,10 @@ def generate_metrics_report():
     try:
         db = DatabaseManager()
         stats = db.get_request_stats(hours=24)
-        logger.info(f"Generated metrics for {stats.get('total_requests', 0)} requests")
+        logger.info("Generated metrics for %s requests", stats.get('total_requests', 0))
         return stats
     except Exception as exc:
-        logger.error(f"Metrics report failed: {str(exc)}")
+        logger.error("Metrics report failed: %s", exc)
         raise
 
 
