@@ -10,6 +10,8 @@ from ..security import SecurityManager
 
 logger = logging.getLogger(__name__)
 
+_BYTES_PER_MB = 1024 * 1024
+
 
 class CodeExplainerMonitoringMixin:
     """Mixin providing monitoring, security, and optimization methods."""
@@ -19,24 +21,24 @@ class CodeExplainerMonitoringMixin:
         self._security_manager: Optional[SecurityManager] = None
         self._request_count = 0
         self._total_response_time = 0.0
-        self._start_time = time.time()
+        self._start_time = time.monotonic()
+        self._process = psutil.Process()
 
     def get_memory_usage(self) -> Dict[str, float]:
         """Get current memory usage."""
         try:
-            process = psutil.Process()
-            memory_info = process.memory_info()
+            memory_info = self._process.memory_info()
             
             result = {
-                "rss_mb": memory_info.rss / 1024 / 1024,
-                "vms_mb": memory_info.vms / 1024 / 1024,
-                "percent": process.memory_percent()
+                "rss_mb": memory_info.rss / _BYTES_PER_MB,
+                "vms_mb": memory_info.vms / _BYTES_PER_MB,
+                "percent": self._process.memory_percent()
             }
             
             # Add GPU memory if CUDA is available
             if torch.cuda.is_available():
-                result["gpu_allocated_mb"] = torch.cuda.memory_allocated() / 1024 / 1024
-                result["gpu_reserved_mb"] = torch.cuda.memory_reserved() / 1024 / 1024
+                result["gpu_allocated_mb"] = torch.cuda.memory_allocated() / _BYTES_PER_MB
+                result["gpu_reserved_mb"] = torch.cuda.memory_reserved() / _BYTES_PER_MB
             
             return result
         except Exception as e:
@@ -45,7 +47,7 @@ class CodeExplainerMonitoringMixin:
 
     def get_performance_report(self) -> Dict[str, Any]:
         """Get comprehensive performance report."""
-        uptime = time.time() - self._start_time
+        uptime = time.monotonic() - self._start_time
         avg_response_time = (
             self._total_response_time / self._request_count
             if self._request_count > 0
