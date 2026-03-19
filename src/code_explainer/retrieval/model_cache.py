@@ -7,8 +7,10 @@ Optimized with:
 """
 
 import logging
+import os
 import pickle
 import threading
+from functools import lru_cache
 from pathlib import Path
 from typing import Dict, Optional, Any
 from fcntl import flock, LOCK_SH, LOCK_EX, LOCK_UN
@@ -18,6 +20,12 @@ from sentence_transformers import SentenceTransformer
 from ..utils.hashing import fast_hash_str as _fast_hash
 
 logger = logging.getLogger(__name__)
+
+
+@lru_cache(maxsize=256)
+def _safe_model_name(model_name: str) -> str:
+    """Filesystem-safe hash for model names (cached across calls)."""
+    return _fast_hash(model_name)
 
 
 class PersistentModelCache:
@@ -77,18 +85,8 @@ class PersistentModelCache:
 
     @staticmethod
     def _safe_name(model_name: str) -> str:
-        """Compute a deterministic, filesystem-safe hash for model names.
-
-        This is a pure function and cached to avoid recomputing for repeated
-        calls within the same process.
-        """
-        from functools import lru_cache
-
-        @lru_cache(maxsize=4096)
-        def _compute(name: str) -> str:
-            return _fast_hash(name)
-
-        return _compute(model_name)
+        """Compute a deterministic, filesystem-safe hash for model names."""
+        return _safe_model_name(model_name)
 
     def get(self, model_name: str) -> Optional[SentenceTransformer]:
         """Get a model from cache if available.
@@ -228,8 +226,18 @@ class PersistentModelCache:
             Dict with cache stats (in_memory_models, disk_models, disk_size_mb)
         """
         try:
-            disk_size_mb = self.get_cache_size() / (1024 * 1024)
-            disk_models_count = sum(1 for _ in self.cache_dir.glob("*.pkl"))
+            # Single directory scan for both size and count
+            total_size = 0
+            disk_models_count = 0
+            with os.scandir(self.cache_dir) as it:
+                for entry in it:
+                    if entry.name.endswith('.pkl'):
+                        disk_models_count += 1
+                        try:
+                            total_size += entry.stat().st_size
+                        except OSError:
+                            pass
+            disk_size_mb = total_size / (1024 * 1024)
 
             return {
                 "in_memory_models": len(self._local_cache),
