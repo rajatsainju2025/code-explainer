@@ -1,6 +1,5 @@
 """Tests for symbolic analyzer optimizations."""
 
-import pytest
 from code_explainer.symbolic.analyzer import (
     SymbolicAnalyzer,
     _MIN_CODE_LENGTH_FOR_CACHE,
@@ -85,6 +84,25 @@ class TestSymbolicAnalyzerCaching:
         
         # Cache size should not change
         assert cache_size_after_first == cache_size_after_second == 1
+
+    def test_cache_hit_refreshes_lru_position(self):
+        """Test that cache hits refresh entry recency for eviction."""
+        analyzer = SymbolicAnalyzer()
+        analyzer._cache_size_limit = 2
+
+        code_a = "def function_a():\n" + "    x = 1\n" * 10
+        code_b = "def function_b():\n" + "    y = 2\n" * 10
+        code_c = "def function_c():\n" + "    z = 3\n" * 10
+
+        ast_a = analyzer._get_or_parse_ast(code_a)
+        ast_b = analyzer._get_or_parse_ast(code_b)
+        analyzer._get_or_parse_ast(code_a)
+        ast_c = analyzer._get_or_parse_ast(code_c)
+
+        assert len(analyzer._ast_cache) == 2
+        assert ast_a in analyzer._ast_cache.values()
+        assert ast_c in analyzer._ast_cache.values()
+        assert ast_b not in analyzer._ast_cache.values()
 
 
 class TestSymbolicAnalyzerSlots:

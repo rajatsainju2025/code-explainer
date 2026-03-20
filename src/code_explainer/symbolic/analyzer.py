@@ -1,6 +1,7 @@
 """Main symbolic analyzer combining all analysis components."""
 
 import ast
+from collections import OrderedDict
 from typing import Dict, Final, List
 
 from .models import SymbolicExplanation
@@ -33,8 +34,8 @@ class SymbolicAnalyzer(ConditionExtractors, PropertyGenerators, ComplexityAnalyz
         # Initialize state with pre-allocated capacity hints
         self.control_flow: List[ast.AST] = []
         self.variable_assignments: Dict[str, List[ast.AST]] = {}
-        # Larger cache for parsed ASTs
-        self._ast_cache: Dict[str, ast.AST] = {}
+        # Ordered cache for parsed ASTs with O(1) LRU updates/eviction
+        self._ast_cache: OrderedDict[str, ast.AST] = OrderedDict()
         self._cache_size_limit = _DEFAULT_AST_CACHE_SIZE
 
     def analyze_code(self, code: str) -> SymbolicExplanation:
@@ -84,21 +85,20 @@ class SymbolicAnalyzer(ConditionExtractors, PropertyGenerators, ComplexityAnalyz
         # so the same string produces different keys every run and the cache
         # never warms across process restarts.
         cache_key = _fast_hash_str(code)
-        
+
         cached = self._ast_cache.get(cache_key)
         if cached is not None:
+            self._ast_cache.move_to_end(cache_key)
             return cached
-        
+
         tree = ast.parse(code)
-        
-        # Cache with size limit (use LRU-like eviction)
+
+        # Cache with size limit using true LRU eviction.
         if len(code) < _MAX_CODE_LENGTH_FOR_CACHE:
             if len(self._ast_cache) >= self._cache_size_limit:
-                # Remove oldest (first) item for simple LRU behavior
-                first_key = next(iter(self._ast_cache))
-                del self._ast_cache[first_key]
+                self._ast_cache.popitem(last=False)
             self._ast_cache[cache_key] = tree
-        
+
         return tree
 
     def _reset_state(self):

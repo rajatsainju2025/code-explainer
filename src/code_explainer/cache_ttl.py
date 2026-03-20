@@ -3,8 +3,8 @@
 Defines TTL constants and cache expiration policies.
 """
 
-import time
 import os
+import time
 from dataclasses import dataclass
 from typing import Dict, Any, Optional, Final
 
@@ -74,6 +74,8 @@ class TTLCache:
     Stores items with expiration timestamps and automatically
     invalidates expired entries on access.
     """
+
+    __slots__ = ("ttl_seconds", "_cache")
     
     def __init__(self, ttl_seconds: int = 3600):
         """Initialize cache with TTL in seconds.
@@ -93,16 +95,15 @@ class TTLCache:
         Returns:
             Cached value if found and not expired, None otherwise
         """
-        if key not in self._cache:
+        entry = self._cache.get(key)
+        if entry is None:
             return None
-        
-        value, timestamp = self._cache[key]
-        elapsed = time.time() - timestamp
-        
-        if elapsed > self.ttl_seconds:
-            del self._cache[key]
+
+        value, expires_at = entry
+        if time.monotonic() >= expires_at:
+            self._cache.pop(key, None)
             return None
-        
+
         return value
     
     def set(self, key: str, value: Any) -> None:
@@ -112,7 +113,7 @@ class TTLCache:
             key: Cache key
             value: Value to cache
         """
-        self._cache[key] = (value, time.time())
+        self._cache[key] = (value, time.monotonic() + self.ttl_seconds)
     
     def clear(self) -> None:
         """Clear all cache entries."""
@@ -132,10 +133,10 @@ class TTLCache:
         Returns:
             Number of entries removed
         """
-        now = time.time()
+        now = time.monotonic()
         expired_keys = [
             k for k, (_, ts) in self._cache.items()
-            if (now - ts) > self.ttl_seconds
+            if ts <= now
         ]
         for key in expired_keys:
             del self._cache[key]
