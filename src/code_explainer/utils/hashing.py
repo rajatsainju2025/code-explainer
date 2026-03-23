@@ -4,8 +4,8 @@ Consolidates duplicate xxhash/hashlib fallback patterns and orjson/json
 fallback patterns that were previously copy-pasted across 5+ modules.
 """
 
-from typing import Any
 from functools import lru_cache
+from typing import Any
 
 # --- Fast hashing (xxhash with hashlib fallback) ---
 
@@ -31,10 +31,12 @@ try:
 except ImportError:
     import hashlib
 
+    @lru_cache(maxsize=8192)
     def fast_hash_bytes(data: bytes) -> str:
         """Hash bytes using hashlib MD5 fallback."""
         return hashlib.md5(data, usedforsecurity=False).hexdigest()
 
+    @lru_cache(maxsize=8192)
     def fast_hash_str(data: str) -> str:
         """Hash a string using hashlib MD5 fallback."""
         return hashlib.md5(data.encode(), usedforsecurity=False).hexdigest()
