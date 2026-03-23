@@ -99,9 +99,10 @@ class PersistentModelCache:
         """
         # Check local in-memory cache first
         with self._local_lock:
-            if model_name in self._local_cache:
+            cached_model = self._local_cache.get(model_name)
+            if cached_model is not None:
                 logger.debug("Model cache hit (in-memory): %s", model_name)
-                return self._local_cache[model_name]
+                return cached_model
 
         # Check disk cache
         cache_path = self._get_cache_path(model_name)
@@ -204,8 +205,6 @@ class PersistentModelCache:
         total_size = 0
         try:
             # Use os.scandir for a faster, low-overhead directory iteration
-            import os
-
             with os.scandir(self.cache_dir) as it:
                 for entry in it:
                     if not entry.name.endswith('.pkl'):
