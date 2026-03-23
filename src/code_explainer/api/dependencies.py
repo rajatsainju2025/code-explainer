@@ -1,20 +1,21 @@
 """Dependency injection for FastAPI application."""
 
-import os
 import gc
 import hashlib
 import logging
-import secrets
+import os
+import threading
 from typing import Optional, FrozenSet
 from fastapi import Depends, HTTPException, Request, Header
 from ..model.core import CodeExplainer
 from ..config import Config
 
 logger = logging.getLogger(__name__)
+_EMPTY_API_KEYS: FrozenSet[str] = frozenset()
 
 # Global model instance for dependency injection
 _global_explainer: Optional[CodeExplainer] = None
-_explainer_lock = __import__('threading').RLock()
+_explainer_lock = threading.RLock()
 
 # Cache API keys at module load to avoid repeated os.environ lookups
 # Set to None initially to indicate not yet loaded
@@ -31,12 +32,13 @@ def _load_api_keys() -> FrozenSet[str]:
     global _cached_api_keys, _api_keys_loaded
     
     if _api_keys_loaded:
-        return _cached_api_keys or frozenset()
+        return _cached_api_keys or _EMPTY_API_KEYS
     
     configured_keys = os.environ.get('CODE_EXPLAINER_API_KEYS', '')
     single_key = os.environ.get('CODE_EXPLAINER_API_KEY', '')
     
-    # Build set of valid key hashes
+    # Build set of valid key hashes once; request validation can then use O(1)
+    # set membership against the hashed presented key.
     valid_keys: set[str] = set()
     if configured_keys:
         for k in configured_keys.split(','):
@@ -51,7 +53,7 @@ def _load_api_keys() -> FrozenSet[str]:
     
     _cached_api_keys = frozenset(valid_keys) if valid_keys else None
     _api_keys_loaded = True
-    return _cached_api_keys or frozenset()
+    return _cached_api_keys or _EMPTY_API_KEYS
 
 
 # Cached Config singleton (immutable after creation)
@@ -163,12 +165,9 @@ def validate_api_key(api_key: Optional[str] = None) -> bool:
         # Keys are configured but none provided
         return False
     
-    # Validate using constant-time comparison to prevent timing attacks
+    # Compare fixed-length SHA-256 hex digests via set membership.
     api_key_hash = hashlib.sha256(api_key.encode()).hexdigest()
-    return any(
-        secrets.compare_digest(api_key_hash, stored_hash)
-        for stored_hash in valid_key_hashes
-    )
+    return api_key_hash in valid_key_hashes
 
 
 def get_optional_api_key(
