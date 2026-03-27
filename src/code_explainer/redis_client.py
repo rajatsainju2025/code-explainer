@@ -6,7 +6,26 @@ from typing import Optional, Any, Dict
 from .utils.hashing import json_loads, json_dumps
 from datetime import timedelta
 import logging
-from config_manager import settings
+import os
+
+# Lazy settings loader to avoid import-time failures when config_manager
+# cannot resolve required env vars (e.g. API_KEY).
+_settings = None
+
+def _get_settings():
+    """Lazy-load settings to avoid import-time side effects."""
+    global _settings
+    if _settings is None:
+        try:
+            from .config_manager import settings as _s
+            _settings = _s
+        except Exception:
+            # Fallback to environment variables directly
+            class _FallbackSettings:
+                redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+                redis_ttl = int(os.getenv("REDIS_TTL", "3600"))
+            _settings = _FallbackSettings()
+    return _settings
 
 
 logger = logging.getLogger("code-explainer.redis")
@@ -27,9 +46,10 @@ class RedisClient:
         """Initialize Redis connection pool."""
         if self._redis_conn is None:
             try:
+                s = _get_settings()
                 # Parse Redis URL and create connection pool
                 self._redis_conn = redis.from_url(
-                    settings.redis_url,
+                    s.redis_url,
                     decode_responses=True,
                     socket_connect_timeout=5,
                     socket_keepalive=True,
@@ -84,7 +104,7 @@ class RedisClient:
             Success status
         """
         try:
-            ttl = ttl or settings.redis_ttl
+            ttl = ttl or _get_settings().redis_ttl
             serialized = json_dumps(value)
             self.conn.setex(key, ttl, serialized)
             return True

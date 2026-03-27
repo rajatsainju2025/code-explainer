@@ -1,16 +1,19 @@
 """Celery task queue configuration for async processing and scaling."""
 
-from celery import Celery, Task
-from celery.schedules import crontab
-from config_manager import settings
+import os
 import logging
 
+from celery import Celery, Task
+from celery.schedules import crontab
 
-# Initialize Celery app
+# Use environment variables directly for broker config to avoid import-time
+# failures from config_manager requiring API_KEY and other mandatory fields.
+_REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+
 app = Celery(
     "code_explainer",
-    broker=settings.redis_url,
-    backend=settings.redis_url
+    broker=_REDIS_URL,
+    backend=_REDIS_URL,
 )
 
 # Configuration
@@ -82,7 +85,7 @@ def async_code_explanation(
     Returns:
         Explanation result
     """
-    model_name = model_name or settings.model_name
+    model_name = model_name or os.getenv("MODEL_NAME", "codet5-base")
     logger.info(
         f"Starting async explanation for {model_name}",
         extra={"task_id": self.request.id, "code_length": len(code)}
