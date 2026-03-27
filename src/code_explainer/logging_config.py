@@ -1,61 +1,78 @@
-"""Structured logging configuration for production."""
+"""Structured logging configuration for production.
+
+Creates console + optional file handlers. File logging only activates when
+LOG_DIR is explicitly set or writable — never crashes on permission errors.
+"""
 
 import logging
 import sys
 from logging.handlers import RotatingFileHandler
-from pythonjsonlogger import jsonlogger
 from typing import Any, Dict, Optional
 import os
 
 
+def _try_import_json_formatter():
+    """Lazy import of JSON formatter — falls back to standard formatter."""
+    try:
+        from pythonjsonlogger import jsonlogger
+        return jsonlogger.JsonFormatter("%(timestamp)s %(level)s %(name)s %(message)s")
+    except ImportError:
+        return logging.Formatter(
+            "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+        )
+
+
 class StructuredLogger:
-    """Structured JSON logger for production deployments."""
-    
+    """Structured JSON logger for production deployments.
+
+    File handlers are only attached when the log directory is writable.
+    This avoids PermissionError on systems without /var/log access.
+    """
+
     __slots__ = ('logger',)
 
     def __init__(self, name: str, level: str = "INFO"):
-        """Initialize structured logger.
-
-        Args:
-            name: Logger name
-            level: Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
-        """
         self.logger = logging.getLogger(name)
-        self.logger.setLevel(getattr(logging, level, logging.INFO))
-        self.logger.handlers = []  # Clear existing handlers
+        self.logger.setLevel(getattr(logging, level.upper(), logging.INFO))
+        self.logger.handlers.clear()
 
-        # JSON formatter for structured logging
-        log_format = "%(timestamp)s %(level)s %(name)s %(message)s"
-        json_formatter = jsonlogger.JsonFormatter(log_format)
+        formatter = _try_import_json_formatter()
 
-        # Console handler (STDOUT)
+        # Console handler (STDOUT) — always attached
         console_handler = logging.StreamHandler(sys.stdout)
-        console_handler.setFormatter(json_formatter)
+        console_handler.setFormatter(formatter)
         self.logger.addHandler(console_handler)
 
-        # File handler with rotation
-        log_dir = os.environ.get("LOG_DIR", "/var/log/code-explainer")
-        os.makedirs(log_dir, exist_ok=True)
-        log_file = os.path.join(log_dir, "app.log")
+        # File handlers — only if directory is writable
+        log_dir = os.environ.get("LOG_DIR", "logs")
+        try:
+            os.makedirs(log_dir, exist_ok=True)
+            # Test write access
+            test_path = os.path.join(log_dir, ".write_test")
+            with open(test_path, "w") as f:
+                f.write("")
+            os.unlink(test_path)
+        except (OSError, PermissionError):
+            # Cannot write to log directory — skip file handlers
+            return
 
-        file_handler = RotatingFileHandler(
-            log_file,
-            maxBytes=100 * 1024 * 1024,  # 100 MB
-            backupCount=10
-        )
-        file_handler.setFormatter(json_formatter)
-        self.logger.addHandler(file_handler)
+        try:
+            log_file = os.path.join(log_dir, "app.log")
+            file_handler = RotatingFileHandler(
+                log_file, maxBytes=50 * 1024 * 1024, backupCount=5  # 50 MB
+            )
+            file_handler.setFormatter(formatter)
+            self.logger.addHandler(file_handler)
 
-        # Error file handler
-        error_log_file = os.path.join(log_dir, "error.log")
-        error_handler = RotatingFileHandler(
-            error_log_file,
-            maxBytes=100 * 1024 * 1024,
-            backupCount=10
-        )
-        error_handler.setLevel(logging.ERROR)
-        error_handler.setFormatter(json_formatter)
-        self.logger.addHandler(error_handler)
+            error_log_file = os.path.join(log_dir, "error.log")
+            error_handler = RotatingFileHandler(
+                error_log_file, maxBytes=50 * 1024 * 1024, backupCount=5
+            )
+            error_handler.setLevel(logging.ERROR)
+            error_handler.setFormatter(formatter)
+            self.logger.addHandler(error_handler)
+        except (OSError, PermissionError):
+            pass  # Gracefully degrade to console-only
 
     def _add_context(self, extra: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Add context to log message.
