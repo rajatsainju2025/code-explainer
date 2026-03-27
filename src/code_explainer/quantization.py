@@ -31,7 +31,8 @@ def get_quantization_config(
     Args:
         memory_gb: Available GPU memory in gigabytes (None = unknown/CPU)
         prefer_quantization: User preference ("fp32", "fp16", "bf16", "8bit")
-        fallback_to_fp16: If 8-bit not available, fall back to fp16
+        fallback_to_fp16: If True and memory is low, prefer fp16 over 8bit
+                          (useful when bitsandbytes is unavailable)
 
     Returns:
         QuantizationConfig with decided settings
@@ -40,16 +41,15 @@ def get_quantization_config(
     if prefer_quantization:
         if prefer_quantization == "8bit":
             return QuantizationConfig(enabled=True, dtype="8bit", use_bnb_8bit=True)
-        else:
-            return QuantizationConfig(dtype=prefer_quantization)
+        return QuantizationConfig(dtype=prefer_quantization)
 
     # Auto-decide based on memory
-    if memory_gb and memory_gb < 8.0:
-        # Low memory device: try 8-bit, fall back to fp16
-        config = QuantizationConfig(enabled=True, dtype="8bit", use_bnb_8bit=True)
+    if memory_gb is not None and memory_gb < 8.0:
         if fallback_to_fp16:
-            config.dtype = "fp16"
-        return config
+            # Low memory + fallback: use fp16 (widely supported, no extra deps)
+            return QuantizationConfig(enabled=True, dtype="fp16")
+        # Low memory + no fallback: use 8-bit quantization
+        return QuantizationConfig(enabled=True, dtype="8bit", use_bnb_8bit=True)
 
-    # Default: fp32 for high-memory devices
+    # Default: fp32 for high-memory devices or unknown memory
     return QuantizationConfig()
