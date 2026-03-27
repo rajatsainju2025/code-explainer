@@ -25,6 +25,8 @@ logger = logging.getLogger(__name__)
 
 # Global weak reference cache for model instances
 _MODEL_INSTANCE_CACHE: weakref.WeakValueDictionary = weakref.WeakValueDictionary()
+# Strong cache for tokenizers associated with cached models (tokenizers are lightweight)
+_TOKENIZER_CACHE: dict[str, PreTrainedTokenizerBase] = {}
 
 
 @dataclass(slots=True)
@@ -81,7 +83,11 @@ class ModelLoader:
         if cache_key in _MODEL_INSTANCE_CACHE:
             logger.debug("Reusing cached model instance for: %s", path)
             cached_model = _MODEL_INSTANCE_CACHE[cache_key]
-            tokenizer = self._load_tokenizer(path)
+            # Reuse the associated tokenizer (avoids copy.copy overhead)
+            tokenizer = _TOKENIZER_CACHE.get(cache_key)
+            if tokenizer is None:
+                tokenizer = self._load_tokenizer(path)
+                _TOKENIZER_CACHE[cache_key] = tokenizer
             return ModelResources(
                 model=cached_model,
                 tokenizer=tokenizer,
@@ -96,6 +102,7 @@ class ModelLoader:
             
             # Store in weak reference cache
             _MODEL_INSTANCE_CACHE[cache_key] = model
+            _TOKENIZER_CACHE[cache_key] = tokenizer
 
             return ModelResources(
                 model=model,
