@@ -69,21 +69,24 @@ class CacheTTLConfig:
 
 
 class TTLCache:
-    """Simple TTL-aware cache wrapper.
+    """Simple TTL-aware cache with bounded size.
     
-    Stores items with expiration timestamps and automatically
-    invalidates expired entries on access.
+    Stores items with expiration timestamps. Automatically invalidates
+    expired entries on access and evicts oldest entries when max_size
+    is exceeded.
     """
 
-    __slots__ = ("ttl_seconds", "_cache")
+    __slots__ = ("ttl_seconds", "max_size", "_cache")
     
-    def __init__(self, ttl_seconds: int = 3600):
-        """Initialize cache with TTL in seconds.
+    def __init__(self, ttl_seconds: int = 3600, max_size: int = 10_000):
+        """Initialize cache with TTL and maximum size.
         
         Args:
             ttl_seconds: Time-to-live for cache entries in seconds
+            max_size: Maximum number of entries before eviction (0 = unlimited)
         """
         self.ttl_seconds = ttl_seconds
+        self.max_size = max_size
         self._cache: Dict[str, tuple[Any, float]] = {}
     
     def get(self, key: str) -> Optional[Any]:
@@ -101,7 +104,7 @@ class TTLCache:
 
         value, expires_at = entry
         if time.monotonic() >= expires_at:
-            self._cache.pop(key, None)
+            del self._cache[key]
             return None
 
         return value
@@ -109,10 +112,21 @@ class TTLCache:
     def set(self, key: str, value: Any) -> None:
         """Set value in cache with current timestamp.
         
+        Evicts expired entries and oldest entries if over max_size.
+        
         Args:
             key: Cache key
             value: Value to cache
         """
+        # Evict if at capacity (skip if key already exists — it's an update)
+        if self.max_size > 0 and key not in self._cache and len(self._cache) >= self.max_size:
+            # Batch cleanup: remove expired first
+            removed = self.cleanup_expired()
+            # If still at capacity, evict the entry closest to expiration
+            if removed == 0 and len(self._cache) >= self.max_size:
+                oldest_key = min(self._cache, key=lambda k: self._cache[k][1])
+                del self._cache[oldest_key]
+        
         self._cache[key] = (value, time.monotonic() + self.ttl_seconds)
     
     def clear(self) -> None:
