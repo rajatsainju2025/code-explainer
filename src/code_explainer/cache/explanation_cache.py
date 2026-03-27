@@ -98,24 +98,24 @@ class ExplanationCache(BaseCache):
         safe_file_operation(self._index_file, "w", data)
 
     def get(self, code: str, strategy: str, model_name: str) -> Optional[str]:
-        """Get a cached explanation if available."""
+        """Get a cached explanation if available.
+        
+        Optimized to acquire the lock at most twice (once for index lookup,
+        once for access-count update) instead of three times.
+        """
         cache_key = generate_cache_key(code, strategy, model_name)
-        cache_file = self.cache_dir / f"{cache_key}.txt"
 
         with self._lock:
             # Check memory cache first (fastest path)
             memory_result = self._memory_cache.get(cache_key)
             if memory_result is not None:
-                entry = memory_result
-                if not is_expired(entry['timestamp'], self.config.ttl_seconds):
+                if not is_expired(memory_result['timestamp'], self.config.ttl_seconds):
                     self._hits += 1
-                    return entry['data']
-                else:
-                    # Remove the stale entry from the in-memory LRU cache
-                    # (don't store None — that wastes an LRU slot)
-                    self._memory_cache._cache.pop(cache_key, None)
+                    return memory_result['data']
+                # Evict stale entry
+                self._memory_cache._cache.pop(cache_key, None)
 
-            # Check disk cache
+            # Check disk index
             entry = self._index.get(cache_key)
             if entry is None:
                 self._misses += 1
@@ -126,39 +126,41 @@ class ExplanationCache(BaseCache):
                 self._misses += 1
                 return None
 
+            # Copy entry metadata we need before releasing lock
+            is_compressed = entry.get("compressed", False)
+            entry_timestamp = entry['timestamp']
+
+        # Read file outside lock to avoid blocking concurrent operations
+        cache_file = self.cache_dir / f"{cache_key}.txt"
         compressed_data = safe_file_operation(cache_file, "rb")
         if compressed_data is None:
             with self._lock:
-                # Remove stale index entry
-                if cache_key in self._index:
-                    del self._index[cache_key]
-                    self._queue_index_write(cache_key, "delete")
+                self._index.pop(cache_key, None)
+                self._queue_index_write(cache_key, "delete")
                 self._misses += 1
             return None
 
         try:
-            explanation = decompress_data(compressed_data, entry.get("compressed", False))
+            explanation = decompress_data(compressed_data, is_compressed)
         except (OSError, ValueError, KeyError):
-            # Handle decompression or data corruption errors
             with self._lock:
                 self._misses += 1
             return None
 
+        # Update access metadata and memory cache
         with self._lock:
             current_entry = self._index.get(cache_key)
             if current_entry is None:
                 self._misses += 1
                 return None
 
-            # Update access metadata - queue for batched save
             current_entry["access_count"] = current_entry.get("access_count", 0) + 1
             current_entry["last_access"] = time.time()
             self._queue_index_write(cache_key, "update")
 
-            # Add to memory cache
             self._memory_cache.put(cache_key, {
                 'data': explanation,
-                'timestamp': current_entry['timestamp']
+                'timestamp': entry_timestamp,
             })
 
             self._hits += 1
