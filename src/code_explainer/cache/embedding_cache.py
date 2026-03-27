@@ -68,7 +68,7 @@ class EmbeddingCache(BaseCache):
     def size(self) -> int:
         """Get the number of cached embeddings."""
         try:
-            return len(list(self.cache_dir.glob(f"*{_CACHE_EXT}")))
+            return sum(1 for _ in self.cache_dir.glob(f"*{_CACHE_EXT}"))
         except Exception:
             return 0
 
