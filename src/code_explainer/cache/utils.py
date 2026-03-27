@@ -22,13 +22,17 @@ from ..utils.hashing import fast_hash_bytes as _fast_hash
 # same key. Null bytes cannot appear in normal text, making collisions
 # impossible.
 _KEY_SEPARATOR = "\x00"
+
 @lru_cache(maxsize=4096)
 def generate_cache_key(*components: str) -> str:
     """Generate a cache key from components (cached for repeated lookups).
     
     Uses xxhash for speed when available (10x faster than SHA256).
     Null-byte separator prevents ambiguous key collisions.
+    For single-component keys, skip the join to avoid allocation.
     """
+    if len(components) == 1:
+        return _fast_hash(components[0].encode('utf-8'))
     content = _KEY_SEPARATOR.join(components)
     return _fast_hash(content.encode('utf-8'))
 
