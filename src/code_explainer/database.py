@@ -194,6 +194,8 @@ class DatabaseConfig:
 class DatabaseManager:
     """Database session and operation manager."""
 
+    __slots__ = ("config", "engine", "SessionLocal")
+
     def __init__(self, config: DatabaseConfig):
         """Initialize database manager.
 

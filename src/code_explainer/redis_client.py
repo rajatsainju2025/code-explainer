@@ -34,8 +34,9 @@ logger = logging.getLogger("code-explainer.redis")
 class RedisClient:
     """Singleton Redis client with connection pooling."""
 
+    __slots__ = ("_redis_conn",)
+
     _instance = None
-    _redis_conn = None
 
     def __new__(cls):
         if cls._instance is None:

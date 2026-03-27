@@ -475,6 +475,7 @@ def sanitize_code_for_display(code: str, max_length: int = 1000) -> str:
 
 class SecurityManager:
     """Central security manager coordinating all security components."""
+    __slots__ = ("rate_limiter", "validator", "executor", "content_filter", "max_code_length")
 
     def __init__(self, 
                  rate_limit_rpm: int = 60,

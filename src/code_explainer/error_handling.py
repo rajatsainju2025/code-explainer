@@ -144,6 +144,8 @@ def handle_exception(exc: Exception, context: Optional[Dict[str, Any]] = None) -
 class ErrorContext:
     """Context manager for error handling with context."""
 
+    __slots__ = ("operation", "context")
+
     def __init__(self, operation: str, **context):
         """Initialize error context.
 

@@ -35,7 +35,7 @@ class ExplanationResult:
 
 class MultiAgentOrchestrator:
     """Orchestrates multiple explanation agents for consensus-based explanations."""
-    
+    __slots__ = ("num_agents", "agents", "message_queue")
     def __init__(self, num_agents: int = 3):
         """Initialize orchestrator with multiple agents.
         
