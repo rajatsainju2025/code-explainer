@@ -80,55 +80,37 @@ class LoggingMiddleware(BaseHTTPMiddleware):
 
 
 class ErrorHandlingMiddleware(BaseHTTPMiddleware):
-    """Global error handling middleware to catch and format exceptions."""
+    """Global error handling middleware — maps exceptions to HTTP responses.
+    
+    Uses a dispatch dict for O(1) exception-type lookup instead of
+    chained except blocks. Reduces bytecode overhead per request.
+    """
+
+    _STATUS_MAP = {
+        ValueError: (status.HTTP_400_BAD_REQUEST, "Validation Error"),
+        PermissionError: (status.HTTP_403_FORBIDDEN, "Permission Denied"),
+        FileNotFoundError: (status.HTTP_404_NOT_FOUND, "Not Found"),
+    }
 
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         request_id = getattr(request.state, 'request_id', 'unknown')
-        
+
         try:
             return await call_next(request)
-        except ValueError as e:
-            logger.warning("[%s] Validation error: %s", request_id, str(e))
-            return JSONResponse(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                content={
-                    "error": "Validation Error",
-                    "detail": str(e),
-                    "request_id": request_id
-                }
-            )
-        except PermissionError as e:
-            logger.warning("[%s] Permission denied: %s", request_id, str(e))
-            return JSONResponse(
-                status_code=status.HTTP_403_FORBIDDEN,
-                content={
-                    "error": "Permission Denied",
-                    "detail": str(e),
-                    "request_id": request_id
-                }
-            )
-        except FileNotFoundError as e:
-            logger.warning("[%s] Resource not found: %s", request_id, str(e))
-            return JSONResponse(
-                status_code=status.HTTP_404_NOT_FOUND,
-                content={
-                    "error": "Not Found",
-                    "detail": str(e),
-                    "request_id": request_id
-                }
-            )
         except Exception as e:
-            logger.error(
-                "[%s] Unhandled exception: %s", request_id, str(e),
-                exc_info=True
-            )
+            mapping = self._STATUS_MAP.get(type(e))
+            if mapping is not None:
+                status_code, error_label = mapping
+                logger.warning("[%s] %s: %s", request_id, error_label, e)
+                detail = str(e)
+            else:
+                status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+                error_label = "Internal Server Error"
+                detail = "An unexpected error occurred. Check logs for details."
+                logger.error("[%s] Unhandled exception: %s", request_id, e, exc_info=True)
             return JSONResponse(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                content={
-                    "error": "Internal Server Error",
-                    "detail": "An unexpected error occurred. Check logs for details.",
-                    "request_id": request_id
-                }
+                status_code=status_code,
+                content={"error": error_label, "detail": detail, "request_id": request_id},
             )
 
 
