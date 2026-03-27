@@ -111,7 +111,11 @@ class MultiAgentOrchestrator:
         )
     
     def _compute_consensus(self, explanations: List[str]) -> Optional[str]:
-        """Compute consensus explanation from multiple candidates.
+        """Compute consensus explanation using word-overlap scoring.
+        
+        Selects the explanation with highest average word overlap with all
+        other explanations — the most "central" explanation rather than
+        simply the longest.
         
         Args:
             explanations: List of explanation strings
@@ -121,9 +125,31 @@ class MultiAgentOrchestrator:
         """
         if not explanations:
             return None
+        if len(explanations) == 1:
+            return explanations[0]
         
-        # Simple heuristic: return longest (most detailed) explanation
-        return max(explanations, key=len)
+        # Build word sets for each explanation (lowercase, split on whitespace)
+        word_sets = [frozenset(e.lower().split()) for e in explanations]
+        
+        best_idx = 0
+        best_score = -1.0
+        for i, ws_i in enumerate(word_sets):
+            if not ws_i:
+                continue
+            # Average Jaccard similarity with all other explanations
+            total = 0.0
+            for j, ws_j in enumerate(word_sets):
+                if i == j or not ws_j:
+                    continue
+                intersection = len(ws_i & ws_j)
+                union = len(ws_i | ws_j)
+                total += intersection / union if union else 0.0
+            avg_score = total / (len(explanations) - 1)
+            if avg_score > best_score:
+                best_score = avg_score
+                best_idx = i
+        
+        return explanations[best_idx]
     
     def _compute_confidence(self, explanations: List[str]) -> float:
         """Compute confidence score based on explanation agreement.
