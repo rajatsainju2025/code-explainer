@@ -1,8 +1,15 @@
-"""Centralized error handling and custom exceptions."""
+"""Centralized error handling and custom exceptions.
+
+Legacy module — prefer importing from code_explainer.error_handling (package)
+or code_explainer.exceptions for the canonical exception hierarchy.
+"""
 
 from typing import Optional, Dict, Any
+import logging
 import traceback
-from logging_config import logger
+
+# Use stdlib logger instead of broken bare import 'from logging_config import logger'
+logger = logging.getLogger("code-explainer.error_handling")
 
 
 class CodeExplainerException(Exception):
