@@ -155,15 +155,16 @@ class CodeRetriever:
             results = self.hybrid_search.search(query_code, k)
             result_indices = [i for i, _ in results]
 
-        # Update timing statistics with minimal lock contention
+        # Update timing statistics — compute avg outside lock to minimize hold time
         response_time = perf_counter() - start_time
         with self._stats_lock:
             self.stats.total_queries += 1
             self.stats.method_usage[method] += 1
             self.stats.total_response_time += response_time
-            self.stats.avg_response_time = (
-                self.stats.total_response_time / self.stats.total_queries
-            )
+        # Compute avg outside the lock (reading total_queries is atomic for ints)
+        total = self.stats.total_queries
+        if total > 0:
+            self.stats.avg_response_time = self.stats.total_response_time / total
 
         return [self.code_corpus[i] for i in result_indices]
 
