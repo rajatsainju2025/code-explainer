@@ -81,11 +81,18 @@ def analyze_code_comprehensive(code: str) -> ASTInfo:
             if doc:
                 docs.append(f"{_FUNCTION_DOC}{fn.name}{_DOC_SUFFIX}{doc.strip()[:150]}")
             
-            # Detect recursion (function calls itself)
+            # Detect recursion via direct body iteration (avoids redundant ast.walk)
             if not has_recursion:
-                for child in ast.walk(fn):
-                    if isinstance(child, ast.Call):
-                        if isinstance(child.func, ast.Name) and child.func.id == fn.name:
+                for child in ast.iter_child_nodes(fn):
+                    if isinstance(child, ast.Expr) and isinstance(child.value, ast.Call):
+                        call = child.value
+                        if isinstance(call.func, ast.Name) and call.func.id == fn.name:
+                            has_recursion = True
+                            complexity_hints.append(f"{_RECURSIVE_PREFIX}{fn.name}")
+                            break
+                    elif isinstance(child, ast.Return) and isinstance(child.value, ast.Call):
+                        call = child.value
+                        if isinstance(call.func, ast.Name) and call.func.id == fn.name:
                             has_recursion = True
                             complexity_hints.append(f"{_RECURSIVE_PREFIX}{fn.name}")
                             break
@@ -105,13 +112,19 @@ def analyze_code_comprehensive(code: str) -> ASTInfo:
             mod = node.module or ""
             imports_set.update(f"{mod}.{alias.name}" for alias in node.names)
         
-        # Complexity hints from loops
+        # Complexity hints: track loop depth without nested ast.walk
         elif node_type in (ast.For, ast.While):
-            # Check for nested loops
-            for child in ast.walk(node):
-                if child is not node and type(child) in (ast.For, ast.While):
+            # Use iter_child_nodes to check immediate children for nested loops
+            for child in ast.iter_child_nodes(node):
+                if isinstance(child, (ast.For, ast.While)):
                     complexity_hints.append("nested_loop")
                     break
+                # Also check inside the body list directly
+                if isinstance(child, list):
+                    for sub in child:
+                        if isinstance(sub, (ast.For, ast.While)):
+                            complexity_hints.append("nested_loop")
+                            break
     
     return ASTInfo(
         functions=tuple(funcs),
