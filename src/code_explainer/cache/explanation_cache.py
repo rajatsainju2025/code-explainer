@@ -60,6 +60,16 @@ class ExplanationCache(BaseCache):
         self._hits = 0
         self._misses = 0
 
+    def __repr__(self) -> str:
+        return (
+            f"ExplanationCache("
+            f"cache_dir={str(self.cache_dir)!r}, "
+            f"max_size={self.config.max_size}, "
+            f"ttl_seconds={self.config.ttl_seconds}, "
+            f"entries={len(self._index)}, "
+            f"hits={self._hits}, misses={self._misses})"
+        )
+
     def _load_index(self) -> Dict[str, Dict[str, Any]]:
         """Load the cache index."""
         data = safe_file_operation(self._index_file, "r")
