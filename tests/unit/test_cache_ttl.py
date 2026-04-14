@@ -19,7 +19,7 @@ def test_cache_ttl_config_defaults():
 
 
 def test_named_constants():
-    \"\"\"Test that named constants have correct values.\"\"\"
+    """Test that named constants have correct values."""
     from code_explainer.cache_ttl import ONE_HOUR, TWO_HOURS, ONE_DAY
     assert ONE_HOUR == 3600
     assert TWO_HOURS == 7200
@@ -72,6 +72,26 @@ def test_ttl_cache_overwrite():
     cache.set("key1", "value2")
     
     assert cache.get("key1") == "value2"
+
+
+def test_ttl_cache_overwrite_at_capacity_keeps_single_entry():
+    cache = TTLCache(max_size=1)
+    cache.set("key1", "value1")
+    cache.set("key1", "value2")
+
+    assert cache.size() == 1
+    assert cache.get("key1") == "value2"
+
+
+def test_ttl_cache_evicts_oldest_when_full():
+    cache = TTLCache(ttl_seconds=10, max_size=2)
+    cache.set("key1", "value1")
+    cache.set("key2", "value2")
+    cache.set("key3", "value3")
+
+    assert cache.get("key1") is None
+    assert cache.get("key2") == "value2"
+    assert cache.get("key3") == "value3"
 
 
 def test_ttl_cache_clear():

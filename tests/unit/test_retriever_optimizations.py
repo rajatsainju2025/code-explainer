@@ -7,6 +7,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from code_explainer.utils.hashing import json_dumps, json_loads
+from code_explainer.retrieval.hybrid_search import AdvancedHybridSearch, FusionStrategy
 
 
 class TestRetrieverJsonOptimization:
@@ -79,3 +80,34 @@ class TestRetrievalConfig:
         # Check that it's a frozen dataclass with slots
         assert config.batch_size == 32
         assert config.hybrid_alpha == 0.5
+
+
+class TestHybridSearchOptimizations:
+    """Tests for low-overhead hybrid fusion paths."""
+
+    def test_linear_fusion_small_resultset_normalizes_bm25(self):
+        search = AdvancedHybridSearch(fusion_strategy=FusionStrategy.LINEAR, alpha=0.5)
+
+        results = search._linear_fusion(
+            faiss_results=[(1, 0.9), (2, 0.2)],
+            bm25_results=[(2, 2.0), (3, 1.0)],
+            k=3,
+        )
+
+        assert results[0][0] == 1
+        assert {idx for idx, _ in results} == {1, 2, 3}
+
+    def test_distribution_fusion_small_resultset_keeps_all_candidates(self):
+        search = AdvancedHybridSearch(
+            fusion_strategy=FusionStrategy.DISTRIBUTION_BASED,
+            alpha=0.5,
+        )
+
+        results = search._distribution_fusion(
+            faiss_results=[(10, 0.8), (20, 0.2)],
+            bm25_results=[(20, 5.0), (30, 1.0)],
+            k=3,
+        )
+
+        assert len(results) == 3
+        assert {idx for idx, _ in results} == {10, 20, 30}

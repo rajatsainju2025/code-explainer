@@ -1,11 +1,21 @@
 """Tests for hashing cache behavior and performance."""
 
+from typing import Any, Callable
+
 import pytest
 from code_explainer.utils.hashing import fast_hash_str, fast_hash_bytes, json_loads, json_dumps
 
 
+def _cache_method(func: Callable[..., str], name: str) -> Callable[..., Any]:
+    return getattr(func, name)
+
+
 class TestHashingFunctions:
     """Tests for hashing functions."""
+
+    def setup_method(self):
+        _cache_method(fast_hash_str, "cache_clear")()
+        _cache_method(fast_hash_bytes, "cache_clear")()
     
     def test_fast_hash_str_cache(self):
         """Test that fast_hash_str returns consistent results."""
@@ -32,6 +42,24 @@ class TestHashingFunctions:
         h1 = fast_hash_bytes(b"data1")
         h2 = fast_hash_bytes(b"data2")
         assert h1 != h2
+
+    def test_fast_hash_str_skips_cache_for_large_inputs(self):
+        """Large unique strings should not consume LRU slots."""
+        large_value = "x" * 4096
+        before = _cache_method(fast_hash_str, "cache_info")()
+        fast_hash_str(large_value)
+        after = _cache_method(fast_hash_str, "cache_info")()
+
+        assert after.currsize == before.currsize
+
+    def test_fast_hash_bytes_skips_cache_for_large_inputs(self):
+        """Large unique byte payloads should not consume LRU slots."""
+        large_value = b"x" * 4096
+        before = _cache_method(fast_hash_bytes, "cache_info")()
+        fast_hash_bytes(large_value)
+        after = _cache_method(fast_hash_bytes, "cache_info")()
+
+        assert after.currsize == before.currsize
 
 
 class TestJsonUtilities:

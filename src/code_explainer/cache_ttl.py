@@ -5,8 +5,9 @@ Defines TTL constants and cache expiration policies.
 
 import os
 import time
+from collections import OrderedDict
 from dataclasses import dataclass
-from typing import Dict, Any, Optional, Final
+from typing import Any, Optional, Final
 
 
 __all__ = [
@@ -87,7 +88,7 @@ class TTLCache:
         """
         self.ttl_seconds = ttl_seconds
         self.max_size = max_size
-        self._cache: Dict[str, tuple[Any, float]] = {}
+        self._cache: OrderedDict[str, tuple[Any, float]] = OrderedDict()
     
     def get(self, key: str) -> Optional[Any]:
         """Get value from cache if not expired.
@@ -104,7 +105,7 @@ class TTLCache:
 
         value, expires_at = entry
         if time.monotonic() >= expires_at:
-            del self._cache[key]
+            self._cache.pop(key, None)
             return None
 
         return value
@@ -118,16 +119,15 @@ class TTLCache:
             key: Cache key
             value: Value to cache
         """
-        # Evict if at capacity (skip if key already exists — it's an update)
-        if self.max_size > 0 and key not in self._cache and len(self._cache) >= self.max_size:
-            # Batch cleanup: remove expired first
-            removed = self.cleanup_expired()
-            # If still at capacity, evict the entry closest to expiration
-            if removed == 0 and len(self._cache) >= self.max_size:
-                oldest_key = min(self._cache, key=lambda k: self._cache[k][1])
-                del self._cache[oldest_key]
-        
-        self._cache[key] = (value, time.monotonic() + self.ttl_seconds)
+        now = time.monotonic()
+        if key in self._cache:
+            self._cache.pop(key, None)
+        elif self.max_size > 0 and len(self._cache) >= self.max_size:
+            self.cleanup_expired(now)
+            if len(self._cache) >= self.max_size:
+                self._cache.popitem(last=False)
+
+        self._cache[key] = (value, now + self.ttl_seconds)
     
     def clear(self) -> None:
         """Clear all cache entries."""
@@ -141,17 +141,20 @@ class TTLCache:
         """
         return len(self._cache)
     
-    def cleanup_expired(self) -> int:
+    def cleanup_expired(self, now: Optional[float] = None) -> int:
         """Remove all expired entries from cache.
         
         Returns:
             Number of entries removed
         """
-        now = time.monotonic()
-        expired_keys = [
-            k for k, (_, ts) in self._cache.items()
-            if ts <= now
-        ]
-        for key in expired_keys:
-            del self._cache[key]
-        return len(expired_keys)
+        current_time = time.monotonic() if now is None else now
+        removed = 0
+
+        while self._cache:
+            _, (_, expires_at) = next(iter(self._cache.items()))
+            if expires_at > current_time:
+                break
+            self._cache.popitem(last=False)
+            removed += 1
+
+        return removed

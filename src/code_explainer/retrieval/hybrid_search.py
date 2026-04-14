@@ -1,5 +1,6 @@
 """Hybrid search combining multiple retrieval methods with advanced features."""
 
+import heapq
 import logging
 from enum import Enum
 from typing import Dict, List, Tuple, Optional
@@ -10,6 +11,8 @@ from .bm25_index import BM25Index
 from .faiss_index import FAISSIndex
 
 logger = logging.getLogger(__name__)
+
+_SMALL_RESULTSET_THRESHOLD = 64
 
 
 class FusionStrategy(Enum):
@@ -98,6 +101,10 @@ class AdvancedHybridSearch:
         # Convert to dictionaries for easy merging
         faiss_dict = dict(faiss_results)
         bm25_dict = dict(bm25_results)
+        candidate_count = len(faiss_dict) + len([idx for idx in bm25_dict if idx not in faiss_dict])
+
+        if candidate_count <= _SMALL_RESULTSET_THRESHOLD:
+            return self._linear_fusion_small(faiss_dict, bm25_dict, k)
 
         # Vectorized BM25 score normalization using numpy
         if bm25_dict:
@@ -121,6 +128,30 @@ class AdvancedHybridSearch:
         # Sort by fused score and return top k
         sorted_indices = np.argsort(-fused_scores)[:k]
         return [(int(indices_array[idx]), float(fused_scores[idx])) for idx in sorted_indices]
+
+    def _linear_fusion_small(
+        self,
+        faiss_dict: Dict[int, float],
+        bm25_dict: Dict[int, float],
+        k: int,
+    ) -> List[Tuple[int, float]]:
+        """Low-overhead linear fusion for typical small top-k result sets."""
+        normalized_bm25 = bm25_dict
+        if bm25_dict:
+            bm_min = min(bm25_dict.values())
+            bm_max = max(bm25_dict.values())
+            bm_range = (bm_max - bm_min) or 1.0
+            normalized_bm25 = {
+                idx: (score - bm_min) / bm_range
+                for idx, score in bm25_dict.items()
+            }
+
+        fused_scores = {
+            idx: self.alpha * faiss_dict.get(idx, 0.0)
+            + (1 - self.alpha) * normalized_bm25.get(idx, 0.0)
+            for idx in faiss_dict.keys() | normalized_bm25.keys()
+        }
+        return heapq.nlargest(k, fused_scores.items(), key=lambda item: item[1])
 
     def _rrf_fusion(self,
                    faiss_results: List[Tuple[int, float]],
@@ -147,6 +178,9 @@ class AdvancedHybridSearch:
                            bm25_results: List[Tuple[int, float]],
                            k: int) -> List[Tuple[int, float]]:
         """Distribution-based fusion using score distributions with numpy optimization."""
+        if len(faiss_results) + len(bm25_results) <= _SMALL_RESULTSET_THRESHOLD:
+            return self._distribution_fusion_small(faiss_results, bm25_results, k)
+
         # Use numpy arrays for efficient computation
         faiss_scores = np.array([score for _, score in faiss_results]) if faiss_results else np.array([])
         bm25_scores = np.array([score for _, score in bm25_results]) if bm25_results else np.array([])
@@ -178,6 +212,33 @@ class AdvancedHybridSearch:
         # Sort and return top k
         sorted_indices = np.argsort(-fused_scores)[:k]
         return [(int(indices_array[idx]), float(fused_scores[idx])) for idx in sorted_indices]
+
+    def _distribution_fusion_small(
+        self,
+        faiss_results: List[Tuple[int, float]],
+        bm25_results: List[Tuple[int, float]],
+        k: int,
+    ) -> List[Tuple[int, float]]:
+        """Low-overhead distribution fusion for the common small-result path."""
+        faiss_dict = dict(faiss_results)
+        bm25_dict = dict(bm25_results)
+
+        faiss_stats = self._calculate_distribution_stats(np.array(list(faiss_dict.values())))
+        bm25_stats = self._calculate_distribution_stats(np.array(list(bm25_dict.values())))
+
+        def normalize(score: float, stats: Dict[str, float]) -> float:
+            std = stats['std']
+            if std <= 0:
+                return 0.0
+            return (score - stats['mean']) / std
+
+        fused_scores = {
+            idx: self.alpha * normalize(faiss_dict.get(idx, faiss_stats['mean']), faiss_stats)
+            + (1 - self.alpha) * normalize(bm25_dict.get(idx, bm25_stats['mean']), bm25_stats)
+            for idx in faiss_dict.keys() | bm25_dict.keys()
+        }
+
+        return heapq.nlargest(k, fused_scores.items(), key=lambda item: item[1])
 
     def _calculate_distribution_stats(self, scores: np.ndarray) -> Dict[str, float]:
         """Calculate distribution statistics using numpy for efficiency."""
