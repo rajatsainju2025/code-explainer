@@ -37,9 +37,6 @@ class BM25Index:
             codes: List of code snippets to index
             batch_size: Size of batches for tokenization (for large corpora)
         """
-        if not HAS_BM25 or BM25Okapi is None:
-            raise ImportError("rank_bm25 is not installed; install rank-bm25 to use BM25 retrieval")
-
         # For large corpora, tokenize in batches to reduce memory peaks
         if len(codes) > batch_size:
             tokenized_corpus = []
