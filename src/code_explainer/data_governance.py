@@ -12,6 +12,14 @@ from datetime import datetime, timedelta, timezone
 from typing import Dict, Any, Optional, List
 import logging
 
+__all__ = [
+    "DataGovernanceConfig",
+    "DataProvenance",
+    "log_data_access",
+    "log_data_lineage",
+    "calculate_expiration",
+    "is_data_expired",
+]
 
 logger = logging.getLogger(__name__)
 
