@@ -40,7 +40,16 @@ class DataGovernanceConfig:
         self.cleanup_enabled = cleanup_enabled
         self.storage_disabled = storage_disabled
         self.audit_log_path = audit_log_path
-    
+
+    def __repr__(self) -> str:
+        return (
+            f"DataGovernanceConfig("
+            f"retention_days={self.retention_days}, "
+            f"cleanup_enabled={self.cleanup_enabled}, "
+            f"storage_disabled={self.storage_disabled}, "
+            f"audit_log_path={self.audit_log_path!r})"
+        )
+
     @classmethod
     def from_env(cls) -> "DataGovernanceConfig":
         """Load configuration from environment variables.
