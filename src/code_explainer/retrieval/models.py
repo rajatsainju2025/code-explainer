@@ -17,6 +17,12 @@ class RetrievalConfig:
     batch_size: int = 32
     hybrid_alpha: float = 0.5
 
+    def __repr__(self) -> str:
+        return (
+            f"RetrievalConfig(batch_size={self.batch_size}, "
+            f"hybrid_alpha={self.hybrid_alpha})"
+        )
+
 
 # Pre-create default method usage dict to avoid repeated lambda calls
 _DEFAULT_METHOD_USAGE: Dict[str, int] = {"faiss": 0, "bm25": 0, "hybrid": 0}
@@ -43,3 +49,9 @@ class RetrievalStats:
         self.total_queries += 1
         self.total_response_time += elapsed
         self.avg_response_time = self.total_response_time / self.total_queries
+
+    def __repr__(self) -> str:
+        return (
+            f"RetrievalStats(total_queries={self.total_queries}, "
+            f"avg_response_time={self.avg_response_time:.4f}s)"
+        )
