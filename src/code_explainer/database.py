@@ -7,7 +7,7 @@ Optimized for:
 """
 
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, Any, List
 from sqlalchemy import (
     create_engine, Column, Integer, String, Text, DateTime, Float,
@@ -26,9 +26,7 @@ class AuditLog(Base):
     __tablename__ = "audit_logs"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    timestamp = Column(DateTime, default=datetime.utcnow, nullable=False)
-    request_id = Column(String(64), nullable=False, index=True)
-    operation = Column(String(32), nullable=False)  # STORE, RETRIEVE, DELETE, etc.
+    timestamp = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
     data_type = Column(String(32), nullable=False)  # code_snippet, explanation, etc.
     size_bytes = Column(Integer, default=0)
     metadata_json = Column(JSON, nullable=True)
@@ -48,7 +46,7 @@ class RequestHistory(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     request_id = Column(String(64), unique=True, nullable=False, index=True)
-    timestamp = Column(DateTime, default=datetime.utcnow, nullable=False)
+    timestamp = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
     method = Column(String(8), nullable=False)  # GET, POST, etc.
     endpoint = Column(String(256), nullable=False)
     status_code = Column(Integer, nullable=False)
@@ -75,8 +73,8 @@ class CacheEntry(Base):
     cache_key = Column(String(256), unique=True, nullable=False, index=True)
     cache_type = Column(String(32), nullable=False)  # explanation, embedding, etc.
     content = Column(Text, nullable=False)  # JSON-serialized content
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    last_accessed = Column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+    last_accessed = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
     access_count = Column(Integer, default=0)
     ttl_seconds = Column(Integer, nullable=True)
     metadata_json = Column(JSON, nullable=True)  # Model version, strategy, etc.
@@ -93,7 +91,7 @@ class ModelMetrics(Base):
     __tablename__ = "model_metrics"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    timestamp = Column(DateTime, default=datetime.utcnow, nullable=False)
+    timestamp = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
     model_name = Column(String(128), nullable=False)
     operation = Column(String(32), nullable=False)  # inference, embedding, etc.
     input_tokens = Column(Integer, nullable=True)
@@ -322,7 +320,7 @@ class DatabaseManager:
             entry = session.query(CacheEntry).filter_by(cache_key=cache_key).first()
             if entry:
                 # Update access statistics
-                entry.last_accessed = datetime.utcnow()
+                entry.last_accessed = datetime.now(timezone.utc)
                 entry.access_count += 1
                 return {
                     "content": entry.content,
@@ -355,7 +353,7 @@ class DatabaseManager:
             if entry:
                 # Update existing
                 entry.content = content
-                entry.last_accessed = datetime.utcnow()
+                entry.last_accessed = datetime.now(timezone.utc)
                 entry.metadata_json = metadata
             else:
                 # Create new
@@ -374,7 +372,7 @@ class DatabaseManager:
         Returns:
             Number of entries removed
         """
-        cutoff = datetime.utcnow()
+        cutoff = datetime.now(timezone.utc)
         with self.get_session() as session:
             # For SQLite, use datetime function to calculate expiration
             result = session.query(CacheEntry).filter(
@@ -395,7 +393,7 @@ class DatabaseManager:
         Returns:
             Statistics dictionary
         """
-        cutoff = datetime.utcnow() - timedelta(hours=hours)
+        cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
 
         with self.get_session() as session:
             # Total requests
