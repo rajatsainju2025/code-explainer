@@ -13,6 +13,8 @@ repository = "https://github.com/rajatsainju2025/code-explainer"
 documentation = "https://github.com/rajatsainju2025/code-explainer#readme"
 keywords = ["nlp", "transformers", "code", "explainability", "LLM"]
 packages = [{include = "code_explainer", from = "src"}]
+# PEP 561 — declare that this package ships inline type information
+include = ["src/code_explainer/py.typed"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
