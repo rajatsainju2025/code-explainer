@@ -8,7 +8,7 @@ Optimized for:
 
 import os
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, Any, Optional, List
 import logging
 
@@ -87,7 +87,7 @@ def log_data_access(
         size_bytes: Size of data in bytes
         metadata: Optional metadata to include
     """
-    timestamp = datetime.utcnow().isoformat() + "Z"
+    timestamp = datetime.now(timezone.utc).isoformat()
     
     parts = [
         timestamp,
@@ -115,7 +115,7 @@ def calculate_expiration(retention_days: int) -> datetime:
     Returns:
         Expiration datetime
     """
-    return datetime.utcnow() + timedelta(days=retention_days)
+    return datetime.now(timezone.utc) + timedelta(days=retention_days)
 
 
 def is_data_expired(timestamp: float, retention_days: int) -> bool:
@@ -128,10 +128,10 @@ def is_data_expired(timestamp: float, retention_days: int) -> bool:
     Returns:
         True if data is past expiration, False otherwise
     """
-    expiration = datetime.utcfromtimestamp(timestamp) + timedelta(
+    expiration = datetime.fromtimestamp(timestamp, tz=timezone.utc) + timedelta(
         days=retention_days
     )
-    return datetime.utcnow() > expiration
+    return datetime.now(timezone.utc) > expiration
 
 
 def log_data_lineage(
@@ -151,7 +151,7 @@ def log_data_lineage(
         metadata: Optional metadata about the operation
     """
     if timestamp is None:
-        timestamp = datetime.utcnow().isoformat() + "Z"
+        timestamp = datetime.now(timezone.utc).isoformat()
     
     lineage = {
         "timestamp": timestamp,
@@ -204,7 +204,7 @@ class DataProvenance:
             "name": dataset_name,
             "description": description,
             "source": source,
-            "created_at": datetime.utcnow().isoformat() + "Z",
+            "created_at": datetime.now(timezone.utc).isoformat(),
             "composition": composition,
             "license": license_id,
             "metadata": metadata or {},
