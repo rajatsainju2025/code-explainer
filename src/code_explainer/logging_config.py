@@ -47,13 +47,12 @@ class StructuredLogger:
         log_dir = os.environ.get("LOG_DIR", "logs")
         try:
             os.makedirs(log_dir, exist_ok=True)
-            # Test write access
-            test_path = os.path.join(log_dir, ".write_test")
-            with open(test_path, "w") as f:
-                f.write("")
-            os.unlink(test_path)
         except (OSError, PermissionError):
-            # Cannot write to log directory — skip file handlers
+            return
+
+        # os.access is lighter than creating a probe file and avoids leaving
+        # a stale .write_test artefact if the process is killed mid-check.
+        if not os.access(log_dir, os.W_OK):
             return
 
         try:
