@@ -6,6 +6,9 @@ each maintaining their own module-level global.
 """
 
 from typing import Any, Optional
+import logging
+
+logger = logging.getLogger(__name__)
 
 _symbolic_analyzer: Optional[Any] = None
 
@@ -20,6 +23,7 @@ def get_shared_symbolic_analyzer() -> Any:
     """
     global _symbolic_analyzer
     if _symbolic_analyzer is None:
+        logger.debug("Initialising shared SymbolicAnalyzer singleton")
         from ...symbolic import SymbolicAnalyzer
         _symbolic_analyzer = SymbolicAnalyzer()
     return _symbolic_analyzer
