@@ -70,17 +70,20 @@ class ExplanationCache(BaseCache):
                 pass
         return {}
 
-    def _should_flush_writes(self) -> bool:
-        """Check if pending writes should be flushed."""
-        if self._pending_write_count >= self.write_behind_batch_size:
-            return True
-        return (time.monotonic() - self._last_flush_time) >= self.write_behind_flush_interval
-
     def _queue_index_write(self, cache_key: str, operation: str = "update") -> None:
-        """Mark index as dirty and flush if batch threshold reached."""
+        """Mark index as dirty and flush if batch threshold or interval is reached.
+
+        The flush condition is inlined here (rather than delegated to a separate
+        _should_flush_writes method) so the check and the counter increment are
+        visually adjacent and a reader can see both conditions at a glance.
+        """
         with self._write_behind_lock:
             self._pending_write_count += 1
-            if self._should_flush_writes():
+            now = time.monotonic()
+            if (
+                self._pending_write_count >= self.write_behind_batch_size
+                or (now - self._last_flush_time) >= self.write_behind_flush_interval
+            ):
                 self._flush_pending_writes_unsafe()
 
     def _flush_pending_writes_unsafe(self) -> None:
