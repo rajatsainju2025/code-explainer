@@ -6,6 +6,7 @@ from typing import Any, Dict, List, Optional
 
 from ..base_agent import BaseAgent
 from ..models import AgentRole, ExplanationComponent
+from . import get_shared_symbolic_analyzer
 
 logger = logging.getLogger(__name__)
 
@@ -14,19 +15,6 @@ _FUNC_DEF_TYPE = ast.FunctionDef
 _CLASS_DEF_TYPE = ast.ClassDef
 _IMPORT_TYPE = ast.Import
 _IMPORT_FROM_TYPE = ast.ImportFrom
-
-# Module-level lazy singleton — avoids constructing a new SymbolicAnalyzer
-# (and cold-starting its internal AST cache) on every analyze_code() call.
-_symbolic_analyzer: Optional[Any] = None
-
-
-def _get_symbolic_analyzer() -> Any:
-    """Return the module-level SymbolicAnalyzer singleton, creating it on first use."""
-    global _symbolic_analyzer
-    if _symbolic_analyzer is None:
-        from ...symbolic import SymbolicAnalyzer  # deferred import keeps module load fast
-        _symbolic_analyzer = SymbolicAnalyzer()
-    return _symbolic_analyzer
 
 
 class StructuralAgent(BaseAgent):
@@ -61,7 +49,7 @@ class StructuralAgent(BaseAgent):
             # Get complexity metrics using the module-level SymbolicAnalyzer singleton.
             # Re-using the same instance preserves its internal AST cache across calls.
             try:
-                analyzer = _get_symbolic_analyzer()
+                analyzer = get_shared_symbolic_analyzer()
                 symbolic_analysis = analyzer.analyze_code(code)
                 complexity = symbolic_analysis.complexity_analysis
             except ImportError:

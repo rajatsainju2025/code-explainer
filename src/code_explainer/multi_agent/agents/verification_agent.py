@@ -6,27 +6,9 @@ from typing import Any, Dict, Optional
 
 from ..base_agent import BaseAgent
 from ..models import AgentRole, ExplanationComponent
+from . import get_shared_symbolic_analyzer
 
 logger = logging.getLogger(__name__)
-
-# Pre-cache AST types for faster checks
-_AST_FOR = ast.For
-_AST_WHILE = ast.While
-_AST_IF = ast.If
-_AST_FUNCTIONDEF = ast.FunctionDef
-
-# Module-level lazy singleton — shares the same instance (and warm AST cache)
-# with structural_agent by importing from the same module.
-_symbolic_analyzer: Optional[Any] = None
-
-
-def _get_symbolic_analyzer() -> Any:
-    """Return the module-level SymbolicAnalyzer singleton, creating it on first use."""
-    global _symbolic_analyzer
-    if _symbolic_analyzer is None:
-        from ...symbolic import SymbolicAnalyzer  # deferred to keep module load fast
-        _symbolic_analyzer = SymbolicAnalyzer()
-    return _symbolic_analyzer
 
 
 class VerificationAgent(BaseAgent):
@@ -46,7 +28,7 @@ class VerificationAgent(BaseAgent):
             # Try to use symbolic analyzer for property tests.
             # Re-use the module-level singleton to preserve its AST cache warmth.
             try:
-                analyzer = _get_symbolic_analyzer()
+                analyzer = get_shared_symbolic_analyzer()
                 symbolic_analysis = analyzer.analyze_code(code)
 
                 # Use islice-like early termination with enumerate
