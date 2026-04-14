@@ -64,7 +64,7 @@ Property-based tests that could be generated:
             return ExplanationComponent(
                 agent_id=self.agent_id,
                 component_type="verification",
-                content=verification_description,
+                content=verification_description.strip(),
                 confidence=0.8,
                 metadata={"verification_info": verification_info},
             )
