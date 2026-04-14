@@ -97,22 +97,17 @@ def log_data_access(
         metadata: Optional metadata to include
     """
     timestamp = datetime.now(timezone.utc).isoformat()
-    
-    parts = [
-        timestamp,
-        f"| {request_id}",
-        f"| {operation}",
-        f"| {data_type}",
-    ]
-    
-    if size_bytes:
-        parts.append(f"| {size_bytes} bytes")
-    
-    if metadata:
-        parts.append(f"| {metadata}")
-    
-    message = " ".join(parts)
-    logger.info(message)
+
+    # Emit a structured log record so log aggregators (ELK, Cloud Logging, etc.)
+    # can index individual fields rather than parsing a hand-built string.
+    logger.info(
+        "data_access request_id=%s operation=%s data_type=%s size_bytes=%d%s",
+        request_id,
+        operation,
+        data_type,
+        size_bytes,
+        f" metadata={metadata}" if metadata else "",
+    )
 
 
 def calculate_expiration(retention_days: int) -> datetime:
