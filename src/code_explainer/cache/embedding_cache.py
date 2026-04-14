@@ -42,7 +42,9 @@ class EmbeddingCache(BaseCache):
             # allow_pickle=False prevents code execution attacks
             return np.load(cache_file, allow_pickle=False)
         except Exception as e:
-            logger.debug("Failed to load cached embedding %s: %s", cache_key, e)
+            # Corrupt or unreadable cache file — warn so operators know the
+            # disk cache is degraded and can investigate.
+            logger.warning("Failed to load cached embedding %s: %s", cache_key, e)
             return None
 
     def put(self, code: str, model_name: str, embedding: Any) -> None:
@@ -55,21 +57,23 @@ class EmbeddingCache(BaseCache):
             cache_file.parent.mkdir(parents=True, exist_ok=True)
             np.save(cache_file, arr, allow_pickle=False)
         except Exception as e:
-            logger.debug("Failed to cache embedding %s: %s", cache_key, e)
+            # Disk-full, permission errors etc. — warn so operators can act.
+            logger.warning("Failed to cache embedding %s: %s", cache_key, e)
 
     def clear(self) -> None:
         """Clear all cached embeddings."""
         try:
             for cache_file in self.cache_dir.glob(f"*{_CACHE_EXT}"):
                 cache_file.unlink(missing_ok=True)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning("Failed to clear embedding cache at %s: %s", self.cache_dir, e)
 
     def size(self) -> int:
         """Get the number of cached embeddings."""
         try:
             return sum(1 for _ in self.cache_dir.glob(f"*{_CACHE_EXT}"))
-        except Exception:
+        except Exception as e:
+            logger.debug("Could not count cached embeddings in %s: %s", self.cache_dir, e)
             return 0
 
     def stats(self) -> CacheStats:
