@@ -29,3 +29,17 @@ class RetrievalStats:
     method_usage: Dict[str, int] = field(default_factory=lambda: dict(_DEFAULT_METHOD_USAGE))
     avg_response_time: float = 0.0
     total_response_time: float = 0.0
+
+    def update_response_time(self, elapsed: float) -> None:
+        """Increment query count and recompute the running average atomically.
+
+        Callers that hold an external lock can delegate all stats bookkeeping
+        here, eliminating the TOCTOU hazard of reading total_queries outside
+        the lock after updating total_response_time inside it.
+
+        Args:
+            elapsed: Wall-clock seconds for the most recent query.
+        """
+        self.total_queries += 1
+        self.total_response_time += elapsed
+        self.avg_response_time = self.total_response_time / self.total_queries
