@@ -44,31 +44,39 @@ class RedisClient:
         return cls._instance
 
     def __init__(self):
-        """Initialize Redis connection pool."""
-        if self._redis_conn is None:
-            try:
-                s = _get_settings()
-                # Parse Redis URL and create connection pool
-                self._redis_conn = redis.from_url(
-                    s.redis_url,
-                    decode_responses=True,
-                    socket_connect_timeout=5,
-                    socket_keepalive=True,
-                    health_check_interval=30
-                )
-                # Test connection
-                self._redis_conn.ping()
-                logger.info("Redis connection established")
-            except Exception as e:
-                logger.error("Failed to connect to Redis: %s", e)
-                raise
+        """Initialize Redis connection pool.
+
+        Uses getattr guard because __slots__ raises AttributeError (not returns
+        None) when a slot has never been assigned on a fresh instance.
+        """
+        if getattr(self, '_redis_conn', None) is None:
+            self._redis_conn = None  # initialise slot explicitly
+            self._connect()
+
+    def _connect(self) -> None:
+        """Establish the Redis connection.  Separated from __init__ so the
+        *conn* property can reconnect without re-entering __init__."""
+        try:
+            s = _get_settings()
+            self._redis_conn = redis.from_url(
+                s.redis_url,
+                decode_responses=True,
+                socket_connect_timeout=5,
+                socket_keepalive=True,
+                health_check_interval=30
+            )
+            self._redis_conn.ping()
+            logger.info("Redis connection established")
+        except Exception as e:
+            logger.error("Failed to connect to Redis: %s", e)
+            raise
 
     @property
     def conn(self) -> redis.Redis:
-        """Get Redis connection."""
-        if self._redis_conn is None:
-            self.__init__()
-        return self._redis_conn
+        """Get Redis connection, reconnecting if the slot was cleared."""
+        if getattr(self, '_redis_conn', None) is None:
+            self._connect()
+        return self._redis_conn  # type: ignore[return-value]
 
     def get(self, key: str) -> Optional[Any]:
         """Get value from cache.
