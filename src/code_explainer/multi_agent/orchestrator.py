@@ -57,9 +57,14 @@ class MultiAgentOrchestrator:
                 return None
         
         # Reuse the persistent executor — no thread creation/teardown overhead per call
+        _AGENT_TIMEOUT = 30  # seconds; prevents a hung agent from blocking forever
         futures = [self._executor.submit(analyze_with_agent, item) for item in self.agents.items()]
         for future in concurrent.futures.as_completed(futures):
-            result = future.result()
+            try:
+                result = future.result(timeout=_AGENT_TIMEOUT)
+            except concurrent.futures.TimeoutError:
+                logger.error("Agent timed out after %d seconds", _AGENT_TIMEOUT)
+                result = None
             if result is not None:
                 components.append(result)
 
