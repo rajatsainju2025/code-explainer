@@ -78,22 +78,17 @@ class RateLimiter:
         current_time = time.time()
         cutoff_time = current_time - 300  # Keep 5 minutes of history
 
-        clients_to_remove = []
-        for client_id, requests in self.requests.items():
-            # Remove old requests
+        # Single pass: trim each client's deque, then rebuild without empty entries
+        for requests in self.requests.values():
             while requests and requests[0] < cutoff_time:
                 requests.popleft()
 
-            # Mark empty clients for removal
-            if not requests:
-                clients_to_remove.append(client_id)
-
-        # Remove empty clients
-        for client_id in clients_to_remove:
-            del self.requests[client_id]
+        before = len(self.requests)
+        self.requests = defaultdict(deque, {k: v for k, v in self.requests.items() if v})
+        removed = before - len(self.requests)
 
         self.last_cleanup = _monotonic()
-        logger.debug("Cleaned up rate limiter, removed %d clients", len(clients_to_remove))
+        logger.debug("Cleaned up rate limiter, removed %d clients", removed)
 
 
 class AuditLogger:
