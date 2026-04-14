@@ -52,15 +52,20 @@ logger = logging.getLogger(__name__)
 _VALID_DEVICE_TYPES: FrozenSet[str] = frozenset({'cpu', 'cuda', 'mps', 'auto'})
 _DEFAULT_DEVICE_ORDER = ('cuda', 'mps', 'cpu')
 
-# Lazy torch import
+# Lazy torch import — double-checked locking prevents duplicate initialisation
+# when multiple threads call _get_torch() simultaneously at startup.
 _torch = None
+_torch_lock = threading.Lock()
+
 
 def _get_torch():
-    """Lazily import torch to speed up module loading."""
+    """Lazily import torch, using double-checked locking for thread safety."""
     global _torch
     if _torch is None:
-        import torch as _t
-        _torch = _t
+        with _torch_lock:
+            if _torch is None:
+                import torch as _t
+                _torch = _t
     return _torch
 
 
