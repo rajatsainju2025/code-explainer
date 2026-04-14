@@ -1,6 +1,7 @@
 """FAISS index management for vector search."""
 
 import logging
+import threading
 from collections import OrderedDict
 from pathlib import Path
 from typing import Any, List, Optional, Tuple
@@ -21,8 +22,8 @@ class FAISSIndex:
     """Manages FAISS index for vector similarity search."""
     
     # Use __slots__ to reduce per-instance memory overhead
-    __slots__ = ('model', 'batch_size', 'index', '_dimension', '_query_cache', 
-                 '_cache_max_size')
+    __slots__ = ('model', 'batch_size', 'index', '_dimension', '_query_cache',
+                 '_cache_max_size', '_cache_lock')
 
     def __init__(self, model: SentenceTransformer, batch_size: int = 32):
         if not HAS_FAISS:
@@ -34,6 +35,7 @@ class FAISSIndex:
         self._dimension: Optional[int] = None
         self._query_cache: OrderedDict = OrderedDict()  # LRU cache
         self._cache_max_size = 256  # Increased from 200 for better hit rate
+        self._cache_lock = threading.Lock()
 
     def build_index(self, codes: List[str], use_ivf: Optional[bool] = None, nlist: int = 100) -> None:
         """Build FAISS index from code snippets.
@@ -101,10 +103,11 @@ class FAISSIndex:
 
         # Check cache for repeated queries
         cache_key = (query_code, k)
-        if cache_key in self._query_cache:
-            # Move to end (most recently used)
-            self._query_cache.move_to_end(cache_key)
-            return self._query_cache[cache_key]
+        with self._cache_lock:
+            if cache_key in self._query_cache:
+                # Move to end (most recently used)
+                self._query_cache.move_to_end(cache_key)
+                return self._query_cache[cache_key]
 
         query_embedding = self.model.encode(
             [query_code], 
@@ -117,9 +120,10 @@ class FAISSIndex:
         distances, indices = self.index.search(query_embedding, k_actual)
         
         # Cache result with LRU eviction
-        self._query_cache[cache_key] = (distances, indices)
-        if len(self._query_cache) > self._cache_max_size:
-            self._query_cache.popitem(last=False)  # Remove oldest
+        with self._cache_lock:
+            self._query_cache[cache_key] = (distances, indices)
+            if len(self._query_cache) > self._cache_max_size:
+                self._query_cache.popitem(last=False)  # Remove oldest
         
         return distances, indices
 
