@@ -68,6 +68,15 @@ class CacheTTLConfig:
             ) != "1",
         )
 
+    def __repr__(self) -> str:
+        return (
+            f"CacheTTLConfig("
+            f"embedding_ttl={self.embedding_cache_ttl_seconds}s, "
+            f"explanation_ttl={self.explanation_cache_ttl_seconds}s, "
+            f"model_ttl={self.model_info_cache_ttl_seconds}s, "
+            f"enforce={self.enable_ttl_enforcement})"
+        )
+
 
 class TTLCache:
     """Simple TTL-aware cache with bounded size.
@@ -158,3 +167,7 @@ class TTLCache:
             removed += 1
 
         return removed
+
+    def __repr__(self) -> str:
+        cap = str(self.max_size) if self.max_size > 0 else "∞"
+        return f"TTLCache(ttl={self.ttl_seconds}s, size={len(self._cache)}/{cap})"
