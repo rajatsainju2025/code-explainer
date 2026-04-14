@@ -101,7 +101,9 @@ class AdvancedHybridSearch:
         # Convert to dictionaries for easy merging
         faiss_dict = dict(faiss_results)
         bm25_dict = dict(bm25_results)
-        candidate_count = len(faiss_dict) + len([idx for idx in bm25_dict if idx not in faiss_dict])
+        # dict_keys supports set subtraction in O(len(bm25_dict)) without
+        # building an intermediate list.
+        candidate_count = len(faiss_dict) + len(bm25_dict.keys() - faiss_dict.keys())
 
         if candidate_count <= _SMALL_RESULTSET_THRESHOLD:
             return self._linear_fusion_small(faiss_dict, bm25_dict, k)
