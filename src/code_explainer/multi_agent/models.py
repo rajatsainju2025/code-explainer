@@ -30,3 +30,13 @@ class ExplanationComponent:
     content: str
     confidence: float
     metadata: Dict[str, Any]
+
+    def __repr__(self) -> str:
+        # Truncate long content for readable reprs in logs / debugger
+        preview = self.content[:60] + "…" if len(self.content) > 60 else self.content
+        return (
+            f"ExplanationComponent(agent_id={self.agent_id!r}, "
+            f"component_type={self.component_type!r}, "
+            f"confidence={self.confidence:.2f}, "
+            f"content={preview!r})"
+        )
