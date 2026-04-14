@@ -68,7 +68,7 @@ class PersistentModelCache:
             Path to the cache file
         """
         # Create a safe filename from model name using fast hash
-        safe_name = self._safe_name(model_name)
+        safe_name = _safe_model_name(model_name)
         return self.cache_dir / f"{safe_name}.pkl"
 
     def _get_lock_path(self, model_name: str) -> Path:
@@ -80,13 +80,8 @@ class PersistentModelCache:
         Returns:
             Path to the lock file
         """
-        safe_name = self._safe_name(model_name)
+        safe_name = _safe_model_name(model_name)
         return self._lock_dir / f"{safe_name}.lock"
-
-    @staticmethod
-    def _safe_name(model_name: str) -> str:
-        """Compute a deterministic, filesystem-safe hash for model names."""
-        return _safe_model_name(model_name)
 
     def get(self, model_name: str) -> Optional[SentenceTransformer]:
         """Get a model from cache if available.
