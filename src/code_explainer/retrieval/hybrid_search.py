@@ -22,6 +22,15 @@ class FusionStrategy(Enum):
     DISTRIBUTION_BASED = "distribution_based"  # Distribution-based fusion
 
 
+# Module-level dispatch avoids a per-call if/elif chain.
+# Values are *method names* (strings) so no forward-reference issues.
+_STRATEGY_METHOD: dict = {
+    FusionStrategy.LINEAR: "_linear_fusion",
+    FusionStrategy.RRF: "_rrf_fusion",
+    FusionStrategy.DISTRIBUTION_BASED: "_distribution_fusion",
+}
+
+
 class AdvancedHybridSearch:
     """Advanced hybrid search with multiple fusion strategies and query expansion."""
     
@@ -53,14 +62,8 @@ class AdvancedHybridSearch:
         if not faiss_results and not bm25_results:
             return []
 
-        if self.fusion_strategy == FusionStrategy.LINEAR:
-            return self._linear_fusion(faiss_results, bm25_results, k)
-        elif self.fusion_strategy == FusionStrategy.RRF:
-            return self._rrf_fusion(faiss_results, bm25_results, k)
-        elif self.fusion_strategy == FusionStrategy.DISTRIBUTION_BASED:
-            return self._distribution_fusion(faiss_results, bm25_results, k)
-        else:
-            return self._linear_fusion(faiss_results, bm25_results, k)
+        method_name = _STRATEGY_METHOD.get(self.fusion_strategy, "_linear_fusion")
+        return getattr(self, method_name)(faiss_results, bm25_results, k)
 
     def _faiss_search(self, query: str, k: int) -> List[Tuple[int, float]]:
         """Perform FAISS search."""
