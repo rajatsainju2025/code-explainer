@@ -2,6 +2,7 @@
 
 import ast
 import gc
+import types
 from typing import Any, List, Optional, Dict, TYPE_CHECKING, cast
 import torch
 
@@ -15,8 +16,9 @@ _MAX_BATCH_SIZE = 100
 if TYPE_CHECKING:
     from transformers import PreTrainedModel, PreTrainedTokenizerBase
 
-# Pre-allocate empty tensors for common operations
-_EMPTY_DICT: Dict[str, Any] = {}
+# Pre-allocate empty mapping sentinel – MappingProxyType is immutable so
+# accidental mutation (e.g. in a buggy mock) is caught at runtime.
+_EMPTY_DICT: types.MappingProxyType = types.MappingProxyType({})
 
 
 class CodeExplainerExplanationMixin:
