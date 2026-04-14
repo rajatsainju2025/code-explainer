@@ -2,6 +2,7 @@
 
 import os
 import re
+import threading
 from functools import lru_cache
 from typing import List, Tuple
 from concurrent.futures import ThreadPoolExecutor
@@ -11,12 +12,13 @@ class TextTokenizer:
     """Tokenizer for text processing in retrieval systems."""
     
     # Use __slots__ to reduce memory footprint
-    __slots__ = ('token_pattern', '_executor')
+    __slots__ = ('token_pattern', '_executor', '_executor_lock')
 
     def __init__(self):
         # Pre-compile regex pattern for better performance
         self.token_pattern = re.compile(r"[^A-Za-z0-9_]+")
-        self._executor = None
+        self._executor: ThreadPoolExecutor | None = None
+        self._executor_lock = threading.Lock()
 
     @lru_cache(maxsize=4096)  # Doubled from 2048 for better hit rate
     def tokenize(self, text: str) -> Tuple[str, ...]:
@@ -43,9 +45,10 @@ class TextTokenizer:
         
         # For large batches, use parallel processing
         if self._executor is None:
-            # Use optimal worker count based on CPU count
-            workers = min(8, os.cpu_count() or 4)
-            self._executor = ThreadPoolExecutor(max_workers=workers)
+            with self._executor_lock:
+                if self._executor is None:  # double-checked locking
+                    workers = min(8, os.cpu_count() or 4)
+                    self._executor = ThreadPoolExecutor(max_workers=workers)
 
         # Process in parallel and convert tuples to lists
         results = list(self._executor.map(self.tokenize, texts))
