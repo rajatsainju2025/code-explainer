@@ -21,17 +21,27 @@ import threading
 
 import importlib
 
+# Cached reference to the hashing module – populated on first use so that the
+# circular-import risk is avoided while paying the importlib lookup cost only once.
+_hashing_mod = None
+
+
+def _get_hashing_mod():
+    """Return (and cache) the utils.hashing module to avoid per-call importlib overhead."""
+    global _hashing_mod
+    if _hashing_mod is None:
+        _hashing_mod = importlib.import_module('.utils.hashing', package=__package__)
+    return _hashing_mod
+
 
 def _json_loads(b: bytes):
     """Lazily import and call json_loads to avoid circular imports."""
-    mod = importlib.import_module('.utils.hashing', package=__package__)
-    return mod.json_loads(b)
+    return _get_hashing_mod().json_loads(b)
 
 
 def _json_dumps(obj) -> str:
     """Lazily import and call json_dumps to avoid circular imports."""
-    mod = importlib.import_module('.utils.hashing', package=__package__)
-    return mod.json_dumps(obj)
+    return _get_hashing_mod().json_dumps(obj)
 
 if TYPE_CHECKING:
     import torch
