@@ -188,6 +188,15 @@ class DatabaseConfig:
                 pool_recycle=self.pool_recycle,
             )
 
+    def __repr__(self) -> str:
+        # Strip credentials from the URL for safe logging / debugging
+        safe_url = self.url.split("@")[-1] if "@" in self.url else self.url
+        return (
+            f"DatabaseConfig(url=...{safe_url}, "
+            f"pool_size={self.pool_size}, "
+            f"echo={self.echo})"
+        )
+
 
 class DatabaseManager:
     """Database session and operation manager."""
