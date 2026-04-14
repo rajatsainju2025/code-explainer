@@ -4,8 +4,11 @@ Consolidates duplicate xxhash/hashlib fallback patterns and orjson/json
 fallback patterns that were previously copy-pasted across 5+ modules.
 """
 
+import logging
 from functools import lru_cache
 from typing import Any
+
+_logger = logging.getLogger(__name__)
 
 
 _MAX_CACHED_HASH_INPUT_SIZE = 2048
@@ -14,6 +17,7 @@ _MAX_CACHED_HASH_INPUT_SIZE = 2048
 
 try:
     import xxhash
+    _logger.debug("Hash backend: xxhash (fast path active)")
 
     @lru_cache(maxsize=8192)
     def _fast_hash_bytes_cached(data: bytes) -> str:
@@ -45,6 +49,7 @@ try:
 
 except ImportError:
     import hashlib
+    _logger.debug("Hash backend: hashlib/MD5 (xxhash not installed; pip install xxhash for faster hashing)")
 
     @lru_cache(maxsize=8192)
     def _fast_hash_bytes_cached(data: bytes) -> str:
@@ -79,6 +84,7 @@ fast_hash_str.cache_clear = _fast_hash_str_cached.cache_clear  # type: ignore[at
 
 try:
     import orjson
+    _logger.debug("JSON backend: orjson (fast path active)")
 
     def json_loads(s: str | bytes) -> Any:
         """Load JSON using orjson (3-10x faster than stdlib)."""
@@ -90,6 +96,7 @@ try:
 
 except ImportError:
     import json
+    _logger.debug("JSON backend: stdlib json (orjson not installed; pip install orjson for faster serialisation)")
 
     def json_loads(s: str | bytes) -> Any:  # type: ignore[misc]
         """Load JSON using stdlib."""
