@@ -32,7 +32,7 @@ try:
     )
     INTELLIGENT_EXPLAINER_AVAILABLE = True
 except ImportError as e:
-    logging.getLogger(__name__).warning(f"Intelligent explainer not available: {e}")
+    logging.getLogger(__name__).warning("Intelligent explainer not available: %s", e)
     INTELLIGENT_EXPLAINER_AVAILABLE = False
     IntelligentExplanationGenerator = None
     ExplanationAudience = None
