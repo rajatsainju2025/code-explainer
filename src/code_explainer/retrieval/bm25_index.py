@@ -30,6 +30,10 @@ class BM25Index:
         self.bm25: Optional[Any] = None
         self.corpus_size = 0
 
+    def __repr__(self) -> str:
+        state = "built" if self.bm25 is not None else "empty"
+        return f"BM25Index(corpus_size={self.corpus_size}, state={state!r})"
+
     def build_index(self, codes: List[str], batch_size: int = 1000) -> None:
         """Build BM25 index from code snippets with optimized batching.
         
