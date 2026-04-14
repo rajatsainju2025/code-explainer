@@ -37,6 +37,15 @@ class FAISSIndex:
         self._cache_max_size = 256  # Increased from 200 for better hit rate
         self._cache_lock = threading.Lock()
 
+    def __repr__(self) -> str:
+        state = "built" if self.index is not None else "empty"
+        dim = self._dimension if self._dimension is not None else "?"
+        return (
+            f"FAISSIndex(state={state!r}, dimension={dim}, "
+            f"batch_size={self.batch_size}, "
+            f"query_cache={len(self._query_cache)}/{self._cache_max_size})"
+        )
+
     def build_index(self, codes: List[str], use_ivf: Optional[bool] = None, nlist: int = 100) -> None:
         """Build FAISS index from code snippets.
         
