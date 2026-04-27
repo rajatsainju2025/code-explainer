@@ -114,17 +114,13 @@ def analyze_code_comprehensive(code: str) -> ASTInfo:
         
         # Complexity hints: track loop depth without nested ast.walk
         elif node_type in (ast.For, ast.While):
-            # Use iter_child_nodes to check immediate children for nested loops
-            for child in ast.iter_child_nodes(node):
-                if isinstance(child, (ast.For, ast.While)):
+            # Check body statements directly for an immediately nested loop.
+            # ast.iter_child_nodes never yields list objects, so the previous
+            # isinstance(child, list) branch was unreachable dead code.
+            for stmt in getattr(node, "body", ()):
+                if isinstance(stmt, (ast.For, ast.While)):
                     complexity_hints.append("nested_loop")
                     break
-                # Also check inside the body list directly
-                if isinstance(child, list):
-                    for sub in child:
-                        if isinstance(sub, (ast.For, ast.While)):
-                            complexity_hints.append("nested_loop")
-                            break
     
     return ASTInfo(
         functions=tuple(funcs),
