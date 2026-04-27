@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import threading
 from functools import lru_cache
 from typing import TYPE_CHECKING, Any, Dict, List
 
@@ -28,6 +29,7 @@ _ENHANCED_PREFIX: str = "You are a helpful assistant that uses the following sim
 
 # Retriever singleton for enhanced RAG (lazy loaded)
 _retriever_instance: "CodeRetriever | None" = None
+_retriever_lock = threading.Lock()
 
 
 @lru_cache(maxsize=64)
@@ -37,11 +39,13 @@ def _cached_default_template(lang: str) -> str:
 
 
 def _get_retriever() -> "CodeRetriever":
-    """Get or create singleton retriever instance."""
+    """Get or create singleton retriever instance (thread-safe)."""
     global _retriever_instance
     if _retriever_instance is None:
-        from ..retrieval.retriever import CodeRetriever
-        _retriever_instance = CodeRetriever()
+        with _retriever_lock:
+            if _retriever_instance is None:  # double-checked locking
+                from ..retrieval.retriever import CodeRetriever
+                _retriever_instance = CodeRetriever()
     return _retriever_instance
 
 
