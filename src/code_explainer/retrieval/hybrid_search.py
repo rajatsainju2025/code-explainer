@@ -42,6 +42,10 @@ class AdvancedHybridSearch:
                  fusion_strategy: FusionStrategy = FusionStrategy.LINEAR,
                  alpha: float = 0.5,
                  rrf_k: int = 60):
+        if not (0.0 <= alpha <= 1.0):
+            raise ValueError(f"alpha must be in [0, 1], got {alpha!r}")
+        if rrf_k <= 0:
+            raise ValueError(f"rrf_k must be a positive integer, got {rrf_k!r}")
         self.faiss_index = faiss_index
         self.bm25_index = bm25_index
         self.fusion_strategy = fusion_strategy
