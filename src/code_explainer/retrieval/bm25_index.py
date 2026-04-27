@@ -39,20 +39,20 @@ class BM25Index:
         return self.corpus_size
 
     def build_index(self, codes: List[str], batch_size: int = 1000) -> None:
-        """Build BM25 index from code snippets with optimized batching.
-        
+        """Build BM25 index from code snippets.
+
         Args:
-            codes: List of code snippets to index
-            batch_size: Size of batches for tokenization (for large corpora)
+            codes: List of code snippets to index.
+            batch_size: Tokenisation batch size.  For large corpora this
+                limits the number of documents tokenised at once so the
+                tokenizer thread-pool can start returning results sooner,
+                but the full tokenised corpus is still held in memory
+                before BM25Okapi is constructed (BM25Okapi requires the
+                complete corpus up-front).
         """
-        # For large corpora, tokenize in batches to reduce memory peaks
-        if len(codes) > batch_size:
-            tokenized_corpus = []
-            for i in range(0, len(codes), batch_size):
-                batch = codes[i:i + batch_size]
-                tokenized_corpus.extend(tokenizer.tokenize_list(batch))
-        else:
-            tokenized_corpus = tokenizer.tokenize_list(codes)
+        tokenized_corpus: List[List[str]] = []
+        for i in range(0, len(codes), batch_size):
+            tokenized_corpus.extend(tokenizer.tokenize_list(codes[i:i + batch_size]))
         
         self.bm25 = BM25Okapi(tokenized_corpus)
         self.corpus_size = len(codes)
