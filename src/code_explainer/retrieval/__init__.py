@@ -8,14 +8,14 @@ from .tokenization import tokenizer, TextTokenizer
 from .models import RetrievalConfig, RetrievalStats
 
 __all__ = [
-    "CodeRetriever",
-    "HybridSearch",
     "AdvancedHybridSearch",
-    "FusionStrategy",
-    "FAISSIndex",
     "BM25Index",
-    "tokenizer",
-    "TextTokenizer",
+    "CodeRetriever",
+    "FAISSIndex",
+    "FusionStrategy",
+    "HybridSearch",
     "RetrievalConfig",
     "RetrievalStats",
+    "TextTokenizer",
+    "tokenizer",
 ]
