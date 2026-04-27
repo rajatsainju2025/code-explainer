@@ -1,5 +1,6 @@
 """Text tokenization utilities for retrieval."""
 
+import atexit
 import os
 import re
 import threading
@@ -49,13 +50,18 @@ class TextTokenizer:
                 if self._executor is None:  # double-checked locking
                     workers = min(8, os.cpu_count() or 4)
                     self._executor = ThreadPoolExecutor(max_workers=workers)
+                    atexit.register(self._executor.shutdown, wait=False)
 
         # Process in parallel and convert tuples to lists
         results = list(self._executor.map(self.tokenize, texts))
         return [list(r) for r in results]
 
     def __del__(self) -> None:
-        """Shutdown the thread-pool executor to release OS threads on GC."""
+        """Shutdown the thread-pool executor to release OS threads on GC.
+
+        atexit handles the normal interpreter-exit path; __del__ covers the
+        rare case of explicit object deletion before exit.
+        """
         executor = getattr(self, '_executor', None)
         if executor is not None:
             executor.shutdown(wait=False)
