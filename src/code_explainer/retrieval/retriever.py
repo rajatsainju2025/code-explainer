@@ -147,7 +147,15 @@ class CodeRetriever:
 
     def retrieve_similar_code(self, query_code: str, k: int = 3,
                              method: str = "faiss", alpha: float = 0.5) -> List[str]:
-        """Retrieve similar code snippets."""
+        """Retrieve similar code snippets.
+
+        Args:
+            query_code: Code snippet to search for.
+            k: Number of results to return.
+            method: One of ``"faiss"``, ``"bm25"``, or ``"hybrid"``.
+            alpha: Blending weight for hybrid search (0 = BM25-only,
+                   1 = FAISS-only).  Ignored for non-hybrid methods.
+        """
         if not self.code_corpus:
             from ..exceptions import ResourceError
             raise ResourceError("Index is not loaded or built", resource_type="faiss_index")
@@ -165,7 +173,8 @@ class CodeRetriever:
         elif method == "bm25":
             _, indices = self.bm25_index.search(query_code, k)
             result_indices = [int(i) for i in indices]
-        else:  # hybrid
+        else:  # hybrid — honour the caller-supplied alpha
+            self.hybrid_search.alpha = alpha
             results = self.hybrid_search.search(query_code, k)
             result_indices = [i for i, _ in results]
 
