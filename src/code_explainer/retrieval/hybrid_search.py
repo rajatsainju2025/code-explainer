@@ -3,7 +3,7 @@
 import heapq
 import logging
 from enum import Enum
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, Final, List, Tuple, Optional
 
 import numpy as np
 
@@ -12,7 +12,7 @@ from .faiss_index import FAISSIndex
 
 logger = logging.getLogger(__name__)
 
-_SMALL_RESULTSET_THRESHOLD = 64
+_SMALL_RESULTSET_THRESHOLD: Final[int] = 64
 
 
 class FusionStrategy(Enum):
@@ -24,7 +24,7 @@ class FusionStrategy(Enum):
 
 # Module-level dispatch avoids a per-call if/elif chain.
 # Values are *method names* (strings) so no forward-reference issues.
-_STRATEGY_METHOD: dict = {
+_STRATEGY_METHOD: Final[dict] = {
     FusionStrategy.LINEAR: "_linear_fusion",
     FusionStrategy.RRF: "_rrf_fusion",
     FusionStrategy.DISTRIBUTION_BASED: "_distribution_fusion",

@@ -13,7 +13,7 @@ import threading
 from concurrent.futures import ThreadPoolExecutor, wait as futures_wait
 from pathlib import Path
 from time import perf_counter
-from typing import List, Optional, TYPE_CHECKING
+from typing import Final, List, Optional, TYPE_CHECKING
 
 from ..utils.hashing import json_dumps, json_loads
 
@@ -29,7 +29,7 @@ from .model_cache import get_cached_model
 logger = logging.getLogger(__name__)
 
 # Pre-compute valid methods set for O(1) lookup
-_VALID_METHODS = frozenset({"faiss", "bm25", "hybrid"})
+_VALID_METHODS: Final[frozenset] = frozenset({"faiss", "bm25", "hybrid"})
 
 
 class CodeRetriever:
