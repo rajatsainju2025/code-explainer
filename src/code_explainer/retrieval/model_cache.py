@@ -9,11 +9,20 @@ Optimized with:
 import logging
 import os
 import pickle
+import sys
 import threading
 from functools import lru_cache
 from pathlib import Path
 from typing import Dict, Optional, Any
-from fcntl import flock, LOCK_SH, LOCK_EX, LOCK_UN
+
+# fcntl is Unix-only; fall back to a no-op on Windows.
+if sys.platform != "win32":
+    from fcntl import flock, LOCK_SH, LOCK_EX, LOCK_UN
+else:  # pragma: no cover – Windows path
+    def flock(fd: int, operation: int) -> None:  # type: ignore[misc]
+        """No-op file locking shim for Windows (fcntl unavailable)."""
+
+    LOCK_SH = LOCK_EX = LOCK_UN = 0
 
 from sentence_transformers import SentenceTransformer
 
