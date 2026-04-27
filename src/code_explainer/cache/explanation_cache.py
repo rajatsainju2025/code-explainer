@@ -1,12 +1,14 @@
 """Explanation cache implementation."""
 
 import heapq
+import logging
 import time
 import threading
 from typing import Any, Dict, Optional
-from collections import deque
 
 from ..utils.hashing import json_loads, json_dumps
+
+logger = logging.getLogger(__name__)
 
 from .base_cache import BaseCache, MemoryCache
 from .models import CacheConfig, CacheStats
@@ -194,8 +196,7 @@ class ExplanationCache(BaseCache):
             compressed_bytes, is_compressed = compress_data(explanation)
             safe_file_operation(cache_file, "wb", compressed_bytes)
         except Exception as e:
-            import logging
-            logging.getLogger(__name__).warning(
+            logger.warning(
                 "Failed to cache explanation for key %s: %s", cache_key, e
             )
             return
@@ -228,8 +229,7 @@ class ExplanationCache(BaseCache):
                 self._queue_index_write(cache_key, "update")
 
             except Exception as e:
-                import logging
-                logging.getLogger(__name__).warning(
+                logger.warning(
                     "Failed to cache explanation for key %s: %s", cache_key, e
                 )
     
