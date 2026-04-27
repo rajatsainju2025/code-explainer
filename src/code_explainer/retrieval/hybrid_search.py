@@ -174,9 +174,9 @@ class AdvancedHybridSearch:
             for rank, (idx, _) in enumerate(bm25_results, 1):
                 rrf_scores[idx] = rrf_scores.get(idx, 0.0) + 1.0 / (self.rrf_k + rank)
 
-        # Sort by RRF score
-        fused_results = sorted(rrf_scores.items(), key=lambda x: x[1], reverse=True)
-        return fused_results[:k]
+        # heapq.nlargest is O(n log k) vs O(n log n) for a full sort —
+        # measurably faster when k << n (the typical case).
+        return heapq.nlargest(k, rrf_scores.items(), key=lambda x: x[1])
 
     def _distribution_fusion(self,
                            faiss_results: List[Tuple[int, float]],
