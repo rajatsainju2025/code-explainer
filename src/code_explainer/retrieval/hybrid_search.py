@@ -93,6 +93,20 @@ class AdvancedHybridSearch:
             logger.warning("BM25 search failed: %s", e)
             return []
 
+    @staticmethod
+    def _normalize_scores_dict(scores: Dict[int, float]) -> Dict[int, float]:
+        """Min-max normalise a {index: score} dict to [0, 1].
+
+        Returns the original dict unchanged when it is empty or all values are
+        identical (range == 0).
+        """
+        if not scores:
+            return scores
+        lo = min(scores.values())
+        hi = max(scores.values())
+        r = (hi - lo) or 1.0
+        return {idx: (v - lo) / r for idx, v in scores.items()}
+
     def _linear_fusion(self,
                       faiss_results: List[Tuple[int, float]],
                       bm25_results: List[Tuple[int, float]],
@@ -141,15 +155,7 @@ class AdvancedHybridSearch:
         k: int,
     ) -> List[Tuple[int, float]]:
         """Low-overhead linear fusion for typical small top-k result sets."""
-        normalized_bm25 = bm25_dict
-        if bm25_dict:
-            bm_min = min(bm25_dict.values())
-            bm_max = max(bm25_dict.values())
-            bm_range = (bm_max - bm_min) or 1.0
-            normalized_bm25 = {
-                idx: (score - bm_min) / bm_range
-                for idx, score in bm25_dict.items()
-            }
+        normalized_bm25 = self._normalize_scores_dict(bm25_dict)
 
         fused_scores = {
             idx: self.alpha * faiss_dict.get(idx, 0.0)
