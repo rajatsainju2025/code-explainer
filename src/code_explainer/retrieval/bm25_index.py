@@ -34,6 +34,10 @@ class BM25Index:
         state = "built" if self.bm25 is not None else "empty"
         return f"BM25Index(corpus_size={self.corpus_size}, state={state!r})"
 
+    def __len__(self) -> int:
+        """Return the number of documents in the index."""
+        return self.corpus_size
+
     def build_index(self, codes: List[str], batch_size: int = 1000) -> None:
         """Build BM25 index from code snippets with optimized batching.
         

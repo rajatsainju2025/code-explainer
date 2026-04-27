@@ -46,6 +46,12 @@ class FAISSIndex:
             f"query_cache={len(self._query_cache)}/{self._cache_max_size})"
         )
 
+    def __len__(self) -> int:
+        """Return the number of vectors in the index (0 if not built)."""
+        if self.index is None:
+            return 0
+        return int(self.index.ntotal)
+
     def build_index(self, codes: List[str], use_ivf: Optional[bool] = None, nlist: int = 100) -> None:
         """Build FAISS index from code snippets.
         
