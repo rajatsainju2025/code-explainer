@@ -7,13 +7,12 @@ import threading
 from typing import Any, Dict, Optional
 
 from ..utils.hashing import json_loads, json_dumps
-
-logger = logging.getLogger(__name__)
-
 from .base_cache import BaseCache, MemoryCache
 from .models import CacheConfig, CacheStats
 from .utils import (calculate_cache_score, compress_data, decompress_data,
                    generate_cache_key, is_expired, safe_file_operation)
+
+logger = logging.getLogger(__name__)
 
 
 class ExplanationCache(BaseCache):
