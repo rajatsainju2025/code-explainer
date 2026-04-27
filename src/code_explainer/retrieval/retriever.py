@@ -192,3 +192,8 @@ class CodeRetriever:
     def index(self):
         """Backward-compatible alias for the underlying FAISS index instance."""
         return self.faiss_index
+
+    @property
+    def total_queries(self) -> int:
+        """Total number of retrieval queries executed in this session."""
+        return self.stats.total_queries
