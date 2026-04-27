@@ -51,11 +51,7 @@ class AdvancedHybridSearch:
     def search(self,
                query: str,
                k: int) -> List[Tuple[int, float]]:
-        """Perform hybrid search."""
-        return self._search_single_query(query, k)
-
-    def _search_single_query(self, query: str, k: int) -> List[Tuple[int, float]]:
-        """Search with a single query using configured fusion strategy."""
+        """Perform hybrid search combining FAISS and BM25 results."""
         faiss_results = self._faiss_search(query, k)
         bm25_results = self._bm25_search(query, k)
 
