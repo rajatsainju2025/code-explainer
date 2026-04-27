@@ -61,6 +61,8 @@ class ExplanationCache(BaseCache):
         # Cache hit/miss tracking
         self._hits = 0
         self._misses = 0
+        # Deferred cleanup flag — set by _schedule_cleanup, cleared by flush()
+        self._cleanup_pending: bool = False
 
     def __repr__(self) -> str:
         return (
@@ -246,7 +248,7 @@ class ExplanationCache(BaseCache):
                 self._flush_pending_writes_unsafe()
                 
                 # Perform deferred cleanup if needed
-                if getattr(self, '_cleanup_pending', False):
+                if self._cleanup_pending:
                     self._cleanup_if_needed()
                     self._cleanup_pending = False
 
