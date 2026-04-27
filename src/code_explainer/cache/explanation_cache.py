@@ -182,9 +182,10 @@ class ExplanationCache(BaseCache):
             return explanation
     
     def get_hit_rate(self) -> float:
-        """Get cache hit rate for monitoring."""
-        total = self._hits + self._misses
-        return self._hits / total if total > 0 else 0.0
+        """Get cache hit rate for monitoring (thread-safe)."""
+        with self._lock:
+            total = self._hits + self._misses
+            return self._hits / total if total > 0 else 0.0
 
     def put(self, code: str, strategy: str, model_name: str, explanation: str) -> None:
         """Cache an explanation."""
