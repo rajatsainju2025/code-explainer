@@ -50,6 +50,14 @@ class RetrievalStats:
         self.total_response_time += elapsed
         self.avg_response_time = self.total_response_time / self.total_queries
 
+    def reset(self) -> None:
+        """Reset all counters back to zero (useful for benchmarking)."""
+        self.total_queries = 0
+        self.avg_response_time = 0.0
+        self.total_response_time = 0.0
+        for key in self.method_usage:
+            self.method_usage[key] = 0
+
     def __repr__(self) -> str:
         return (
             f"RetrievalStats(total_queries={self.total_queries}, "
